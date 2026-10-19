@@ -361,10 +361,10 @@
     return mesh;
   }
   function addChevrons(a, b) { // red/yellow arrows on the road ahead of a pit: the gap is announced before it arrives
-    if (!TEX.chev) TEX.chev = RUNTEX.canvasTex(64, 32, (g) => { g.fillStyle = 'rgba(255,60,60,.85)'; for (let i = 0; i < 2; i++) { g.beginPath(); g.moveTo(6 + i * 28, 4); g.lineTo(22 + i * 28, 16); g.lineTo(6 + i * 28, 28); g.lineTo(14 + i * 28, 28); g.lineTo(30 + i * 28, 16); g.lineTo(14 + i * 28, 4); g.fill(); } });
+    if (!TEX.chev) TEX.chev = RUNTEX.canvasTex(64, 32, (g) => { g.lineWidth = 3; g.strokeStyle = '#300'; g.fillStyle = '#ff3a2a'; for (let i = 0; i < 2; i++) { g.beginPath(); g.moveTo(6 + i * 28, 4); g.lineTo(22 + i * 28, 16); g.lineTo(6 + i * 28, 28); g.lineTo(14 + i * 28, 28); g.lineTo(30 + i * 28, 16); g.lineTo(14 + i * 28, 4); g.closePath(); g.stroke(); g.fill(); } });
     for (let x = Math.max(a, 0); x < b; x += 1.1) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.chev, depthTest: false, depthWrite: false, transparent: true }));
-      s.scale.set(0.7, 0.32, 1); s.position.set(x, 0.12, 0); s.renderOrder = L.GROUND + 0.3;
+      s.scale.set(1.0, 0.42, 1); s.position.set(x, 0.14, 0); s.renderOrder = L.GROUND + 0.3; s.material.opacity = 0.5 + 0.5 * (x - a) / Math.max(0.1, b - a); // brighter toward the lip
       scene.add(s); props.push({ s, x, pit: true });
     }
   }
@@ -407,7 +407,7 @@
   }
   function addGround(x0, x1, noArt = false) {
     const prev = segs.length ? segs.reduce((a, b) => (b.x1 > a.x1 ? b : a)) : null;
-    if (!noArt && prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(prev.x1 - 0.35); addLip(x0 + 0.35); addRim(prev.x1 - 0.45); addRim(x0 + 0.45); addChevrons(prev.x1 - 3.2, prev.x1 - 0.8); } // just the last few metres before the gap
+    if (!noArt && prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(x0 + 0.35); addRim(prev.x1 - 0.45); addRim(x0 + 0.45); addChevrons(prev.x1 - 5, prev.x1 - 0.7); } // the last five metres before the gap
     segs.push({ x0, x1, mesh: slab(x0, x1, 0, 0 - (GB - 0.6)) });
     if (!noArt && state === 'play' && run.bonus <= 0) {
       const kinds = { city: [3, 2, 3, 1], forest: [0, 0, 1, 2], lab: [2], snow: [2, 1], red: [2, 1, 2] }[STAGES[stageIx].id];
@@ -800,6 +800,9 @@
 
   // bonus time: an obstacle-free field of jelly formations
   const BONUS = [
+    (x0) => { const len = 14; addGround(x0, x0 + len); for (let i = 0; i < 3; i++) jellyArc(x0 + 2.5 + i * 4.5, 3.4 + i * 0.6, 2, i === 2 ? 'gjelly' : 'bear'); jellyLine(x0 + 0.5, x0 + len - 0.5, 0.55, 'coin', 0.7); return len; }, // three rising hops to a gold bar
+    (x0) => { const len = 12; addGround(x0, x0 + len); for (let x = 0.5; x < len; x += 0.45) addItem(x % 1.8 < 0.45 ? 'bear' : 'coin', x0 + x, 2.6 + Math.sin(x * 1.4) * 1.8 * Math.cos(x * 0.35)); return len; }, // a braided ribbon
+    (x0) => { const len = 12; addGround(x0, x0 + len); const c = x0 + 6; for (let r = 0; r < 3; r++) for (let i = 0; i < 10; i++) { const t = i / 10 * Math.PI * 2; addItem(r === 2 ? 'coin' : 'jelly', c + Math.cos(t) * (0.9 + r * 0.7), 3 + Math.sin(t) * (0.9 + r * 0.7)); } addItem('jbig', c, 3); return len; }, // a target of rings round a big cell
     (x0) => { // heart of bears
       const len = 9; addGround(x0, x0 + len);
       for (let t = 0; t < Math.PI * 2; t += Math.PI / 9) {
@@ -824,7 +827,7 @@
   ];
   function pickChunk() {
     if (run.tutQ && run.tutQ.length) return run.tutQ.shift();
-    if (!run.boss && run.bonus <= 0 && traveled > (run.nextRescue == null ? 520 : run.nextRescue) && (!run.evQ || !run.evQ.length)) { run.nextRescue = traveled + rnd(800, 1000); return 'rescue'; }
+    if (!run.boss && !run.pick && run.bonus <= 0 && traveled > (run.nextRescue == null ? 520 : run.nextRescue) && (!run.evQ || !run.evQ.length) && Math.abs(traveled - 1150) > 120 && Math.abs(traveled - 2750) > 120) { run.nextRescue = traveled + rnd(800, 1000); return 'rescue'; }
     if (run.evQ && run.evQ.length) { const k = run.evQ.shift(); if (!run.evQ.length && run.ev) run.ev.endG = true; return k; }
     if (!run.boss && run.bonus <= 0 && traveled > (run.nextEvent || 380) && traveled < run.nextBoss - 250) {
       const ev = EVENTS[(run.evN = (run.evN || 0) + 1) % EVENTS.length];
@@ -1204,6 +1207,7 @@
         popup(PX, P.y + 2.2, 'HP +' + sk.heal);
       },
     },
+    judgement: { start(d) { clipFor('skill', 0.9); P.buff.magnet = Math.max(P.buff.magnet || 0, d); } },
     coinrain: {
       start(d) {
         clipFor('skill', 0.9);
@@ -1255,7 +1259,7 @@
     const all = DATA.BOSSES.filter((b) => SD.ready(b.id));
     if (!all.length) { run.nextBoss += 600; return; }
     const d = all[run.bossCount % all.length];
-    const rig = rigFrom(d.id, d.id === 'e_Nidhogg_N' ? 2.5 : 3.6, FACE_PLAYER); // the dragon is wide: a little smaller so it stays behind the squad
+    const rig = rigFrom(d.id, d.id === 'e_Nidhogg_N' ? 2.8 : 4.0, FACE_PLAYER); // the dragon is wide: a little smaller so it stays behind the squad
     rig.c.setOrder(L.PLAYER - 0.5);
     rig.c.play(rig.c.has('move') ? 'move' : 'idle', null, true);
     rig.g.position.set(-4, 0, 0);
@@ -1418,6 +1422,8 @@
       b.rig.g.position.set(b.x + lx, 0, 0);
       b.rig.c.update(dt);
       if (b.flash > 0) { b.flash -= dt; b.rig.c.setTint(b.flash > 0 ? 2.2 : 1, b.flash > 0 ? 1.4 : 1, b.flash > 0 ? 1.4 : 1); }
+      else if (!b.dying && !b.leaving && b.next < 0.6) { const k = 0.5 + 0.5 * Math.abs(Math.sin(b.t * 18)); b.rig.c.setTint(1 + k, 1 - k * 0.4, 1 - k * 0.4); if (!b.warned) { b.warned = true; popup(b.x + 1.6, 3.4, '!', 'warn'); } } // the wind-up: it glows red before it strikes
+      else { b.warned = false; }
       if (Math.random() < 0.08) puff(b.x + 1.2, 0, 2, 1.2);
       $('bossFill').style.width = Math.max(0, b.hp / BOSS_HP * 100) + '%';
       if (b.dying) {
@@ -1522,7 +1528,7 @@
     if (!run.tut || run.tutSeen[key] || run.boss) return; // never on top of a chase
     run.tutSeen[key] = true;
     const el = $('tutHint');
-    el.textContent = TUT[key];
+    el.textContent = MOBILE ? TUT[key].replace(' · Space', '').replace(' · ↓', '') : TUT[key];
     el.classList.add('on');
     slowMo(0.3, 1.0);
     clearTimeout(tutHint.tm);
@@ -1695,6 +1701,7 @@
   // id -> { start(dur), tick(dt, t), end() }   (t = time since the skill started)
   const UQ = {
     brownie: { // last burst: a grenade into the crowd ahead
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.14; const [mx, my] = muzzle(); const f = aliveAhead(PX + 10)[0]; tracer(mx, my, f ? f.x : mx + rnd(5, 9), f ? foeMid(f) : my + rnd(-0.3, 0.3), 0xffd080); if (Math.random() < 0.4) origStatic('brownie_shoot', mx, my, kOf() * 0.8); }, // the aimed volley never goes quiet
       end() { const t = aliveAhead(PX + 8); if (t.length) { const f = t[0]; origStatic('S_Brownie_ande_bling', f.x, foeMid(f) - 0.3, kOf()); origStatic(ORIG_BOOM, f.x, foeMid(f), kOf()); t.filter((g) => Math.abs(g.x - f.x) < 3).forEach((g) => breakFoe(g, 'shot')); ring(f.x, foeMid(f), 0xffd08a, 4, 0.4); AUDIO.play('expM', 0.7); } },
     },
     leprechaun: { // machine-gun sweep: jellies ahead turn into coins
@@ -1766,6 +1773,8 @@
       tick() { foes.forEach((f) => { if (f.marked && !f.dead && f.x < PX + 3) { origStatic('sniper_hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); } }); },
     },
     saraqael: { // golden judgement: lightning on every enemy, each leaves a coin pile
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.6; const f = aliveAhead(PX + 11).find((g) => !g.dead); const x = f ? f.x : PX + rnd(3, 9); // strikes keep falling through the judgement
+        bolt(x, f ? foeMid(f) : 0.6, 0xffe9a0); origStatic('Saraqael_skill2_Fire_lighting', x, 0.2, kOf() * 0.6); origStatic('Saraqael_skill2_Last_Hit', x, f ? foeMid(f) - 0.3 : 0.4, kOf() * 0.38); if (f) { breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 3); } AUDIO.play('elec', 0.35); },
       end() { origStatic('Saraqael_skill2_Last_Big_Hit', PX + 7, 0.4, kOf() * 0.55); },
       start() { aliveAhead().slice(0, 5).forEach((f) => { bolt(f.x, foeMid(f), 0xffe9a0); origStatic('Saraqael_skill2_Fire_lighting', f.x, 0.2, kOf()); origStatic('Saraqael_skill1_elec_hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); }); AUDIO.play('elec', 0.7); },
     },
