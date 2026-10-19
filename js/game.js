@@ -52,6 +52,7 @@
   const pas = () => P.mods || P.def.pas || {};
 
   // ── renderer / scene ──
+  let abyssArt = null, abyssKey = '';
   let renderer, scene, camera, abyss, W = 1, H = 1, VW = 16, VH = 9.6, PX = 3.2;
   const stageEl = $('stage');
   let TEX;
@@ -363,7 +364,7 @@
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, depthWrite: false, transparent: true }));
     const h = 0.42, w = h * t.image.width / t.image.height;
     s.scale.set(w * 0.7, h, 1); s.position.set(x, 0.08, 0); s.renderOrder = L.PROP;
-    scene.add(s); props.push({ s, x });
+    scene.add(s); props.push({ s, x, pit: true });
   }
   function addEdge(x, side) { // side -1: the ground ends here, +1: it starts again
     if (!TEX.edge) TEX.edge = RUNTEX.canvasTex(32, 128, (g) => {
@@ -376,7 +377,7 @@
     if (wall && wall.image) { // the cliff face is the stage's own road strip, seen side-on and in shadow
       const w = new THREE.Sprite(new THREE.SpriteMaterial({ map: wall, color: 0x4a4a52, depthTest: false, depthWrite: false, transparent: true }));
       w.scale.set(0.5, 0.02 - (GB - 0.6), 1); w.position.set(x + side * 0.25, (0.02 + GB - 0.6) / 2, 0); w.renderOrder = L.GROUND + 0.22; w.material.rotation = Math.PI / 2;
-      scene.add(w); props.push({ s: w, x: x + side * 0.25 });
+      scene.add(w); props.push({ s: w, x: x + side * 0.25, pit: true });
     }
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.edge, depthTest: false, depthWrite: false, transparent: true }));
     const top = 0.02, bot = GB - 0.6;
@@ -384,7 +385,7 @@
     s.position.set(x - side * 0.2, (top + bot) / 2, 0);
     s.renderOrder = L.GROUND + 0.25;
     scene.add(s);
-    props.push({ s, x: x - side * 0.2 });
+    props.push({ s, x: x - side * 0.2, pit: true });
   }
   function addGround(x0, x1) {
     const prev = segs.length ? segs.reduce((a, b) => (b.x1 > a.x1 ? b : a)) : null;
@@ -850,7 +851,7 @@
     clearWorld();
     traveled = 0;
     stageIx = 0;
-    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], ev: null, evQ: null, evN: 0, nextEvent: 700, nextRescue: 1100, rescued: 0, pStreak: 0, perfect: 0,
+    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], timers: [], ev: null, evQ: null, evN: 0, nextEvent: 700, nextRescue: 1100, rescued: 0, pStreak: 0, perfect: 0,
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
     showSet(STAGES[0].id, true);
@@ -1306,7 +1307,19 @@
     $('bossBar').classList.remove('on');
   }
   let lipWarn = null;
+  function updateAbyssArt() { // the shaft walls are the stage's own road strip, deep in shadow
+    if (!abyssArt) return;
+    const key = run.bonus > 0 ? 'bonus' : STAGES[stageIx].id;
+    if (key === abyssKey) return;
+    abyssKey = key;
+    const t = stageGroundTex();
+    if (!t || !t.image) { abyssArt.visible = false; return; }
+    const m = t.clone(); m.needsUpdate = true; m.wrapS = THREE.RepeatWrapping; m.repeat.set((VW + 2) / 4, 1);
+    if (abyssArt.material.map) abyssArt.material.map.dispose();
+    abyssArt.material.map = m; abyssArt.material.needsUpdate = true; abyssArt.visible = true;
+  }
   function updateLipWarn() {
+    updateAbyssArt();
     if (!lipWarn) { lipWarn = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xff3040, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending })); lipWarn.scale.set(1.2, 0.8, 1); lipWarn.renderOrder = L.FX; scene.add(lipWarn); }
     lipWarn.visible = false;
     if (state !== 'play' || P.dead || P.onGround || bridging() || P.vy > 4) return;
@@ -1338,14 +1351,20 @@
     el.classList.add('on'); ann('LevelUp-1');
     run.pick = { t: 3, choose, key }; // the auto-choice runs in game time (paused = paused) and is dropped with the run
     run.evQ = ['flat', 'flat'].concat(run.evQ || []); // two clear chunks while the player decides
-    for (let i = foes.length - 1; i >= 0; i--) { const f = foes[i]; if (!f.dead && f.x > PX + 4) { freeFoe(f); foes.splice(i, 1); } } // and the ground already laid ahead is cleared of threats
+    for (let i = foes.length - 1; i >= 0; i--) { const f = foes[i]; if (!f.dead && f.x > PX + 4) { if (f.x < VW + 0.5) { origStatic(ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf() * 0.8); burst(f.x, foeMid(f), 0x9fe6ff, 10, 0.5, 4, 'spark'); } freeFoe(f); foes.splice(i, 1); } } // the ground already laid ahead is cleared: on-screen threats warp out
     bridgeAhead(PX + 4, VW + 10);
   }
   function bridgeAhead(x0, x1) { // fill any pit already laid in [x0, x1] so the quiet stretch is truly quiet
     const ss = segs.slice().sort((a, b) => a.x0 - b.x0);
-    for (let i = 0; i < ss.length - 1; i++) { const a = ss[i], b = ss[i + 1]; if (b.x0 - a.x1 > 0.05 && a.x1 < x1 && b.x0 > x0) addGround(a.x1, b.x0); }
+    for (let i = 0; i < ss.length - 1; i++) {
+      const a = ss[i], b = ss[i + 1];
+      if (!(b.x0 - a.x1 > 0.05 && a.x1 < x1 && b.x0 > x0)) continue;
+      for (let k = props.length - 1; k >= 0; k--) { const q = props[k]; if (q.pit && q.x > a.x1 - 0.8 && q.x < b.x0 + 0.8) { scene.remove(q.s); q.s.material.dispose(); props.splice(k, 1); } }
+      const filling = state; state = 'fill'; addGround(a.x1, b.x0); state = filling; // (no new pit art for the patch)
+    }
   }
   function tickPick(dt) {
+    if (run.timers) for (let i = run.timers.length - 1; i >= 0; i--) { const tm = run.timers[i]; if ((tm.t -= dt) <= 0) { run.timers.splice(i, 1); tm.f(); } }
     const pk = run.pick;
     if (!pk) return;
     if ((pk.t -= dt) <= 0) { run.pick = null; pk.choose((Math.random() * 2) | 0); }
@@ -1807,7 +1826,7 @@
     else if (ev === 'land' && tr === 'bladearc' && drop > 1.4) { const t = aliveAhead(PX + 4).filter((f) => f.kind === 'shot' || f.x < PX + 3); P.trCd = 2.5; origStatic('Tiamat_skill2_Blade_rotate_line_F', PX + 1.5, P.y + 0.8, kOf() * 0.6); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
     else if (ev === 'slide' && tr === 'eyebeam') { const t = aliveAhead(PX + 7).filter((f) => f.kind === 'air'); if (t.length) { P.trCd = 2.5; const [mx, my] = muzzle(); t.forEach((f) => { tracer(mx, my, f.x, foeMid(f), P.def.color); own(f); kill(f, 'shot'); }); origStatic('valkyrie_eyes_lazer', mx, my, kOf()); } }
     else if (ev === 'slide' && tr === 'mark') { const f = aliveAhead(PX + 8)[0]; if (f) { P.trCd = 3; own(f); kill(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 4); } }
-    else if (ev === 'slide' && tr === 'torpedo') { P.trCd = 3; sendRunner(0x66ccff, 'glow', 0.6, 16, 0.7, false, hitFx); const tx = PX + 5; setTimeout(() => { if (state === 'play') { addPlat(tx - spd * 0.35 - 0.5, tx - spd * 0.35 + 0.5, 1.0); origStatic('Thetis_skill1_Ground_Hit', tx - spd * 0.35, 0.3, kOf() * 0.6); } }, 350); } // the blast throws up a rim
+    else if (ev === 'slide' && tr === 'torpedo') { P.trCd = 3; sendRunner(0x66ccff, 'glow', 0.6, 16, 0.7, false, hitFx); (run.timers = run.timers || []).push({ t: 0.35, f: () => { const x = PX + 5 - spd * 0.35; addPlat(x - 0.5, x + 0.5, 1.0); origStatic('Thetis_skill1_Ground_Hit', x, 0.3, kOf() * 0.6); } }); } // the blast throws up a rim
     else if (ev === 'slide' && (tr === 'wave' || tr === 'surf')) { P.trCd = 3.5; sendRunner(0x9feaff, 'glow', 1.2, 14, 0.9, false, 'Undine_skill2_Hit'); }
     else if (ev === 'slide' && tr === 'turret') { const t = aliveAhead(PX + 9).slice(0, 2); P.trCd = 4; origStatic('Gnome_skill2_ground_Hit', PX + 0.6, 0.05, kOf() * 0.6); t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.15 + i * 0.2, i, f, name: 'Gnome_bullet', k: kOf() }); }); AUDIO.play('click', 0.5, 0.7); }
     else if (ev === 'slide' && tr === 'sled') { if (sendSummon(16, 1.1)) { P.trCd = 3.5; AUDIO.play('ice', 0.4, 1.3); } }
@@ -2875,6 +2894,7 @@
     Object.values(sets).forEach(layoutSet);
     abyss.scale.set(VW + 2, 0.15 - GB, 1);
     abyss.position.set(VW / 2, (0.15 + GB) / 2 - 0.1, 0);
+    if (abyssArt) { abyssArt.scale.copy(abyss.scale); abyssArt.position.copy(abyss.position); }
     $('rotate').classList.toggle('can', MOBILE);
     if (state === 'result') placeRunner(Math.max(VW * 0.26, 3), 1.7);
   }
@@ -2951,6 +2971,9 @@
     abyss = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: abyssTex, depthTest: false, depthWrite: false }));
     abyss.renderOrder = L.BACK + 1;
     scene.add(abyss);
+    abyssArt = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x3a3a46, transparent: true, opacity: 0.55, depthTest: false, depthWrite: false }));
+    abyssArt.renderOrder = L.BACK + 1.02;
+    scene.add(abyssArt);
     resize();
     addEventListener('resize', resize);
 
