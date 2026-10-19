@@ -306,3 +306,12 @@ button { font: inherit; color: inherit; }
 .resCard { max-height: calc(100vh - 150px); overflow-y: auto; }
 #resMissions.missions { clip-path: none; background: none; border: none; box-shadow: none; padding: 6px 4px 0 0; }
 .missions { padding-right: 20px; }
+/* in-run HUD in the original's look: hex ORCA slots (CreateResult hex motif), coin and pause on the hex-grid panel with gold trim */
+#letters i { border-radius: 0; clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); width: 32px; border: none;
+  background: linear-gradient(180deg, rgba(185, 156, 92, .9), rgba(120, 96, 50, .9)); color: #1b1408; font-weight: 900; }
+#letters i::before { content: ''; position: absolute; }
+#letters i.got { color: #fff; }
+.coinTag, #btnPause { background: linear-gradient(180deg, rgba(14, 18, 30, .78), rgba(8, 10, 18, .88)), url(../assets/ui/panel_bg.webp) center / 220px;
+  border: 1px solid #b99c5c; border-radius: 3px; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%); }
+#skillRing img { box-shadow: 0 0 0 2px #b99c5c; }
+#bossBar .bb { border: 1px solid #b99c5c; border-radius: 2px; }

@@ -23,7 +23,8 @@
     const lanes = GAME.lanes || [];
     const highAt = (t) => lanes.some((l) => l.high && (l.warn > 0 ? t >= l.warn - 0.05 && t <= l.warn + l.fire + 0.05 : t <= l.fire + 0.05));
     const air = foes.find((f) => (f.kind === 'air' || (f.kind === 'shot' && f.y > 0.8)) && Math.abs(f.base - P.floor) < 0.5 && f.x - px < 1.7 + (f.speed || 0) * 0.15 && f.x - px > -0.7);
-    GAME.setSlide(!!air || highAt(0.05));
+    const airTr = (P.def.pas || {}).trait; // the slide key in the air glides / slams for some members: the bot only slides on the ground for them
+    GAME.setSlide((!!air || highAt(0.05)) && (P.onGround || (airTr !== 'glide' && airTr !== 'slam')));
     if (P.buff.fly > 0) return;
 
     const sim = (j1, j2) => {

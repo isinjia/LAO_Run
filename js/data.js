@@ -6,10 +6,10 @@ window.DATA = (function () {
 
   // skill types are handled in game.js (SKILL)
   const CHARS = [
-    { id: 'brownie', pas: { runK: 1.06, skillStart: 0.5, trait: 'grenade', t: '전투 준비: 스킬 게이지 50%로 출발 · 높은 곳에서 착지하면 앞의 적에게 수류탄' }, color: 0xffe08a, sfx: 'rifle', name: '브라우니', rank: 'B', cost: 0, h: 1.9, hp: 100,
+    { id: 'brownie', pas: { runK: 1.06, skillStart: 0.5, trait: 'grenade', t: '전투 준비: 스킬 게이지 50%로 출발 · 높은 곳에서 착지하면 앞의 적에게 수류탄, 폭풍을 타고 다시 도약' }, color: 0xffe08a, sfx: 'rifle', name: '브라우니', rank: 'B', cost: 0, h: 1.9, hp: 100,
       skill: { type: 'gun', name: '조준 사격', n1: '견제 사격', cd: 11, dur: 3.5 },
       desc: '돌격 사격으로 앞의 적을 쓸고, 마지막에 유탄으로 무리를 날립니다.' },
-    { id: 'leprechaun', pas: { runK: 1.06, autoGun: 1.1, trait: 'spray', t: '난사: 스킬이 없을 때도 1.1초마다 앞의 적에게 자동 사격 · 슬라이드하면 앞의 적에게 사격' }, color: 0x9dff7a, sfx: 'mg', name: '레프리콘', rank: 'B', cost: 0, h: 1.85, hp: 100,
+    { id: 'leprechaun', pas: { runK: 1.06, autoGun: 1.1, trait: 'spray', t: '난사: 스킬이 없을 때도 1.1초마다 앞의 적에게 자동 사격 · 슬라이드하면 앞의 적에게 사격, 미끄러지며 작은 틈을 건넘' }, color: 0x9dff7a, sfx: 'mg', name: '레프리콘', rank: 'B', cost: 0, h: 1.85, hp: 100,
       skill: { type: 'magnet', name: '경기관총 난사', n1: '경기관총 사격', cd: 13, dur: 6 },
       desc: '젤리를 끌어당기며 기관총으로 앞의 젤리를 코인으로 바꿉니다.' },
     { id: 'valkyrie', pas: { runK: 1.06, shieldStart: 1, trait: 'eyebeam', t: '선봉: 출격 시 실드 1회 · 슬라이드하면 눈빛 레이저로 공중의 적 격추' }, color: 0x9fd0ff, sfx: 'rifle', name: '발키리', rank: 'S', cost: 600, h: 1.95, hp: 110,
@@ -52,7 +52,7 @@ window.DATA = (function () {
     { id: 'nymph', pas: { gravK: 0.86, jumpK: 0.927, runK: 0.94, bonusK: 2.5, trait: 'bubble', t: '물놀이: 보너스 타임 +2.5초 · PERFECT 때 앞의 적 하나를 물방울로 띄워 곰젤리로(9초 충전)' }, color: 0x6fe3ff, sfx: 'laser', name: '님프', rank: 'A', cost: 900, h: 1.9, hp: 100,
       skill: { type: 'gun', name: '제압 난사', n1: '집속 사격', cd: 13, dur: 5 },
       desc: '제압 난사: 앞의 적을 연사로 제압하고, 쓰러진 적은 곰젤리를 남깁니다.' },
-    { id: 'amy', ofx: { hit: 'sniper_hit', own: true }, pas: { runK: 1.06, stompK: 1, trait: 'mark', t: '저격 표식: 밟은 적이 코인 5개를 떨구고 더 높이 튀어 오름 · 슬라이드하면 앞의 적을 저격해 코인 4개' }, color: 0xd9ff8a, sfx: 'handgun', name: '에이미 레이저', rank: 'A', cost: 1000, h: 1.9, hp: 100,
+    { id: 'amy', ofx: { hit: 'sniper_hit', own: true }, pas: { runK: 1.06, stompK: 1, trait: 'mark', t: '저격 표식: 밟은 적이 코인 5개를 떨구고 더 높이 튀어 오름 · 슬라이드하면 앞의 적을 저격해 코인 4개, 이어서 짧은 질주' }, color: 0xd9ff8a, sfx: 'handgun', name: '에이미 레이저', rank: 'A', cost: 1000, h: 1.9, hp: 100,
       skill: { type: 'magnet', name: '암살 목표 지정', n1: '예정된 죽음', cd: 12, dur: 6 },
       desc: '앞의 적 3기에 암살 표식. 다가가면 처형되어 코인 5개가 되고, 코인 2배·대형 트랙터 빔.' },
     { id: 'saraqael', ofx: { hit: 'Saraqael_skill2_Last_Hit', own: true }, pas: { gravK: 0.86, jumpK: 0.927, runK: 0.94, smite: 6, trait: 'smite', t: '천벌: 착지할 때 앞의 적 하나에 낙뢰(6초 충전)' }, color: 0xb28cff, sfx: 'energy', name: '사라카엘', rank: 'SS', cost: 2600, h: 1.9, hp: 105,
@@ -76,7 +76,7 @@ window.DATA = (function () {
     { id: 'leona', pas: { gravK: 1.14, jumpK: 1.068, runK: 1.065, hitK: 0.75, trait: 'lance', t: '철혈: 받는 피해 -25% · 2단 점프 때 랜스로 장대높이뛰기, 앞의 적 하나 관통' }, color: 0xff9ad5, sfx: 'laserBig', name: '철혈의 레오나', rank: 'SS', cost: 3200, h: 1.9, hp: 115,
       skill: { type: 'dash', name: '돌격 명령', n1: '공격 목표 지정', cd: 13, dur: 4 },
       desc: '레이저 랜스 돌격: 앞의 펜스까지 녹이고 돌격 중 젤리 2배.' },
-    { id: 'blacklilith', ofx: { bullet: 'FX_blackLilith_bullet', own: true }, pas: { runK: 1.06, killK: 2, killCoin: 1, trait: 'akimbo', t: '듀얼 사냥꾼: 격파 점수 2배, 코인 +1 · 2단 점프 때 쌍권총으로 적 둘을 사격' }, color: 0xd0405a, sfx: 'slash', name: '블랙 리리스', rank: 'SSS', cost: 4500, h: 1.9, hp: 110,
+    { id: 'blacklilith', ofx: { bullet: 'FX_blackLilith_bullet', own: true }, pas: { runK: 1.06, killK: 2, killCoin: 1, trait: 'akimbo', t: '듀얼 사냥꾼: 격파 점수 2배, 코인 +1 · 2단 점프 때 쌍권총으로 적 둘을 사격, 반동으로 더 높이' }, color: 0xd0405a, sfx: 'slash', name: '블랙 리리스', rank: 'SSS', cost: 4500, h: 1.9, hp: 110,
       skill: { type: 'akimbo', name: '듀얼 버스트', n1: '요인 경호', cd: 12, dur: 4.5 },
       desc: '쌍권총으로 앞의 적을 위아래로 연사합니다(레이저 드론 포함).' },
     { id: 'tiamat', pas: { gravK: 1.14, jumpK: 1.068, runK: 1.065, gunR: 13, skillStart: 0.3, trait: 'bladearc', t: '중장갑 포대: 사격 거리 +40%, 게이지 30% 출발 · 높은 곳에서 착지하면 회전 검격, 적 탄환도 베어냄' }, color: 0x6ef0ff, sfx: 'laserBig', name: '티아멧', rank: 'LR', cost: 6000, h: 1.9, hp: 110,

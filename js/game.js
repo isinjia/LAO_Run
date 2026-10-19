@@ -572,6 +572,14 @@
       }
       return len;
     },
+    mix(x0) {
+      const g = Math.min(3.2, gs * 0.28);
+      addGround(x0, x0 + 4); addGround(x0 + 4 + g, x0 + 20);
+      jellyArc(x0 + 4 + g / 2, 2.6, g / 2 + 1);
+      addFoe('air', x0 + 4 + g + 4);
+      addFoe('low', x0 + 4 + g + 4 + Math.max(4.5, gs * 0.45));
+      return 20;
+    },
     risk(x0) {
       const len = 12, v = (Math.random() * 3) | 0;
       if (v === 1) { addGround(x0, x0 + 3.5); addGround(x0 + 3.5 + Math.min(3.4, gs * 0.3), x0 + len); } // a pit under the deck: the low road needs a jump too
@@ -783,6 +791,7 @@
     { name: '경보: 철충 돌격', q: ['low2', 'low', 'low2', 'tall'] },
     { name: '경보: 붕괴 구간', q: ['pit', 'pitLow', 'steps', 'pitWide'] },
     { name: '경보: 집중 포격', q: ['bombs', 'shooter', 'bombs', 'lowAir'] },
+    { name: '경보: 복합 전선', q: ['mix', 'pitLow', 'mix', 'airs'] },
   ];
   function pickChunk() {
     if (run.tutQ && run.tutQ.length) return run.tutQ.shift();
@@ -805,6 +814,7 @@
     };
     // past the first lap the mix keeps hardening: more combined hazards, fewer breathers
     const lv2 = Math.min(1.5, Math.max(0, (traveled - 2600) / 3000));
+    w.mix = lv * 0.6 + lv2 * 0.8;
     if (lv2 > 0) { w.flat *= 1 - lv2 * 0.4; w.wave *= 1 - lv2 * 0.3; for (const k of ['low2', 'airs', 'lowAir', 'pitLow', 'pitWide', 'bombs', 'shooter', 'movers', 'platFoe']) w[k] += lv2 * 0.8; }
     if (run.mod && run.mod.foes) for (const k of ['low', 'low2', 'tall', 'air', 'airs', 'lowAir', 'platFoe']) w[k] *= run.mod.foes;
     const mix = STAGES[stageIx].mix || {}; // each stage leans on its own obstacles
@@ -983,6 +993,7 @@
   const smashing = () => P.buff.giant > 0 || P.buff.dash > 0 || P.buff.boost > 0 || P.buff.fly > 0 || P.buff.star > 0;
   const bridging = () => smashing() || P.buff.bridge > 0 || run.bonus > 0 || (P.slide && pas().trait === 'surf'); // Undine surfs over pits
 
+  const voicePitch = () => { const g = pas().gravK || 1; return g > 1.05 ? 0.8 : g < 0.95 ? 1.25 : (pas().runK || 1) > 1.03 ? 1.1 : 1; }; // heavy thud, light flick
   function jump() {
     if (state !== 'play' || P.dead || paused) return;
     P.inT = 0;
@@ -993,7 +1004,7 @@
       P.jumps = 1; P.onGround = false; P.coyote = 0; P.slide = false;
       P.sq = 1.16;
       tally('mech:jump');
-      AUDIO.play('swing', 0.45, 1.25);
+      AUDIO.play('swing', 0.45, 1.25 * voicePitch());
       puff(PX, P.floor, 3, 0.5);
     } else if (P.jumps < (pas().jumps || 2) + (P.buff.wind > 0 ? 1 : 0)) {
       P.vy = JV2 * boostJ * (pas().jumpK || 1) * (P.buff.wind > 0 ? 1.15 : 1);
@@ -1714,18 +1725,22 @@
     const near = (r) => aliveAhead(PX + r).filter((f) => f.kind !== 'air' && f.x > PX + 0.3);
     const o = origFor(P.def.id), hitFx = o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT, own = (f, k = 1) => origStatic(hitFx, f.x, foeMid(f) - 0.4, kOf() * k);
     if (ev === 'double' && tr === 'lance') P.vy += 3.2; // the lance plants and vaults her higher
-    if (ev === 'double' && tr === 'lance') { const f = aliveAhead(PX + 4)[0]; if (f) { P.trCd = 3; const [mx, my] = muzzle(); beamFx(mx, f.x, my, P.def.color, 0.15, 0.2); origStatic(origFor(P.def.id).atk.hit || ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf()); kill(f, 'shot'); } }
+    if (ev === 'double' && tr === 'lance') { const f = aliveAhead(PX + 4)[0]; if (f) { P.trCd = 3; const [mx, my] = muzzle(); if (!origShot(o.atk.bullet || o.skill.bullet, mx, my, f, kOf(), null, f.x, foeMid(f))) beamFx(mx, f.x, my, P.def.color, 0.15, 0.2); origStatic(origFor(P.def.id).atk.hit || ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf()); kill(f, 'shot'); } }
     else if (ev === 'double' && tr === 'akimbo') { const t = aliveAhead(PX + 8).slice(0, 2); if (t.length) { P.trCd = 2.5; t.forEach((f) => { f.targeted = true; fireAt(f, shotLanded); }); } }
     else if (ev === 'double' && tr === 'salvo') { const f = aliveAhead(PX + 9)[0]; if (f) { P.trCd = 3; f.targeted = true; salvo.push({ t: 0.05, i: 0, f, name: P.def.id === 'thetis' ? 'Thetis_skill2_Small_Missile' : o.atk.bullet || o.skill.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); } }
     else if (ev === 'double' && tr === 'blink') { P.inv = Math.max(P.inv, 0.35); P.buff.dash = Math.max(P.buff.dash || 0, 0.2); const t = aliveAhead(PX + 3.2); if (t.length) { P.trCd = 2.5; origStatic('Kunoichi_skill2_Sword_first_line_F', PX + 1.6, P.y + 0.5, kOf() * 0.7); t.forEach((f) => { own(f); kill(f, 'melee'); }); } }
     else if (ev === 'double' && tr === 'dashcut') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; P.buff.dash = Math.max(P.buff.dash || 0, 0.6); P.buff.bridge = Math.max(P.buff.bridge || 0, 0.6); puff(PX, P.y, 5, 0.8); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
     else if (ev === 'land' && tr === 'grenade' && drop > 1.4) { const f = near(5)[0]; if (f) { P.trCd = 3; origStatic(P.def.id === 'brownie' ? 'S_Brownie_ande_bling' : ORIG_BOOM, f.x, foeMid(f), kOf() * 0.7); kill(f, 'shot'); AUDIO.play('expS', 0.4); } }
-    else if (ev === 'double' && tr === 'prism') { const [mx, my] = muzzle(); P.trCd = 3; beamFx(mx, PX + 8, my, P.def.color, 0.2, 0.18); items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 0.9 && it.x > mx && it.x < PX + 8) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); const f = aliveAhead(PX + 8).find((g) => Math.abs(foeMid(g) - my) < 1.4); if (f) { own(f); kill(f, 'shot'); } }
+    else if (ev === 'double' && tr === 'prism') { const [mx, my] = muzzle(); P.trCd = 3; origStatic('CyclopsePrincess_N_Skill2_A', mx + 0.2, my, kOf() * 0.45, 1, 0.36); items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 0.9 && it.x > mx && it.x < PX + 8) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); const f = aliveAhead(PX + 8).find((g) => Math.abs(foeMid(g) - my) < 1.4); if (f) { own(f); kill(f, 'shot'); } }
+    if (ev === 'slide' && tr === 'spray') P.buff.bridge = Math.max(P.buff.bridge || 0, 0.45); // her slide skids over small gaps
+    if (ev === 'slide' && tr === 'mark') P.buff.dash = Math.max(P.buff.dash || 0, 0.35); // a sprint after the shot
+    if (ev === 'double' && tr === 'akimbo') P.vy += 2.2; // the recoil hop
+    if (ev === 'land' && tr === 'grenade' && drop > 1.4 && (P.trCd || 0) <= 0) { P.vy = 7.5; P.onGround = false; P.jumps = 1; P.trCd = 1.5; } // a grenade jump off the blast
     if (ev === 'double' && tr === 'homing') P.vy += 2.6; // she rides the launch higher
     if (ev === 'double' && tr === 'eyebeam') P.vy += 1.8;
     if (ev === 'land' && tr === 'flame' && drop > 1.2) { P.buff.dash = Math.max(P.buff.dash || 0, 0.4); P.buff.bridge = Math.max(P.buff.bridge || 0, 0.5); } // the flame carries her on (over a pit edge too)
     else if (ev === 'double' && tr === 'homing') { const t = aliveAhead(PX + 9).sort((a, b) => (b.kind === 'air') - (a.kind === 'air')).slice(0, 2); if (t.length) { P.trCd = 3; t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.05 + i * 0.12, i, f, name: o.atk.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); }); } }
-    else if (ev === 'double' && tr === 'gust') { const t = aliveAhead(PX + 4.5).filter((f) => f.kind === 'air'); P.trCd = 2; for (let i = 0; i < 6; i++) streak(PX + 0.5 + i * 0.6, P.y + 0.6, P.def.color); t.forEach((f) => { own(f); kill(f, 'shot'); }); }
+    else if (ev === 'double' && tr === 'gust') { const t = aliveAhead(PX + 4.5).filter((f) => f.kind === 'air'); P.trCd = 2; origStatic(o.skill.statics[0] || 'Sylphid_NS1_skill2_bullet', PX + 1.5, P.y + 0.6, kOf() * 0.8); t.forEach((f) => { own(f); kill(f, 'shot'); }); }
     else if (ev === 'land' && tr === 'bladearc' && drop > 1.4) { const t = aliveAhead(PX + 4).filter((f) => f.kind === 'shot' || f.x < PX + 3); P.trCd = 2.5; origStatic('Tiamat_skill2_Blade_rotate_line_F', PX + 1.5, P.y + 0.8, kOf() * 0.6); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
     else if (ev === 'slide' && tr === 'eyebeam') { const t = aliveAhead(PX + 7).filter((f) => f.kind === 'air'); if (t.length) { P.trCd = 2.5; const [mx, my] = muzzle(); t.forEach((f) => { tracer(mx, my, f.x, foeMid(f), P.def.color); own(f); kill(f, 'shot'); }); origStatic('valkyrie_eyes_lazer', mx, my, kOf()); } }
     else if (ev === 'slide' && tr === 'mark') { const f = aliveAhead(PX + 8)[0]; if (f) { P.trCd = 3; own(f); kill(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 4); } }
@@ -2276,6 +2291,7 @@
           P.y = s; P.vy = 0; P.floor = s; P.onGround = true; P.jumps = 0; P.spin = 0; P.sq = 0.82;
           tally(s > 0 ? 'mech:platform' : 'mech:land');
           if (P.buff.giant > 0) { shake = 0.25; ring(PX, s + 0.1, 0xd0c0ff, 4, 0.35); puff(PX, s, 6, 1.1); } else puff(PX, s, 3, 0.55);
+          if (prevY - s > 1.2) AUDIO.play((pas().gravK || 1) > 1.05 ? 'quake' : 'swing', (pas().gravK || 1) > 1.05 ? 0.25 : 0.2, 0.7 * voicePitch());
           trait('land', P.slam ? 9 : prevY - s); P.slam = false;
           if (P.jumpBuf > 0) { P.jumpBuf = 0; jump(); }
         }
