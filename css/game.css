@@ -267,3 +267,8 @@ button { font: inherit; color: inherit; }
 #skillRing.pick { box-shadow: 0 0 0 3px #fff, 0 0 22px 6px var(--sc); animation: pulse .25s infinite alternate; }
 #skillRing.pick::after { content: 'E · 탭'; position: absolute; left: 70px; top: 18px; font-size: 11px; font-weight: 900; background: rgba(0, 0, 0, .7); padding: 1px 6px; border-radius: 6px; white-space: nowrap; }
 .pop.bossSkill { font-family: 'Black Han Sans', sans-serif; font-size: 30px; color: #ff6070; text-shadow: 0 0 12px rgba(255, 0, 40, .8), 0 3px 0 #400; animation-duration: 1.4s; }
+
+.boosts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.boost { background: var(--panel); border: 1px solid var(--line); color: #dfe9ff; border-radius: 10px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+.boost small { color: var(--accent); font-size: 11px; }
+.boost.on { border-color: var(--accent); background: rgba(255, 207, 58, 0.22); box-shadow: 0 0 10px rgba(255, 207, 58, 0.5); }

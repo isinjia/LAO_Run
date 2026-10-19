@@ -122,21 +122,26 @@ window.DATA = (function () {
     ],
     air: [
       { id: 'e_Drone_N', name: '드론', h: 1.0, w: 0.9 },
+      { id: 'e_DroneM_N', name: '드론 M', h: 1.05, w: 0.95 },
+      { id: 'e_Scout_N', name: '스카우트', h: 1.05, w: 0.9 },
+      { id: 'e_Wasp_N', name: '와습', h: 1.1, w: 0.95 },
+      { id: 'e_Stinger_N', name: '스팅어', h: 1.1, w: 0.95 },
+      { id: 'e_Spector_N', name: '스펙터', h: 1.1, w: 0.95 },
     ],
   };
 
   // layers cut from the original battle backgrounds (tools: assets/bg2): y0 / h in world units (ground = 0),
   // full = up to the top of the screen, par = parallax (share of the ground speed)
   const STAGES = [
-    { id: 'city', cloud: 0xffffff, cloudA: 0.7, name: '폐허 도심', amb: 'dust', sky: 0x9cc8ff, bgm: 'ost/city', ground: ['#5b6170', '#3b404c', '#ffd54a'], groundImg: 'road',
+    { id: 'city', mix: { low: 1.2, shooter: 1.2 }, cloud: 0xffffff, cloudA: 0.7, name: '폐허 도심', amb: 'dust', sky: 0x9cc8ff, bgm: 'ost/city', ground: ['#5b6170', '#3b404c', '#ffd54a'], groundImg: 'road',
       layers: [{ img: 'sky_b', y0: 0.6, full: true, par: 0.02 }, { img: 'city_mid', y0: -0.35, h: 6.4, par: 0.14 }] },
-    { id: 'forest', cloud: 0xffffff, cloudA: 0.6, name: '숲길', amb: 'leaf', sky: 0x8fd0ff, bgm: 'ost/forest', ground: ['#4f8f3a', '#5a4632', '#a6e36a'], groundImg: 'cliffroad',
+    { id: 'forest', mix: { steps: 2, upper: 1.8, platFoe: 1.5 }, cloud: 0xffffff, cloudA: 0.6, name: '숲길', amb: 'leaf', sky: 0x8fd0ff, bgm: 'ost/forest', ground: ['#4f8f3a', '#5a4632', '#a6e36a'], groundImg: 'cliffroad',
       layers: [{ img: 'sky_b', y0: 0.6, full: true, par: 0.02 }, { img: 'forest_mid', y0: -0.35, h: 4.6, par: 0.3 }, { img: 'grass', y0: -0.3, h: 1.4, par: 0.55 }] },
-    { id: 'lab', cloud: 0xffffff, cloudA: 0, name: '연구소', amb: 'spark', sky: 0xc8d4e0, bgm: 'ost/lab', ground: ['#8b8f99', '#585c66', '#7fe8ff'],
+    { id: 'lab', mix: { air: 1.6, airs: 1.6, hang: 2, lowAir: 1.4 }, cloud: 0xffffff, cloudA: 0, name: '연구소', amb: 'spark', sky: 0xc8d4e0, bgm: 'ost/lab', ground: ['#8b8f99', '#585c66', '#7fe8ff'],
       layers: [{ img: 'lab', y0: -0.45, full: true, par: 0.14 }, { img: 'fac_floor', y0: -0.25, h: 1.15, par: 0.6 }] },
-    { id: 'snow', cloud: 0xeef4ff, cloudA: 0.5, name: '설원', amb: 'snow', sky: 0xa9c4e8, bgm: 'ost/snow', ground: ['#e9f3ff', '#7d8fae', '#ffffff'],
+    { id: 'snow', mix: { pit: 1.6, pitWide: 1.6, movers: 2.2 }, cloud: 0xeef4ff, cloudA: 0.5, name: '설원', amb: 'snow', sky: 0xa9c4e8, bgm: 'ost/snow', ground: ['#e9f3ff', '#7d8fae', '#ffffff'],
       layers: [{ img: 'sky_b', y0: 0.6, full: true, par: 0.02 }, { img: 'snow_mtn', y0: 0.2, h: 4.8, par: 0.07 }, { img: 'snow_road', y0: -0.35, h: 1.5, par: 0.45 }] },
-    { id: 'red', cloud: 0xff9a7a, cloudA: 0.35, name: '노을 도시', amb: 'dust', sky: 0x6a1a10, bgm: 'ost/red', ground: ['#7a3a2a', '#4a2018', '#ffb050'], groundImg: 'red_ground',
+    { id: 'red', mix: { bombs: 2.2, shooter: 2, tall: 1.3 }, cloud: 0xff9a7a, cloudA: 0.35, name: '노을 도시', amb: 'dust', sky: 0x6a1a10, bgm: 'ost/red', ground: ['#7a3a2a', '#4a2018', '#ffb050'], groundImg: 'red_ground',
       layers: [{ img: 'red_city', y0: -0.45, full: true, par: 0.1 }] },
   ];
 

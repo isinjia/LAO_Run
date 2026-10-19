@@ -67,7 +67,7 @@
     const layers = defs.map((d, i) => {
       const src = d.tex || IMG[d.img];
       if (!src) return null;
-      const t = src.clone(); t.needsUpdate = true; t.wrapS = THREE.RepeatWrapping;
+      const t = src.clone(); t.needsUpdate = true; t.wrapS = d.mirror ? THREE.MirroredRepeatWrapping : THREE.RepeatWrapping; // a non-tiling picture mirrors at its edges
       const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthTest: false, depthWrite: false }));
       m.renderOrder = L.BACK + i * 0.05;
       group.add(m);
@@ -200,7 +200,16 @@
     }
     return (origCache[id] = out);
   }
+  // each member's own skill effects (UQ), loaded with the member
+  const UQFX = {
+    brownie: ['S_Brownie_ande_bling'], valkyrie: ['valkyrie_eyes_lazer', 'valkyrie_gun_shot_F', 'valkyrie_hit'], phoenix: ['Phoenix_skill2_fire', 'Phoenix_skill2_hit'],
+    harpy: ['Harpy_skill2_Lazer_fire', 'Harpy_skill2_Last_Lazer_HIt'], gnome: ['Gnome_skill2_ground_Hit', 'Gnome_skill2_stone_smoke', 'Gnome_skill2_last_bomb'],
+    raven: ['FX_Raven_skill1_bullet', 'Raven_skill1_Hit'], thetis: ['Thetis_skill1_Fire'], hela: ['hela_ground_sumon', 'hela_beam_hit_main'],
+    leona: ['Leona_skill2_transform_F', 'Leona_D_skill1_aura_F', 'Leona_up_rising'], tiamat: ['Tiamat_skill2_Blade_rotate_line_F', 'Tiamat_Duke_skill1_bullet', 'Tiamat_skill2_BigSword_Up_Hit'],
+    khan: ['Khan_skill1_boost_F', 'Khan_spear_attack', 'Khan_skill1_hit'], brunhild: ['Brunhild_N_Skill1_A'], titania: ['Titania_skill2_All_ice', 'Titania_skill2_Ice_Road_Fx'],
+  };
   function prepOrig(id) {
+    (UQFX[id] || []).forEach((n) => FXB.prepare(n));
     const o = origFor(id);
     for (const c of ['atk', 'skill']) [o[c].bullet, o[c].hit, ...o[c].statics].filter(Boolean).forEach((n) => FXB.prepare(n));
   }
@@ -287,7 +296,7 @@
   function resetPlayer() {
     const d = P.def, lv = lvOf(d.id);
     Object.assign(P, { y: 0, vy: 0, jumps: 0, onGround: true, floor: 0, coyote: 0, jumpBuf: 0, slide: false, slideK: 0, spin: 0,
-      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false,
+      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false,
       skillT: 0, skillOn: 0, skCd: d.skill.cd * (1 - (lv - 1) * 0.06), skDur: d.skill.dur * (1 + (lv - 1) * 0.08),
       scale: 1, buff: {}, gunT: 0, fell: false, lock: 0, rainT: 0 });
     P.mods = mergeMods(d);
@@ -348,7 +357,7 @@
   function addGround(x0, x1) {
     segs.push({ x0, x1, mesh: slab(x0, x1, 0, 0 - (GB - 0.6)) });
     if (state === 'play' && run.bonus <= 0) {
-      const kinds = { city: [1, 2, 3, 0], forest: [0, 0, 2], lab: [1, 3, 0], snow: [2, 0], red: [2, 1, 2] }[STAGES[stageIx].id];
+      const kinds = { city: [3, 2, 3, 1], forest: [0, 0, 1, 2], lab: [2], snow: [2, 1], red: [2, 1, 2] }[STAGES[stageIx].id];
       for (let x = x0 + rnd(0.5, 3); x < x1 - 0.5; x += rnd(3, 7)) addProp(kinds[(Math.random() * kinds.length) | 0], x);
     }
   }
@@ -365,10 +374,26 @@
     s.renderOrder = L.ITEM - 0.2;
     scene.add(s);
     props.push({ s, x });
+    // a riveted steel plate over the joint where one stage's road meets the next
+    if (!TEX.seam) TEX.seam = RUNTEX.canvasTex(64, 128, (g) => {
+      const gr = g.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, '#3c4250'); gr.addColorStop(0.5, '#6b7384'); gr.addColorStop(1, '#3c4250');
+      g.fillStyle = gr; g.fillRect(4, 0, 56, 128);
+      for (let y = 0; y < 14; y += 7) { g.fillStyle = y ? '#1e2128' : '#ffc928'; g.fillRect(4, y, 56, 7); }
+      g.fillStyle = '#1e2128'; for (let i = 0; i < 4; i++) { g.save(); g.beginPath(); g.rect(4, 0, 56, 7); g.clip(); g.fillRect(4 + i * 16, 0, 8, 7); g.restore(); }
+      g.fillStyle = '#a9b1c2'; for (let y = 24; y < 128; y += 26) { g.beginPath(); g.arc(13, y, 3, 0, 7); g.arc(51, y, 3, 0, 7); g.fill(); }
+      g.strokeStyle = '#22262e'; g.lineWidth = 3; g.strokeRect(5.5, 0, 53, 128);
+    });
+    const pl = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.seam, depthTest: false, depthWrite: false, transparent: true }));
+    const top = 0.12;
+    pl.scale.set(0.9, top - (GB - 0.6), 1);
+    pl.position.set(x, (top + GB - 0.6) / 2, 0);
+    pl.renderOrder = L.GROUND + 0.3;
+    scene.add(pl);
+    props.push({ s: pl, x });
   }
   function addProp(k, x) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.props[k], depthTest: false, depthWrite: false, transparent: true }));
-    const h = [0.5, 0.55, 0.42, 0.7][k], w = h * TEX.props[k].image.width / TEX.props[k].image.height;
+    const h = [0.5, 0.62, 0.24, 1.0][k], w = h * TEX.props[k].image.width / TEX.props[k].image.height;
     s.scale.set(w, h, 1);
     s.position.set(x, h / 2 + 0.06, 0);
     s.renderOrder = L.PROP;
@@ -455,13 +480,13 @@
     freeRig(f.rig);
     f.rig = null;
     if (f.beam) { scene.remove(f.beam); f.beam.material.dispose(); f.beam = null; } if (f.glow) { scene.remove(f.glow); f.glow.material.dispose(); f.glow = null; }
-    if (f.glow) { scene.remove(f.glow); f.glow.material.dispose(); f.glow = null; }
+    if (f.bomb) { scene.remove(f.bomb); f.bomb.material.dispose(); f.bomb = null; }
   }
 
   function maybeItem(x, y) {
     run.itemCd--;
     // ORCA letters: one jump up, open ground only
-    if (run.letters < 4 && y < 2.5 && traveled + x > run.nextLetter) { addItem('L' + run.letters, x, y + 0.25); run.nextLetter = traveled + x + rnd(80, 120); return; }
+    if (run.letters < 4 && !run.boss && y < 2.5 && traveled + x > run.nextLetter) { addItem('L' + run.letters, x, y + 0.25); run.nextLetter = traveled + x + rnd(80, 120); return; }
     if (traveled + x > run.nextHeart) { addItem('heart', x, y); run.nextHeart = traveled + x + rnd(200, 260); return; }
     if (run.itemCd > 0 || Math.random() > 0.22) return;
     run.itemCd = 3;
@@ -661,13 +686,15 @@
 
   function pickChunk() {
     if (run.tutQ && run.tutQ.length) return run.tutQ.shift();
-    if (run.boss) return Math.random() < 0.6 ? 'flat' : 'wave'; // the boss's lanes are the only threat during a chase
+    if (run.boss) { const r = Math.random(); return r < 0.45 ? 'flat' : r < 0.65 ? 'wave' : r < 0.85 ? 'low' : 'air'; } // the boss's lanes are the main threat during a chase
     const lv = Math.min(1, traveled / 2600);
     const w = {
       flat: 2.2 - lv * 1.4, wave: 0.6, low: 3, low2: 0.4 + lv * 1.6, tall: 0.6 + lv * 1.6, air: 2, airs: 0.4 + lv * 1.4,
       pit: 1.4, pitWide: lv * 1.4, lowAir: lv * 1.8, pitLow: lv * 1.5, steps: 0.5 + lv * 0.8, upper: 0.7, platFoe: 0.3 + lv * 0.8,
       hang: 0.8 + lv * 0.6, bombs: 0.2 + lv * 1.0, shooter: 0.3 + lv * 0.9, movers: 0.3 + lv * 0.6,
     };
+    const mix = STAGES[stageIx].mix || {}; // each stage leans on its own obstacles
+    for (const k in mix) if (w[k] != null) w[k] *= mix[k];
     let sum = 0;
     for (const k in w) sum += Math.max(0, w[k]);
     let r = Math.random() * sum;
@@ -896,8 +923,8 @@
 
   function die(fell) {
     if (P.dead) return;
-    if (P.def.revive && !P.revived) { // phoenix: rise once
-      P.revived = true;
+    if ((P.def.revive && !P.revived) || P.ticket) { // phoenix (or a revive ticket): rise once
+      if (P.def.revive && !P.revived) P.revived = true; else P.ticket = false;
       P.hp = P.maxHp * 0.5;
       P.inv = 2.5;
       P.buff.bridge = 2.5;
@@ -919,7 +946,7 @@
     if (P.rig && !fell) { P.rig.c.setOpacity(1); P.rig.c.setTint(1, 1, 1); P.rig.c.play('die'); P.rig.c.speed = 1; P.rig.pivot.rotation.z = 0; P.rig.pivot.position.y = P.rig.baseY; }
   }
 
-  function addScore(v) { run.score += v * (1 + Math.min(1, Math.floor(run.combo / 25) * 0.1)) * (run.bonus > 0 ? 2 : 1); }
+  function addScore(v) { run.score += v * (1 + Math.min(0.5, Math.floor(run.combo / 25) * 0.1)) * (run.bonus > 0 ? 2 : 1); }
 
   // the runner's muzzle (front of the body, at chest height)
   const muzzle = () => [PX + 0.75 * P.scale, P.y + 1.0 * P.scale];
@@ -1010,7 +1037,10 @@
   // ── chase boss (every 2000 m): it runs behind the squad and attacks; jellies charge counter shots, skills hit it hard ──
   const BOSS_EVERY = 2000, BOSS_TIME = 30, BOSS_HP = 120, COUNTER_EVERY = 8;
   // each chase boss attacks with its own original effect and its own mix of patterns
-  const BOSS_FX = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A', e_DoomEater_N: 'Juggernaut_skill2_last_hit' };
+  const BOSS_FX = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A', e_DoomEater_N: 'DoomEater_skill2_Hit_F' };
+  // the boss's own effect at its body when it attacks, and its timing: Black Knight's 척살 strikes with a short warning, Goltarion's beam burns longer
+  const BOSS_CAST = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_DoomEater_N: 'DoomEater_Big_fire_F', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A' };
+  const BOSS_TUNE = { e_Nidhogg_N: { warn: 1.0, fire: 0.32, gap: 2.7 }, e_DoomEater_N: { warn: 0.95, fire: 0.36, gap: 2.3 }, e_BlackKnight_N: { warn: 0.72, fire: 0.26, gap: 2.6 }, e_Goltarion_N: { warn: 1.05, fire: 0.62, gap: 3.0 } };
   const BOSS_PATS = { e_Nidhogg_N: ['lane', 'bombs', 'lane'], e_DoomEater_N: ['lane', 'double'], e_BlackKnight_N: ['double', 'lane', 'double'], e_Goltarion_N: ['bombs', 'lane', 'double'] };
   const PAT_NAME = { lane: '레이저 소인', double: '연속 소인', bombs: '집중 포격' };
   // original boss skill names (Table_Localization_ko: SkillName_Skill_MP_Nidhogg_N_*, MP_BlackKnight_N_*, AGS_Goltarion_N_*)
@@ -1024,12 +1054,12 @@
     const all = DATA.BOSSES.filter((b) => SD.ready(b.id));
     if (!all.length) { run.nextBoss += 600; return; }
     const d = all[run.bossCount % all.length];
-    const rig = rigFrom(d.id, 4.4, FACE_PLAYER);
+    const rig = rigFrom(d.id, 3.8, FACE_PLAYER);
     rig.c.setOrder(L.PLAYER - 0.5);
     rig.c.play(rig.c.has('move') ? 'move' : 'idle', null, true);
     rig.g.position.set(-4, 0, 0);
     scene.add(rig.g);
-    run.boss = { d, rig, t: 0, next: 2.4, x: -4, leaving: false, hp: BOSS_HP, charge: 0, flash: 0, pat: 0, queue: [], dying: 0 };
+    run.boss = { d, rig, t: 0, next: 2.4, x: -4, leaving: false, hp: BOSS_HP, charge: 0, flash: 0, pat: 0, queue: [], dying: 0, lunge: 0, tune: BOSS_TUNE[d.id] || { warn: 1, fire: 0.32, gap: 2.7 } };
     run.bossCount++;
     tally('mech:boss');
     AUDIO.play('warning', 0.8);
@@ -1040,14 +1070,14 @@
     $('bossName').textContent = d.name;
     shake = 0.4;
   }
-  function addLane(high, warn = rnd(0.85, 1.15)) {
+  function addLane(high, warn = rnd(0.85, 1.15), fire = 0.32) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.lane, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
     const y0 = high ? 1.15 : 0.0, y1 = high ? 2.7 : 1.15;
     s.position.set(VW / 2, (y0 + y1) / 2, 0);
     s.scale.set(VW + 2, y1 - y0, 1);
     s.renderOrder = L.FX - 0.1;
     scene.add(s);
-    lanes.push({ y0, y1, warn, fire: 0.32, s, high });
+    lanes.push({ y0, y1, warn, fire, s, high });
     popup(PX + 3, high ? 3.4 : 2.0, high ? '▼ 슬라이드!' : '▲ 점프!', 'warn');
     AUDIO.play('charge', 0.5, 1.4);
   }
@@ -1056,10 +1086,13 @@
     const pats = BOSS_PATS[b.d.id] || ['lane'];
     const p = pats[b.pat++ % pats.length];
     popup(VW / 2, 4.9, b.d.name + ' 「' + ((BOSS_SKILL[b.d.id] || {})[p] || PAT_NAME[p]) + '」', 'bossSkill');
-    if (p === 'lane') addLane(Math.random() < 0.5);
-    else if (p === 'double') { const hi = Math.random() < 0.5; addLane(hi, 1.0); b.queue.push({ t: 0.8, high: !hi }); }
+    const tn = b.tune;
+    if (p === 'lane') addLane(Math.random() < 0.5, tn.warn, tn.fire);
+    else if (p === 'double') { const hi = Math.random() < 0.5; addLane(hi, tn.warn); b.queue.push({ t: tn.warn * 0.8, high: !hi }); }
     else { for (let i = 0; i < 2; i++) addFoe('bomb', VW + 2 + i * Math.max(7, spd * 0.8)); AUDIO.play('missile', 0.5); }
-    // no attack clip: its mechs lunge across the screen; the roar is a shake and a red flash on the boss
+    // no attack clip (its mechs' root motion crosses the screen): a short lunge, its own effect at its body, a roar
+    b.lunge = 0.45;
+    origStatic(BOSS_CAST[b.d.id], b.x + 1.4, 1.6, b.rig.k * 0.8);
     shake = Math.max(shake, 0.25); b.flash = 0.25; AUDIO.play('quake', 0.5);
   }
   // the squad hits back: a shot from the runner (its own colour / hit effect) into the boss behind
@@ -1094,9 +1127,11 @@
     if (b) {
       b.t += dt;
       // stays well behind the squad (the runner is never hidden)
-      const tx = b.leaving ? -9 : -2.2;
+      const tx = b.leaving ? -9 : -0.9;
       b.x += (tx - b.x) * Math.min(1, dt * 1.5);
-      b.rig.g.position.set(b.x, 0, 0);
+      if (b.lunge > 0) b.lunge -= dt;
+      const lx = b.lunge > 0 ? Math.sin((1 - b.lunge / 0.45) * Math.PI) * 0.9 : 0; // a lunge before each attack
+      b.rig.g.position.set(b.x + lx, 0, 0);
       b.rig.c.update(dt);
       if (b.flash > 0) { b.flash -= dt; b.rig.c.setTint(b.flash > 0 ? 2.2 : 1, b.flash > 0 ? 1.4 : 1, b.flash > 0 ? 1.4 : 1); }
       if (Math.random() < 0.08) puff(b.x + 1.2, 0, 2, 1.2);
@@ -1106,9 +1141,9 @@
         b.rig.c.setOpacity(Math.max(0, b.dying / 1.6));
         if (b.dying <= 0) { freeRig(b.rig); run.boss = null; run.nextBoss = traveled + BOSS_EVERY; AUDIO.music(STAGES[stageIx].bgm); }
       } else if (!b.leaving) {
-        for (let i = b.queue.length - 1; i >= 0; i--) { if ((b.queue[i].t -= dt) <= 0) { addLane(b.queue[i].high, 0.75); b.queue.splice(i, 1); } }
+        for (let i = b.queue.length - 1; i >= 0; i--) { if ((b.queue[i].t -= dt) <= 0) { addLane(b.queue[i].high, b.tune.warn * 0.8); b.queue.splice(i, 1); } }
         b.next -= dt;
-        if (b.next <= 0 && b.t < BOSS_TIME - 2) { b.next = rnd(2.4, 3.0); bossAttack(b); }
+        if (b.next <= 0 && b.t < BOSS_TIME - 2) { b.next = b.tune.gap + rnd(0, 0.5); bossAttack(b); }
         if (b.t >= BOSS_TIME) { // it got away
           b.leaving = true;
           addScore(200);
@@ -1161,6 +1196,7 @@
     rig.c.play('move', null, true);
     scene.add(rig.g);
     sup = { def: charDef(id), rig, y: 0, t: SUP_EVERY * 0.6 };
+    preloadVoices(id);
   }
   function supportAct() {
     const d = sup.def, ty = d.skill.type, sx = PX - 1.3, sy = sup.y + 0.7;
@@ -1179,6 +1215,7 @@
     else if (ty === 'frost') { if (t) freeze(t, 2); }
     else { if (t && t.x < PX + 6) { slashFx(t.x, foeMid(t), d.color, 2.4); breakFoe(t, 'melee'); } else fireAtFoe(); }
     if (sup.rig.c.has('atk')) { sup.rig.c.play('atk', () => sup && sup.rig.c.play('move', null, true)); sup.rig.c.speed = 2; }
+    if ((sup.n = (sup.n || 0) + 1) % 3 === 1) voice(d.id, 'skill', 0.55); // the partner speaks up now and then
   }
   function updateSupport(dt) {
     if (!sup) return;
@@ -1351,7 +1388,7 @@
   // id -> { start(dur), tick(dt, t), end() }   (t = time since the skill started)
   const UQ = {
     brownie: { // last burst: a grenade into the crowd ahead
-      end() { const t = aliveAhead(PX + 8); if (t.length) { const f = t[0]; origStatic('rpg_bullet_fx', f.x, foeMid(f), kOf()); t.filter((g) => Math.abs(g.x - f.x) < 3).forEach((g) => breakFoe(g, 'shot')); ring(f.x, foeMid(f), 0xffd08a, 4, 0.4); AUDIO.play('expM', 0.7); } },
+      end() { const t = aliveAhead(PX + 8); if (t.length) { const f = t[0]; origStatic('S_Brownie_ande_bling', f.x, foeMid(f) - 0.3, kOf()); origStatic(ORIG_BOOM, f.x, foeMid(f), kOf()); t.filter((g) => Math.abs(g.x - f.x) < 3).forEach((g) => breakFoe(g, 'shot')); ring(f.x, foeMid(f), 0xffd08a, 4, 0.4); AUDIO.play('expM', 0.7); } },
     },
     leprechaun: { // machine-gun sweep: jellies ahead turn into coins
       tick(dt, t) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.12; const it = items.find((i) => (i.kind === 'jelly' || i.kind === 'bear') && i.x > PX + 1 && i.x < PX + 9);
@@ -1359,16 +1396,17 @@
     },
     valkyrie: { // the shield bursts into a shockwave when it breaks or ends
       tick() { if (P.uqShield && P.shield <= 0) { P.uqShield = false; UQ.valkyrie.wave(); } },
-      start() { P.uqShield = true; },
+      start() { P.uqShield = true; const [mx, my] = muzzle(); origStatic('valkyrie_eyes_lazer', mx, my + 0.2, kOf()); },
       end() { if (P.uqShield) { P.uqShield = false; UQ.valkyrie.wave(); } },
-      wave() { ring(PX, P.y + 1, 0x9fd0ff, 9, 0.5); aliveAhead(PX + 8).forEach((f) => breakFoe(f, 'shot')); AUDIO.play('energy', 0.7); shake = 0.25; },
+      wave() { ring(PX, P.y + 1, 0x9fd0ff, 7, 0.5); origStatic('valkyrie_gun_shot_F', PX + 1, P.y + 0.9, kOf()); aliveAhead(PX + 7).forEach((f) => { origStatic('valkyrie_hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); }); AUDIO.play('energy', 0.7); shake = 0.25; },
     },
     zero: { // blink cuts: every 0.55 s a slash line clears the next 5 units, fences included
       tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.55; origStatic('Kunoichi_skill2_Sword_first_line_F', PX + 2.6, P.y + 0.5, kOf()); aliveAhead(PX + 5.5).forEach((f) => { origStatic('Kunoichi_skill2_Hit_FX_F', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); }); AUDIO.play(csfx('zero', 's2') || 'slash', 0.45, 1, 0.3); },
     },
     phoenix: { // 포격 난사: shells on what is below during the flight, a dive explosion at the end
       tick2(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.45; const f = aliveAhead(PX + 7)[0]; if (f) { f.targeted = true; fireAt(f, shotLanded); } },
-      end() { ring(PX + 2, 0.8, 0xff7a2a, 7, 0.5); burst(PX + 2, 0.8, 0xff5a1f, 24, 0.9, 9); aliveAhead(PX + 8).forEach((f) => breakFoe(f, 'shot')); origStatic('Phoenix_skill1_hit', PX + 2, 0.5, kOf() * 1.5); AUDIO.play('expM', 0.8); shake = 0.3; },
+      end() { ring(PX + 2, 0.8, 0xff7a2a, 7, 0.5); burst(PX + 2, 0.8, 0xff5a1f, 24, 0.9, 9); aliveAhead(PX + 8).forEach((f) => breakFoe(f, 'shot')); origStatic('Phoenix_skill2_hit', PX + 2, 0.5, kOf() * 1.3); AUDIO.play('expM', 0.8); shake = 0.3; },
+      start() { origStatic('Phoenix_skill2_fire', PX + 0.4, P.y + 0.6, kOf()); },
       tick(dt) { if (Math.random() < 0.6) burst(PX - 0.6, P.y + 0.6, 0xff7a2a, 1, 0.7, 2); UQ.phoenix.tick2(dt); },
     },
     labiata: { // 백화요란: every second a ground strike wipes the ground ahead
@@ -1382,7 +1420,8 @@
         if ((P.uqT -= dt) <= 0) { P.uqT = 0.25; AUDIO.play('laserBig', 0.35, 1, 0.2); } },
     },
     harpy: { // the spare missiles rain down as coin drops
-      end() { for (let i = 0; i < 6; i++) addItem('coin', PX + 3 + i * 0.9, rnd(1, 3.5)); },
+      start() { const [mx, my] = muzzle(); origStatic('Harpy_skill2_Lazer_fire', mx, my, kOf()); },
+      end() { origStatic('Harpy_skill2_Last_Lazer_HIt', PX + 4, 0.6, kOf()); aliveAhead(PX + 6).forEach((f) => breakFoe(f, 'shot')); for (let i = 0; i < 6; i++) addItem('coin', PX + 3 + i * 0.9, rnd(1, 3.5)); },
     },
     impet: { // MK08. 열압력탄: a thermobaric blast ahead, then a burning cone in front (not a dash)
       start() { origStatic('2rpg_bullet_fx', PX + 3, 0.8, kOf()); origStatic(ORIG_BOOM, PX + 3.5, 0.8, kOf() * 1.3); aliveAhead(PX + 5).filter((f) => f.kind !== 'air').forEach((f) => breakFoe(f, 'shot')); shake = 0.3; },
@@ -1391,7 +1430,8 @@
         AUDIO.play('spray', 0.25, 1, 0.25); },
     },
     gnome: { // 방벽 생성: a barrier (one hit), grenades, pits bridged with planks for the whole skill
-      start(d) { P.buff.bridge = d; P.shield = Math.max(P.shield, d); },
+      start(d) { P.buff.bridge = d; P.shield = Math.max(P.shield, d); origStatic('Gnome_skill2_ground_Hit', PX + 1.2, 0.05, kOf()); origStatic('Gnome_skill2_stone_smoke', PX + 0.4, 0.1, kOf()); },
+      end() { origStatic('Gnome_skill2_last_bomb', PX + 3, 0.3, kOf()); aliveAhead(PX + 5).filter((f) => f.kind !== 'air').forEach((f) => breakFoe(f, 'shot')); AUDIO.play('expM', 0.6); },
     },
     daphne: { // field medic: regeneration, and jellies heal while it lasts
       tick(dt) { P.hp = Math.min(P.maxHp, P.hp + 3 * dt); if (Math.random() < 0.2) burst(PX + rnd(-0.4, 0.4), P.y + rnd(0.3, 1.6), 0x7dffa8, 1, 0.4, 1, 'spark'); },
@@ -1406,11 +1446,11 @@
     raven: { // two piercing sniper shots across the whole screen (ground and fences)
       start() { aliveAhead().forEach((f) => ring(f.x, foeMid(f), 0xfff2b0, 1.8, 0.6)); AUDIO.play('beam', 0.5); },
       tick(dt, t) { const k = Math.floor((t + 0.3) / 1.4); if (k <= (P.uqN || 0) || k > 2) return; P.uqN = k;
-        const [mx, my] = muzzle(); beamFx(mx, VW + 1, my, 0xfff2b0, 0.25, 0.35); AUDIO.play('handgun', 0.8);
-        aliveAhead().forEach((f) => { breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 3); }); },
+        const [mx, my] = muzzle(); beamFx(mx, VW + 1, my, 0xfff2b0, 0.18, 0.12); AUDIO.play('handgun', 0.8);
+        aliveAhead().slice(0, 3).forEach((f) => { origShot('FX_Raven_skill1_bullet', mx, my, f, kOf(), null, f.x, foeMid(f)); origStatic('Raven_skill1_Hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 3); }); },
     },
     nymph: { // water bubbles: every enemy on screen floats away as a bear jelly
-      start() { const [mx, my] = muzzle(); aliveAhead().forEach((f) => { tracer(mx, my, f.x, foeMid(f), 0x6fe3ff); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); }); AUDIO.play('mg', 0.6); },
+      start() { const [mx, my] = muzzle(); aliveAhead().slice(0, 4).forEach((f) => { tracer(mx, my, f.x, foeMid(f), 0x6fe3ff); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); }); AUDIO.play('mg', 0.6); },
     },
     amy: { // tractor beam: huge reach, every coin counts double
       start(d) { origStatic('Emy_skill2_fire', PX + 0.8, P.y + 0.6, kOf()); P.buff.magnet = d; P.buff.coin2 = d; aliveAhead().slice(0, 3).forEach((f) => { f.marked = true; ring(f.x, foeMid(f), 0xff3048, 1.6, 0.8); }); },
@@ -1418,10 +1458,10 @@
     },
     saraqael: { // golden judgement: lightning on every enemy, each leaves a coin pile
       end() { origStatic('Saraqael_skill2_Last_Big_Hit', PX + 5, 0.4, kOf()); },
-      start() { aliveAhead().forEach((f) => { bolt(f.x, foeMid(f), 0xffe9a0); origStatic('Saraqael_skill2_Fire_lighting', f.x, 0.2, kOf()); origStatic('Saraqael_skill1_elec_hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); }); AUDIO.play('elec', 0.7); },
+      start() { aliveAhead().slice(0, 5).forEach((f) => { bolt(f.x, foeMid(f), 0xffe9a0); origStatic('Saraqael_skill2_Fire_lighting', f.x, 0.2, kOf()); origStatic('Saraqael_skill1_elec_hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); }); AUDIO.play('elec', 0.7); },
     },
     thetis: { // harpoon: the big missile blows up everything around the farthest enemy; chaff blocks one hit
-      start() { P.shield = Math.max(P.shield, 6); const t = aliveAhead(); if (!t.length) return; const f = t[t.length - 1];
+      start() { P.shield = Math.max(P.shield, 6); origStatic('Thetis_skill1_Fire', ...muzzle(), kOf()); const t = aliveAhead(); if (!t.length) return; const f = t[t.length - 1];
         origShot('Thetis_skill2_big_Missile', ...muzzle(), f, kOf(), (g, x, y) => { origStatic('Thetis_skill2_Hit', x, y, kOf()); ring(x, y, 0x66ccff, 8, 0.5); foes.filter((h) => !h.dead && Math.abs(h.x - x) < 4).forEach((h) => breakFoe(h, 'shot')); shake = 0.3; }, f.x, foeMid(f)); },
     },
     undine: { // a water wave that rolls ahead
@@ -1431,31 +1471,34 @@
       tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.3; const t = aliveAhead(PX + 9).filter((g) => !g.targeted); const f = t.find((g) => g.kind === 'air') || t[0]; if (f) { fireAt(f, shotLanded); f.targeted = true; } },
     },
     hela: { // chain lightning through every enemy on screen, each becomes coins
-      start() { let x = PX + 0.6, y = P.y + 1.1; aliveAhead().sort((a, b) => a.x - b.x).forEach((f) => { const fy = foeMid(f); tracer(x, y, f.x, fy, 0xc77dff); origStatic('vfx_fafnir_ns1_hit_last', f.x, fy - 0.4, kOf()); x = f.x; y = fy; breakFoe(f, 'shot'); dropItems(f.x, fy, 'coin', 3); }); AUDIO.play('elec', 0.8); },
+      start() { let x = PX + 0.6, y = P.y + 1.1; origStatic('hela_ground_sumon', PX + 1.2, 0.05, kOf()); aliveAhead().sort((a, b) => a.x - b.x).slice(0, 5).forEach((f) => { const fy = foeMid(f); tracer(x, y, f.x, fy, 0xc77dff); origStatic('hela_beam_hit_main', f.x, fy - 0.4, kOf()); x = f.x; y = fy; breakFoe(f, 'shot'); dropItems(f.x, fy, 'coin', 3); }); AUDIO.play('elec', 0.8); },
     },
     azazel: { // 수호 천사: a shield, jellies count double in flight, a holy pillar when it lands
       start(d) { P.buff.jelly2 = d; P.shield = Math.max(P.shield, d); },
       end() { origStatic('Azazel_skill1_Hit_m', PX + 1.5, 0.5, kOf() * 1.3); bolt(PX + 1.5, 0.5, 0xffe9a0); aliveAhead(PX + 6).forEach((f) => breakFoe(f, 'shot')); },
     },
     leona: { // laser lance: fences in front melt too, jellies during the charge count double
-      start(d) { P.buff.jelly2 = d; },
-      tick() { const [mx, my] = muzzle(); beamFx(mx, mx + 3.5, my, 0xff9ad5, 0.05, 0.3); aliveAhead(PX + 4).forEach((f) => breakFoe(f, 'melee')); },
+      start(d) { P.buff.jelly2 = d; origStatic('Leona_skill2_transform_F', PX, P.y + 0.8, kOf() * 1.6); origStatic('Leona_D_skill1_aura_F', PX, P.y + 0.2, kOf()); },
+      tick(dt) { const [mx, my] = muzzle(); beamFx(mx, mx + 3.5, my, 0xff9ad5, 0.05, 0.16); P.uqT -= dt;
+        aliveAhead(PX + 4).forEach((f) => { if (P.uqT <= 0) { P.uqT = 0.3; origStatic('Leona_up_rising', f.x, 0.05, kOf() * 1.5); } breakFoe(f, 'melee'); }); },
     },
     blacklilith: { // 듀얼 버스트: akimbo pistols, high and low, at whatever is ahead
       tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.22; const t = aliveAhead(PX + 9).slice(0, 2); t.forEach((f) => { if (!f.targeted) { f.targeted = true; fireAt(f, shotLanded); } }); },
     },
     tiamat: { // 풀 웨폰 어썰트: the laser plus a missile salvo
-      start() { const t = aliveAhead().slice(0, 3); t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.1 + i * 0.1, i, f, name: 'Thetis_skill2_Small_Missile', k: kOf() }); }); },
+      start() { origStatic('Tiamat_skill2_Blade_rotate_line_F', PX + 2.4, P.y + 0.9, kOf()); const t = aliveAhead().slice(0, 3); t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.1 + i * 0.1, i, f, name: 'Tiamat_Duke_skill1_bullet', k: kOf() }); }); },
+      end() { origStatic('Tiamat_skill2_BigSword_Up_Hit', PX + 3, 0.2, kOf()); aliveAhead(PX + 5).forEach((f) => breakFoe(f, 'melee')); },
     },
     khan: { // 데저트 스톰: three short dashes with sand bursts
-      tick(dt, t) { const ph = t % 1.2; P.buff.dash = ph < 0.8 ? 0.05 : 0; if (ph < dt * 1.5) { puff(PX, P.floor, 8, 1.2); AUDIO.play('rifle', 0.4); } },
+      start() { origStatic('Khan_skill1_boost_F', PX, P.y + 0.6, kOf() * 1.6); },
+      tick(dt, t) { const ph = t % 1.2; P.buff.dash = ph < 0.8 ? 0.05 : 0; if (ph < dt * 1.5) { puff(PX, P.floor, 8, 1.2); origStatic('Khan_spear_attack', PX + 1.4, P.y + 0.8, kOf()); aliveAhead(PX + 3.2).forEach((f) => { origStatic('Khan_skill1_hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'melee'); }); AUDIO.play('rifle', 0.4); } },
     },
     brunhild: { // 핏빛 효후: blood wolves race ahead through the enemies, opened by her fireball
-      start() { origStatic('Fenrir_skill2_Wolf_Start_aura_F', PX + 0.6, P.y + 0.8, kOf()); origStatic('Brunhild_N_Skill2_A', PX + 2.5, 0.1, kOf()); const f = aliveAhead()[0]; if (f) { f.targeted = true; origShot('Brunhild_N_Skill1_bullet', ...muzzle(), f, kOf(), shotLanded, f.x, foeMid(f)); } },
-      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.7; sendRunner(0xff5530, 'glow', 1.2, 20, 1.3, false, 'Brunhild_N_Skill1_Hit', 'Fenrir_skill2_Wolf_Step_01'); AUDIO.play('expS', 0.35, 0.8); },
+      start() { origStatic('Brunhild_N_Skill1_A', PX + 0.6, P.y + 0.8, kOf()); origStatic('Brunhild_N_Skill2_A', PX + 2.5, 0.1, kOf()); const f = aliveAhead()[0]; if (f) { f.targeted = true; origShot('Brunhild_N_Skill1_bullet', ...muzzle(), f, kOf(), shotLanded, f.x, foeMid(f)); } },
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.7; sendRunner(0xff5530, 'glow', 1.2, 20, 1.3, false, 'Brunhild_N_Skill1_Hit'); AUDIO.play('expS', 0.35, 0.8); },
     },
     titania: { // 서리 폭풍: everything freezes into ice blocks to stand on, then shatters into bears
-      start(d) { aliveAhead().forEach((f) => freeze(f, Math.min(3, d))); for (let i = 0; i < 30; i++) burst(rnd(0, VW), rnd(0, GB + VH), 0xdff8ff, 1, 0.3, 1, 'snow', false); AUDIO.play('ice', 0.8); },
+      start(d) { origStatic('Titania_skill2_All_ice', PX + 5, 0.3, kOf()); origStatic('Titania_skill2_Ice_Road_Fx', PX + 5, 0.1, kOf() * 0.45); aliveAhead(PX + 12).forEach((f) => freeze(f, Math.min(3, d))); for (let i = 0; i < 30; i++) burst(rnd(0, VW), rnd(0, GB + VH), 0xdff8ff, 1, 0.3, 1, 'snow', false); AUDIO.play('ice', 0.8); },
     },
     empress: { // 펭귄 서프라이즈!: a penguin squad slides along the ground, enemies freeze where they are hit
       start() { origStatic('Empris_skill2_ground_Ice_road', PX + 4, 0.05, kOf()); origStatic('Empress_skill2_ice_first_Hit', PX + 2, 0.6, kOf()); },
@@ -1514,6 +1557,7 @@
 
   function startBonus() {
     tally('mech:bonus');
+    if (run.boss) { clearBoss(); run.nextBoss = traveled + BOSS_EVERY; } // the chase never runs into bonus time
     run.bonus = BONUS_TIME + (pas().bonusK || 0);
     run.letters = 0;
     run.bonusCount++;
@@ -2116,7 +2160,7 @@
     setText('score', Math.floor(run.score).toLocaleString());
     setText('dist', Math.floor(traveled) + 'm');
     setText('coins', Math.floor(run.coins).toLocaleString());
-    const mult = 1 + Math.min(1, Math.floor(run.combo / 25) * 0.1);
+    const mult = 1 + Math.min(0.5, Math.floor(run.combo / 25) * 0.1);
     setText('combo', run.combo >= 10 ? run.combo + ' COMBO  ×' + mult.toFixed(1) : '');
     const ringEl = $('skillRing');
     const p = P.skillOn > 0 ? P.skillOn / P.skDur * 100 : Math.min(100, P.skillT / P.skCd * 100);
@@ -2169,6 +2213,35 @@
     if (P.shadow) { P.shadow.visible = true; P.shadow.position.set(x, 0.04, 0); P.shadow.scale.set(1.3 * s, 0.32 * s, 1); P.shadow.material.opacity = 1; }
   }
 
+  // pre-run boosts: bought on the title screen, spent on the next run
+  const BOOSTS = [{ id: 'dash', name: '출발 부스트', cost: 300 }, { id: 'revive', name: '부활권', cost: 500 }, { id: 'magnet', name: '자석 출발', cost: 200 }];
+  const picked = new Set();
+  function renderBoosts() {
+    const el = $('boosts');
+    if (!el) return;
+    el.innerHTML = '';
+    BOOSTS.forEach((b) => {
+      const btn = document.createElement('button');
+      btn.className = 'boost' + (picked.has(b.id) ? ' on' : '');
+      btn.innerHTML = b.name + '<small>' + b.cost + ' 코인</small>';
+      btn.onclick = () => {
+        const cost = BOOSTS.filter((x) => picked.has(x.id)).reduce((a, x) => a + x.cost, 0);
+        if (picked.has(b.id)) picked.delete(b.id); else if (save.coins - cost >= b.cost) picked.add(b.id); else { AUDIO.play('fail', 0.5); return; }
+        AUDIO.play('click', 0.5); renderBoosts();
+      };
+      el.appendChild(btn);
+    });
+  }
+  function applyBoosts() {
+    let cost = 0;
+    picked.forEach((id) => { const b = BOOSTS.find((x) => x.id === id); if (save.coins - cost < b.cost) return; cost += b.cost;
+      if (id === 'dash') { P.buff.boost = 5; P.buff.bridge = 6; }
+      if (id === 'revive') P.ticket = true;
+      if (id === 'magnet') P.buff.magnet = 20; });
+    if (cost) { save.coins -= cost; persist(); popup(PX + 1, 3.4, '부스트 사용 -' + cost, 'big'); }
+    picked.clear();
+  }
+
   function goTitle() {
     state = 'title';
     if (sup) { freeRig(sup.rig); sup = null; }
@@ -2178,6 +2251,7 @@
     resetPlayer();
     startWorld(true);
     refreshTitle();
+    renderBoosts();
     show('title');
     AUDIO.music('ost/title');
   }
@@ -2265,6 +2339,7 @@
     Object.keys(hudCache).forEach((k) => delete hudCache[k]);
     hud();
     makeSupport();
+    applyBoosts();
     $('supPortrait').style.display = save.sup && save.sup !== P.def.id && save.owned.includes(save.sup) ? '' : 'none';
     if (save.sup) $('supPortrait').src = portrait(save.sup);
   }
@@ -2276,7 +2351,7 @@
     if (to > 0) AUDIO.play('coin', 0.4, 1.2);
   }
 
-  function grade(score) { return score >= 60000 ? 'S' : score >= 30000 ? 'A' : score >= 12000 ? 'B' : 'C'; }
+  function grade(score) { return score >= 150000 ? 'S' : score >= 70000 ? 'A' : score >= 30000 ? 'B' : 'C'; }
 
   function showResult() {
     if (state !== 'play') return;
@@ -2479,8 +2554,10 @@
       setPlayerChar(save.sel),
       ...enemyIds.map((id) => SD.prepare(id)),
       FXB.prepare(ORIG_DEFAULT_HIT), FXB.prepare(ORIG_BOOM),
-      ...['CyclopsePrincess_N_Skill2_A', 'CyclopsePrincess_N_Skill2_Hit', 'Fenrir_skill2_Wolf_Step_01', 'Fenrir_skill2_Wolf_Start_aura_F', 'Kunoichi_skill2_Sword_first_line_F', 'Kunoichi_skill2_Hit_FX_F', 'Brunhild_N_Skill2_A', 'Brunhild_N_Skill1_Hit', 'Empris_skill2_ground_Ice_road', 'Empress_skill2_ice_first_Hit', 'Empris_skill2_bomb_particle', 'Saraqael_skill2_Fire_lighting', 'Saraqael_skill2_Last_Big_Hit', 'Labiata_skill2_blade_swing', 'Labiata_skill1_hit', 'brownie_shoot', 'handgun_shot', 'sniper_hit', 'Emy_skill2_fire', 'LRL_bling', 'Banshee_skill2_Ground_Hit', 'Saraqael_skill1_elec_hit', 'LRL_skill2_glow', 'Titania_skill1_iceKnife_hit', 'nidhogg_skill1_hit', 'BlackKnight_N_Skill1_A', 'Goltarion_N_Skill1_A', 'Juggernaut_skill2_last_hit', 'Titania_skill1_hit', 'Empress_skill1_ice_Hit', 'vfx_fafnir_ns1_hit_last', 'Executioner_skill1_Hit', 'Thetis_skill2_Hit', 'Undine_skill2_Hit', 'Azazel_skill1_Hit_m', 'Phoenix_skill1_hit'].map((n) => FXB.prepare(n)),
+      ...['CyclopsePrincess_N_Skill2_A', 'CyclopsePrincess_N_Skill2_Hit', 'Fenrir_skill2_Wolf_Step_01', 'Fenrir_skill2_Wolf_Start_aura_F', 'Kunoichi_skill2_Sword_first_line_F', 'Kunoichi_skill2_Hit_FX_F', 'Brunhild_N_Skill2_A', 'Brunhild_N_Skill1_Hit', 'Empris_skill2_ground_Ice_road', 'Empress_skill2_ice_first_Hit', 'Empris_skill2_bomb_particle', 'Saraqael_skill2_Fire_lighting', 'Saraqael_skill2_Last_Big_Hit', 'Labiata_skill2_blade_swing', 'Labiata_skill1_hit', 'brownie_shoot', 'handgun_shot', 'sniper_hit', 'Emy_skill2_fire', 'LRL_bling', 'Banshee_skill2_Ground_Hit', 'Saraqael_skill1_elec_hit', 'LRL_skill2_glow', 'Titania_skill1_iceKnife_hit', 'nidhogg_skill1_hit', 'BlackKnight_N_Skill1_A', 'Goltarion_N_Skill1_A', 'Juggernaut_skill2_last_hit', 'DoomEater_skill2_Hit_F', 'DoomEater_Big_fire_F', 'Titania_skill1_hit', 'Empress_skill1_ice_Hit', 'vfx_fafnir_ns1_hit_last', 'Executioner_skill1_Hit', 'Thetis_skill2_Hit', 'Undine_skill2_Hit', 'Azazel_skill1_Hit_m', 'Phoenix_skill1_hit'].map((n) => FXB.prepare(n)),
       // original resource icons for the collectibles: power cell = jelly, nutrient = bear jelly, gold coin, parts crate = giant jelly
+      ...['prop_fence', 'prop_stone1', 'prop_stone2', 'prop_fence2'].map((n, i) => loadTex('assets/img/' + n + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX.props[i] = t; } })),
+      loadTex('assets/bg2/sky_bonus.webp').then((t) => { if (t) { t.minFilter = THREE.LinearMipmapLinearFilter; IMG.sky_bonus = t; } }),
       ...[['jelly', 'power'], ['bear', 'nutrient'], ['coin', 'goldcoin'], ['jbig', 'parts']].map(([k, f]) => loadTex('assets/img/res_' + f + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX[k] = t; } })),
     ];
     let done = 0;
@@ -2490,7 +2567,7 @@
     }));
     await Promise.all(jobs);
     STAGES.forEach((st) => makeSet(st.id, st.layers));
-    makeSet('sky', [{ tex: TEX.skyBack, y0: -0.45, full: true, par: 0.06 }]);
+    makeSet('sky', IMG.sky_bonus ? [{ img: 'sky_bonus', y0: -0.45, full: true, par: 0.04, mirror: true }] : [{ tex: TEX.skyBack, y0: -0.45, full: true, par: 0.06 }]);
     bindInput();
     goTitle();
     checkAttendance();
@@ -2502,7 +2579,7 @@
   // a little for debugging / the lab pages
   window.GAME = {
     P, run, foes, items, segs, plats, get scene() { return scene; }, get state() { return state; }, get genX() { return genX; }, get traveled() { return traveled; }, set traveled(v) { traveled = v; },
-    startRun, setChar: setPlayerChar, jump, setSlide: (v) => { input.slide = v; }, startBonus, activateSkill,
+    startRun, goTitle, setChar: setPlayerChar, jump, setSlide: (v) => { input.slide = v; }, startBonus, activateSkill,
     STAT, K: { G, JV, JV2, GB }, get spd() { return spd; }, get PX() { return PX; }, get VW() { return VW; }, get renderer() { return renderer; },
     smashing: () => smashing(), bridging: () => bridging(), origFor, save, lanes, changeStage: (i) => changeStage(i),
     // test hook: hold the clock and advance n fixed frames (the page's own loop stays paused meanwhile)
