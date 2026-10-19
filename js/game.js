@@ -68,7 +68,7 @@
       const src = d.tex || IMG[d.img];
       if (!src) return null;
       const t = src.clone(); t.needsUpdate = true; t.wrapS = d.mirror ? THREE.MirroredRepeatWrapping : THREE.RepeatWrapping; // a non-tiling picture mirrors at its edges
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthTest: false, depthWrite: false }));
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthTest: false, depthWrite: false, color: d.tint == null ? 0xffffff : d.tint }));
       m.renderOrder = L.BACK + i * 0.05;
       group.add(m);
       return { m, t, def: d, k: 0 };
@@ -214,8 +214,10 @@
     for (const c of ['atk', 'skill']) [o[c].bullet, o[c].hit, ...o[c].statics].filter(Boolean).forEach((n) => FXB.prepare(n));
   }
   const ORIG_MAX = MOBILE ? 30 : 70;
+  const boomAt = [];
   function origStatic(name, x, y, k, face = 1, rot = 0) {
     if (!name || !FXB.ready(name) || bfx.length + sfxs.length > ORIG_MAX) return false;
+    if (name === ORIG_BOOM) { const t = performance.now(); while (boomAt.length && t - boomAt[0] > 300) boomAt.shift(); if (boomAt.length >= 3) return true; boomAt.push(t); } // at most three explosions at a time
     const inst = FXB.create(name);
     if (!inst) return false;
     tally('orig:' + name);
@@ -354,7 +356,24 @@
     scene.add(mesh);
     return mesh;
   }
+  function addEdge(x, side) { // side -1: the ground ends here, +1: it starts again
+    if (!TEX.edge) TEX.edge = RUNTEX.canvasTex(32, 128, (g) => {
+      const gr = g.createLinearGradient(0, 0, 32, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.55, 'rgba(10,8,14,.75)'); gr.addColorStop(1, 'rgba(0,0,0,.95)');
+      g.fillStyle = gr; g.fillRect(0, 0, 32, 128);
+      g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(0, 0, 32, 3); // the lip catches the light
+      g.fillStyle = 'rgba(40,30,30,.9)'; for (let y = 10; y < 128; y += 14) { g.beginPath(); g.moveTo(32, y); g.lineTo(20 + (y % 3) * 3, y + 6); g.lineTo(32, y + 12); g.fill(); }
+    });
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.edge, depthTest: false, depthWrite: false, transparent: true }));
+    const top = 0.02, bot = GB - 0.6;
+    s.scale.set(0.45 * -side, top - bot, 1);
+    s.position.set(x - side * 0.2, (top + bot) / 2, 0);
+    s.renderOrder = L.GROUND + 0.25;
+    scene.add(s);
+    props.push({ s, x: x - side * 0.2 });
+  }
   function addGround(x0, x1) {
+    const prev = segs.length ? segs.reduce((a, b) => (b.x1 > a.x1 ? b : a)) : null;
+    if (prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); }
     segs.push({ x0, x1, mesh: slab(x0, x1, 0, 0 - (GB - 0.6)) });
     if (state === 'play' && run.bonus <= 0) {
       const kinds = { city: [3, 2, 3, 1], forest: [0, 0, 1, 2], lab: [2], snow: [2, 1], red: [2, 1, 2] }[STAGES[stageIx].id];
@@ -374,6 +393,9 @@
     s.renderOrder = L.ITEM - 0.2;
     scene.add(s);
     props.push({ s, x });
+    addSeam(x);
+  }
+  function addSeam(x) {
     // a riveted steel plate over the joint where one stage's road meets the next
     if (!TEX.seam) TEX.seam = RUNTEX.canvasTex(64, 128, (g) => {
       const gr = g.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, '#3c4250'); gr.addColorStop(0.5, '#6b7384'); gr.addColorStop(1, '#3c4250');
@@ -881,6 +903,7 @@
 
   function jump() {
     if (state !== 'play' || P.dead || paused) return;
+    P.inT = 0;
     if (P.buff.fly > 0) return;
     const boostJ = run.bonus > 0 ? 1.3 : 1;
     if (P.onGround || P.coyote > 0) {
@@ -951,7 +974,7 @@
       origStatic(o.atk.statics[0] || o.skill.statics[0], f.x, cy - 0.6, k);
     }
     if (f.beam) { scene.remove(f.beam); f.beam.material.dispose(); f.beam = null; } if (f.glow) { scene.remove(f.glow); f.glow.material.dispose(); f.glow = null; }
-    if (f.rig) { f.rig.c.play('die'); f.rig.c.setTint(1, 0.75, 0.6); }
+    if (f.rig) { f.rig.c.play('die'); f.rig.c.setTint(3, 3, 3); f.flashT = 0.08; } // a white hit flash, then the burnt tint
     f.vx = 9 + Math.random() * 4;
     f.vy = 7 + Math.random() * 4;
     f.rot = -(4 + Math.random() * 4);
@@ -1079,7 +1102,7 @@
   // the boss's own effect at its body when it attacks, and its timing: Black Knight's 척살 strikes with a short warning, Goltarion's beam burns longer
   const BOSS_CAST = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_DoomEater_N: 'DoomEater_Big_fire_F', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A' };
   const BOSS_TUNE = { e_Nidhogg_N: { warn: 1.0, fire: 0.32, gap: 2.7 }, e_DoomEater_N: { warn: 0.95, fire: 0.36, gap: 2.3 }, e_BlackKnight_N: { warn: 0.72, fire: 0.26, gap: 2.6 }, e_Goltarion_N: { warn: 1.05, fire: 0.62, gap: 3.0 } };
-  const BOSS_X = { e_Nidhogg_N: 1.2, e_DoomEater_N: 0.9, e_BlackKnight_N: 0.9, e_Goltarion_N: 0.9 }; // rig origin -> whole silhouette in view
+  const BOSS_X = { e_Nidhogg_N: -0.7, e_DoomEater_N: 0.9, e_BlackKnight_N: 0.9, e_Goltarion_N: 0.9 }; // rig origin -> whole silhouette in view
   // Nidhogg: barrage and a three-sweep; Doom Eater: double sweeps; Black Knight: a charge through the squad (jump it);
   // Goltarion: a hellfire beam aimed at the height the runner is at when it locks on
   const BOSS_PATS = { e_Nidhogg_N: ['lane', 'barrage', 'sweep3'], e_DoomEater_N: ['double', 'lane', 'sweep3', 'bombs'], e_BlackKnight_N: ['charge', 'double', 'charge', 'lane'], e_Goltarion_N: ['track', 'bombs', 'track', 'sweep3'] };
@@ -1097,7 +1120,7 @@
     const all = DATA.BOSSES.filter((b) => SD.ready(b.id));
     if (!all.length) { run.nextBoss += 600; return; }
     const d = all[run.bossCount % all.length];
-    const rig = rigFrom(d.id, 3.8, FACE_PLAYER);
+    const rig = rigFrom(d.id, d.id === 'e_Nidhogg_N' ? 3.0 : 3.8, FACE_PLAYER); // the dragon is wide: a little smaller so it stays behind the squad
     rig.c.setOrder(L.PLAYER - 0.5);
     rig.c.play(rig.c.has('move') ? 'move' : 'idle', null, true);
     rig.g.position.set(-4, 0, 0);
@@ -1463,7 +1486,7 @@
     },
     valkyrie: { // the shield bursts into a shockwave when it breaks or ends
       tick() { if (P.uqShield && P.shield <= 0) { P.uqShield = false; UQ.valkyrie.wave(); } },
-      start() { P.uqShield = true; const [mx, my] = muzzle(); origStatic('valkyrie_eyes_lazer', mx, my + 0.2, kOf()); },
+      start(d) { P.uqShield = true; P.shield = Math.max(P.shield, d * 0.6); const [mx, my] = muzzle(); origStatic('valkyrie_eyes_lazer', mx, my + 0.2, kOf()); },
       end() { if (P.uqShield) { P.uqShield = false; UQ.valkyrie.wave(); } },
       wave() { ring(PX, P.y + 1, 0x9fd0ff, 7, 0.5); origStatic('valkyrie_gun_shot_F', PX + 1, P.y + 0.9, kOf()); aliveAhead(PX + 7).forEach((f) => { origStatic('valkyrie_hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); }); AUDIO.play('energy', 0.7); shake = 0.25; },
     },
@@ -1532,7 +1555,7 @@
         origShot('Thetis_skill2_big_Missile', ...muzzle(), f, kOf(), (g, x, y) => { origStatic('Thetis_skill2_Hit', x, y, kOf()); ring(x, y, 0x66ccff, 8, 0.5); foes.filter((h) => !h.dead && Math.abs(h.x - x) < 4).forEach((h) => breakFoe(h, 'shot')); shake = 0.3; }, f.x, foeMid(f)); },
     },
     undine: { // a water wave that rolls ahead
-      start() { sendRunner(0x9feaff, 'glow', 1.6, 18, 1.4); origStatic('Undine_skill2_Hit', PX + 2, 0.6, kOf()); aliveAhead().slice(0, 2).forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.1 + i * 0.15, i, f, name: 'Undine_skill2_bullet', k: kOf() }); }); },
+      start() { P.hp = Math.min(P.maxHp, P.hp + (P.def.skill.heal || 0)); sendRunner(0x9feaff, 'glow', 1.6, 18, 1.4); origStatic('Undine_skill2_Hit', PX + 2, 0.6, kOf()); aliveAhead().slice(0, 2).forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.1 + i * 0.15, i, f, name: 'Undine_skill2_bullet', k: kOf() }); }); },
     },
     hraesvelgr: { // storm flight with a laser strafing what is below
       tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.3; const t = aliveAhead(PX + 9).filter((g) => !g.targeted); const f = t.find((g) => g.kind === 'air') || t[0]; if (f) { fireAt(f, shotLanded); f.targeted = true; } },
@@ -1577,32 +1600,36 @@
     const tr = pas().trait;
     if (!tr || P.dead || state !== 'play') return;
     if ((P.trCd || 0) > 0) return;
+    // traits break small threats; tall ones only take the hit (they stay the runner's job)
+    const kill = (f, by) => { if (f.kind === 'tall') { f.flashT = 0.12; return; } breakFoe(f, by); };
     const near = (r) => aliveAhead(PX + r).filter((f) => f.kind !== 'air' && f.x > PX + 0.3);
     const o = origFor(P.def.id), hitFx = o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT, own = (f, k = 1) => origStatic(hitFx, f.x, foeMid(f) - 0.4, kOf() * k);
-    if (ev === 'double' && tr === 'lance') { const f = aliveAhead(PX + 4)[0]; if (f) { P.trCd = 3; const [mx, my] = muzzle(); beamFx(mx, f.x, my, P.def.color, 0.15, 0.2); origStatic(origFor(P.def.id).atk.hit || ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); } }
+    if (ev === 'double' && tr === 'lance') { const f = aliveAhead(PX + 4)[0]; if (f) { P.trCd = 3; const [mx, my] = muzzle(); beamFx(mx, f.x, my, P.def.color, 0.15, 0.2); origStatic(origFor(P.def.id).atk.hit || ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf()); kill(f, 'shot'); } }
     else if (ev === 'double' && tr === 'akimbo') { const t = aliveAhead(PX + 8).slice(0, 2); if (t.length) { P.trCd = 2.5; t.forEach((f) => { f.targeted = true; fireAt(f, shotLanded); }); } }
     else if (ev === 'double' && tr === 'salvo') { const f = aliveAhead(PX + 9)[0]; if (f) { P.trCd = 3; f.targeted = true; salvo.push({ t: 0.05, i: 0, f, name: P.def.id === 'thetis' ? 'Thetis_skill2_Small_Missile' : o.atk.bullet || o.skill.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); } }
-    else if (ev === 'double' && tr === 'blink') { const t = aliveAhead(PX + 3.2); if (t.length) { P.trCd = 2.5; origStatic('Kunoichi_skill2_Sword_first_line_F', PX + 1.6, P.y + 0.5, kOf() * 0.7); t.forEach((f) => { own(f); breakFoe(f, 'melee'); }); } }
-    else if (ev === 'double' && tr === 'dashcut') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; P.buff.dash = Math.max(P.buff.dash || 0, 0.25); puff(PX, P.y, 5, 0.8); t.forEach((f) => { own(f); breakFoe(f, 'melee'); }); }
-    else if (ev === 'land' && tr === 'grenade' && drop > 1.4) { const f = near(5)[0]; if (f) { P.trCd = 3; origStatic(P.def.id === 'brownie' ? 'S_Brownie_ande_bling' : ORIG_BOOM, f.x, foeMid(f), kOf() * 0.7); breakFoe(f, 'shot'); AUDIO.play('expS', 0.4); } }
-    else if (ev === 'double' && tr === 'prism') { const [mx, my] = muzzle(); P.trCd = 3; beamFx(mx, PX + 8, my, P.def.color, 0.2, 0.18); items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 0.9 && it.x > mx && it.x < PX + 8) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); const f = aliveAhead(PX + 8).find((g) => Math.abs(foeMid(g) - my) < 1.4); if (f) { own(f); breakFoe(f, 'shot'); } }
+    else if (ev === 'double' && tr === 'blink') { const t = aliveAhead(PX + 3.2); if (t.length) { P.trCd = 2.5; origStatic('Kunoichi_skill2_Sword_first_line_F', PX + 1.6, P.y + 0.5, kOf() * 0.7); t.forEach((f) => { own(f); kill(f, 'melee'); }); } }
+    else if (ev === 'double' && tr === 'dashcut') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; P.buff.dash = Math.max(P.buff.dash || 0, 0.25); puff(PX, P.y, 5, 0.8); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
+    else if (ev === 'land' && tr === 'grenade' && drop > 1.4) { const f = near(5)[0]; if (f) { P.trCd = 3; origStatic(P.def.id === 'brownie' ? 'S_Brownie_ande_bling' : ORIG_BOOM, f.x, foeMid(f), kOf() * 0.7); kill(f, 'shot'); AUDIO.play('expS', 0.4); } }
+    else if (ev === 'double' && tr === 'prism') { const [mx, my] = muzzle(); P.trCd = 3; beamFx(mx, PX + 8, my, P.def.color, 0.2, 0.18); items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 0.9 && it.x > mx && it.x < PX + 8) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); const f = aliveAhead(PX + 8).find((g) => Math.abs(foeMid(g) - my) < 1.4); if (f) { own(f); kill(f, 'shot'); } }
     else if (ev === 'double' && tr === 'homing') { const t = aliveAhead(PX + 9).sort((a, b) => (b.kind === 'air') - (a.kind === 'air')).slice(0, 2); if (t.length) { P.trCd = 3; t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.05 + i * 0.12, i, f, name: o.atk.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); }); } }
-    else if (ev === 'double' && tr === 'gust') { const t = aliveAhead(PX + 4.5).filter((f) => f.kind === 'air'); P.trCd = 2; for (let i = 0; i < 6; i++) streak(PX + 0.5 + i * 0.6, P.y + 0.6, P.def.color); t.forEach((f) => { own(f); breakFoe(f, 'shot'); }); }
-    else if (ev === 'land' && tr === 'bladearc' && drop > 1.4) { const t = aliveAhead(PX + 3); P.trCd = 2.5; origStatic('Tiamat_skill2_Blade_rotate_line_F', PX + 1.5, P.y + 0.8, kOf() * 0.6); t.forEach((f) => { own(f); breakFoe(f, 'melee'); }); }
-    else if (ev === 'slide' && tr === 'eyebeam') { const t = aliveAhead(PX + 7).filter((f) => f.kind === 'air'); if (t.length) { P.trCd = 2.5; const [mx, my] = muzzle(); t.forEach((f) => { tracer(mx, my, f.x, foeMid(f), P.def.color); own(f); breakFoe(f, 'shot'); }); origStatic('valkyrie_eyes_lazer', mx, my, kOf()); } }
-    else if (ev === 'slide' && tr === 'mark') { const f = aliveAhead(PX + 8)[0]; if (f) { P.trCd = 3; own(f); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 4); } }
+    else if (ev === 'double' && tr === 'gust') { const t = aliveAhead(PX + 4.5).filter((f) => f.kind === 'air'); P.trCd = 2; for (let i = 0; i < 6; i++) streak(PX + 0.5 + i * 0.6, P.y + 0.6, P.def.color); t.forEach((f) => { own(f); kill(f, 'shot'); }); }
+    else if (ev === 'land' && tr === 'bladearc' && drop > 1.4) { const t = aliveAhead(PX + 3); P.trCd = 2.5; origStatic('Tiamat_skill2_Blade_rotate_line_F', PX + 1.5, P.y + 0.8, kOf() * 0.6); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
+    else if (ev === 'slide' && tr === 'eyebeam') { const t = aliveAhead(PX + 7).filter((f) => f.kind === 'air'); if (t.length) { P.trCd = 2.5; const [mx, my] = muzzle(); t.forEach((f) => { tracer(mx, my, f.x, foeMid(f), P.def.color); own(f); kill(f, 'shot'); }); origStatic('valkyrie_eyes_lazer', mx, my, kOf()); } }
+    else if (ev === 'slide' && tr === 'mark') { const f = aliveAhead(PX + 8)[0]; if (f) { P.trCd = 3; own(f); kill(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 4); } }
     else if (ev === 'slide' && tr === 'torpedo') { P.trCd = 3; sendRunner(0x66ccff, 'glow', 0.6, 16, 0.7, false, hitFx); }
     else if (ev === 'slide' && tr === 'wave') { P.trCd = 3.5; sendRunner(0x9feaff, 'glow', 1.2, 14, 0.9, false, 'Undine_skill2_Hit'); }
     else if (ev === 'slide' && tr === 'spray') { const f = aliveAhead(PX + 6)[0]; if (f) { P.trCd = 2.5; f.targeted = true; fireAt(f, shotLanded); } }
-    else if (ev === 'slide' && tr === 'pulse') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; ring(PX + 0.8, 0.6, P.def.color, 2.6, 0.3); t.forEach((f) => { own(f); breakFoe(f, 'shot'); }); }
-    else if (ev === 'land' && tr === 'quake' && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; ring(PX + 1, 0.2, P.def.color, 3, 0.35); shake = Math.max(shake, 0.15); origStatic(P.def.id === 'labiata' ? 'Labiata_skill1_hit' : hitFx, PX + 1.4, 0.3, kOf() * (P.def.id === 'labiata' ? 0.35 : 0.8)); t.forEach((f) => breakFoe(f, 'melee')); }
-    else if (ev === 'land' && tr === 'flame' && drop > 1.2) { const t = near(2.4); P.trCd = 2; origStatic(P.def.id === 'brunhild' ? 'Brunhild_N_Skill1_Hit' : hitFx, PX + 1.2, 0.3, kOf() * 0.6); t.forEach((f) => breakFoe(f, 'shot')); }
+    else if (ev === 'slide' && tr === 'pulse') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; ring(PX + 0.8, 0.6, P.def.color, 2.6, 0.3); t.forEach((f) => { own(f); kill(f, 'shot'); }); }
+    else if (ev === 'land' && tr === 'quake' && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; ring(PX + 1, 0.2, P.def.color, 3, 0.35); shake = Math.max(shake, 0.15); origStatic(P.def.id === 'labiata' ? 'Labiata_skill1_hit' : hitFx, PX + 1.4, 0.3, kOf() * (P.def.id === 'labiata' ? 0.35 : 0.8)); t.forEach((f) => kill(f, 'melee')); }
+    else if (ev === 'land' && tr === 'flame' && drop > 1.2) { const t = near(2.4); P.trCd = 2; origStatic(P.def.id === 'brunhild' ? 'Brunhild_N_Skill1_Hit' : hitFx, PX + 1.2, 0.3, kOf() * 0.6); t.forEach((f) => kill(f, 'shot')); }
   }
   const hitOf = () => { const o = origFor(P.def.id); return o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT; };
   // passives that act on their own between skills
   function passiveTick(dt) {
     const ps = pas();
     if (P.trCd > 0) P.trCd -= dt;
+    P.inT = (P.inT || 0) + dt;
+    if (P.inT > 1.5) return; // no input, no help: the passives answer the player's moves
     if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0) { P.haloT = 10; if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
     if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; ring(f.x, foeMid(f), 0x6fe3ff, 1.8, 0.5); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
     if (ps.trait === 'snipe' && (P.snT = (P.snT == null ? 7 : P.snT) - dt) <= 0) { const t = foes.filter((f) => !f.dead && !f.frozen && f.x > PX + 4 && f.x < VW + 0.5); const f = t[t.length - 1]; if (f) { P.snT = 7; const [mx, my] = muzzle(); beamFx(mx, f.x, my, 0xfff2b0, 0.12, 0.08); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); AUDIO.play('handgun', 0.5); } else P.snT = 0.4; }
@@ -1670,6 +1697,7 @@
 
   function startBonus() {
     tally('mech:bonus');
+    addSeam(genX);
     if (run.boss) { clearBoss(); run.nextBoss = traveled + BOSS_EVERY; } // the chase never runs into bonus time
     run.bonus = BONUS_TIME + (pas().bonusK || 0);
     run.letters = 0;
@@ -1855,6 +1883,7 @@
     for (let i = foes.length - 1; i >= 0; i--) {
       const f = foes[i];
       f.t += dt;
+      if (f.flashT > 0 && f.rig) { f.flashT -= dt; const w = f.flashT > 0; f.rig.c.setTint(w ? 3 : 1, w ? 3 : f.dead ? 0.75 : 1, w ? 3 : f.dead ? 0.6 : 1); }
       if (f.dead) {
         f.x += (f.vx - spd) * dt; f.vy -= 30 * dt; f.y += f.vy * dt;
         if (f.rig) { f.rig.pivot.rotation.z += f.rot * dt; f.rig.c.setOpacity(Math.max(0, 1 - f.t / 0.9)); }
@@ -2128,7 +2157,7 @@
 
     // slide
     const wasSlide = P.slide;
-    { const was = P.slide; P.slide = input.slide && P.onGround && !fly; if (P.slide && !was) trait('slide'); }
+    { const was = P.slide; P.slide = input.slide && P.onGround && !fly; if (P.slide && !was) { P.inT = 0; trait('slide'); } }
     if (P.slide && !wasSlide) { tally('mech:slide'); puff(PX + 0.4, P.floor, 3, 0.5); AUDIO.play('swing', 0.3, 0.8); }
     if (P.slide && Math.random() < 0.3) puff(PX + 0.3, P.floor, 1, 0.4);
     P.slideK += ((P.slide ? 1 : 0) - P.slideK) * Math.min(1, dt * 18);
