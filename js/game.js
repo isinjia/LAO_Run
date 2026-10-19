@@ -204,10 +204,10 @@
   // each member's own skill effects (UQ), loaded with the member
   const UQFX = {
     brownie: ['S_Brownie_ande_bling'], valkyrie: ['valkyrie_eyes_lazer', 'valkyrie_gun_shot_F', 'valkyrie_hit'], phoenix: ['Phoenix_skill2_fire', 'Phoenix_skill2_hit'],
-    harpy: ['Harpy_skill2_Lazer_fire', 'Harpy_skill2_Last_Lazer_HIt'], gnome: ['Gnome_skill2_ground_Hit', 'Gnome_skill2_stone_smoke', 'Gnome_skill2_last_bomb'],
-    raven: ['FX_Raven_skill1_bullet', 'Raven_skill1_Hit'], thetis: ['Thetis_skill1_Fire'], hela: ['hela_ground_sumon', 'hela_beam_hit_main'],
+    harpy: ['Harpy_skill2_Lazer_fire', 'Harpy_skill2_Last_Lazer_HIt', 'Harpy_skill12_bullet', 'Harpy_skill12_bullet_ver2'], gnome: ['Gnome_skill2_ground_Hit', 'Gnome_skill2_stone_smoke', 'Gnome_skill2_last_bomb'],
+    raven: ['FX_Raven_skill1_bullet', 'Raven_skill1_Hit', 'Raven_skill2_Scofe_Dot'], thetis: ['Thetis_skill1_Fire'], hela: ['hela_ground_sumon', 'hela_beam_hit_main'],
     leona: ['Leona_skill2_transform_F', 'Leona_D_skill1_aura_F', 'Leona_up_rising'], tiamat: ['Tiamat_skill2_Blade_rotate_line_F', 'Tiamat_Duke_skill1_bullet', 'Tiamat_skill2_BigSword_Up_Hit'],
-    khan: ['Khan_skill1_boost_F', 'Khan_spear_attack', 'Khan_skill1_hit'], brunhild: ['Brunhild_N_Skill1_A'], titania: ['Titania_skill2_All_ice', 'Titania_skill2_Ice_Road_Fx'],
+    khan: ['Khan_skill1_boost_F', 'Khan_spear_attack', 'Khan_skill1_hit'], brunhild: ['Brunhild_N_Skill1_A'], titania: ['Titania_skill2_All_ice', 'Titania_skill2_Ice_Road_Fx', 'Titania_skill1_iceKnife_hit', 'Titania_skill1_Ground_ice'],
   };
   function prepOrig(id) {
     (UQFX[id] || []).forEach((n) => FXB.prepare(n));
@@ -561,6 +561,7 @@
     f.rig = null;
     if (f.beam) { scene.remove(f.beam); f.beam.material.dispose(); f.beam = null; } if (f.glow) { scene.remove(f.glow); f.glow.material.dispose(); f.glow = null; }
     if (f.bomb) { scene.remove(f.bomb); f.bomb.material.dispose(); f.bomb = null; }
+    if (f.scope) { scene.remove(f.scope); f.scope.material.dispose(); f.scope = null; }
   }
 
   function maybeItem(x, y) {
@@ -1259,7 +1260,7 @@
     rig.c.play(rig.c.has('move') ? 'move' : 'idle', null, true);
     rig.g.position.set(-4, 0, 0);
     scene.add(rig.g);
-    run.boss = { d, rig, t: 0, next: 2.4, x: -4, leaving: false, hp: BOSS_HP, charge: 0, flash: 0, pat: 0, queue: [], dying: 0, lunge: 0, tune: BOSS_TUNE[d.id] || { warn: 1, fire: 0.32, gap: 2.7 } };
+    run.boss = { d, rig, t: 0, next: 3.4, x: -4, leaving: false, hp: BOSS_HP, charge: 0, flash: 0, pat: 0, queue: [], dying: 0, lunge: 0, tune: BOSS_TUNE[d.id] || { warn: 1, fire: 0.32, gap: 2.7 } };
     run.bossCount++;
     tally('mech:boss');
     AUDIO.play('warning', 0.8);
@@ -1720,13 +1721,15 @@
         aliveAhead(PX + 7.5).filter((f) => f.kind !== 'air').forEach((f) => breakFoe(f, 'melee')); shake = 0.3; AUDIO.play('quake', 0.5); },
     },
     lrl: { // 사이클롭스 이터널 빔: a screen-wide beam; enemies vanish, jellies on its line become bears
-      tick(dt) { const [mx, my] = muzzle(); if ((P.uqB = (P.uqB || 0) - dt) <= 0) { P.uqB = 99; origStatic('CyclopsePrincess_N_Skill2_A', mx + 0.2, my, kOf() * 0.75, 1, 0.36); origStatic('LRL_bling', mx, my - 0.3, kOf()); } beamFx(mx, VW + 1, my, 0xff4060, 0.06, 0.35);
+      tick(dt) { const [mx, my] = muzzle(); if ((P.uqB = (P.uqB || 0) - dt) <= 0) { P.uqB = 0.55; origStatic('CyclopsePrincess_N_Skill2_A', mx + 0.2, my, kOf() * 0.75, 1, 0.36); origStatic('LRL_bling', mx, my - 0.3, kOf()); } beamFx(mx, VW + 1, my, 0x80202c, 0.06, 0.8); beamFx(mx, VW + 1, my, 0xff8090, 0.06, 0.45); beamFx(mx, VW + 1, my, 0xffffff, 0.06, 0.14);
         aliveAhead().forEach((f) => { breakFoe(f, 'shot'); if (Math.random() < 0.5) origStatic('CyclopsePrincess_N_Skill2_Hit', f.x, foeMid(f) - 0.3, kOf() * 0.7); });
         items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 1.6 && it.x > mx) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } });
         if ((P.uqT -= dt) <= 0) { P.uqT = 0.25; AUDIO.play('laserBig', 0.35, 1, 0.2); } },
     },
     harpy: { // the spare missiles rain down as coin drops
       start() { const [mx, my] = muzzle(); origStatic('Harpy_skill2_Lazer_fire', mx, my, kOf()); },
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.22; const t = aliveAhead(PX + 11); const f = t[(Math.random() * t.length) | 0];
+        if (f) { f.targeted = true; salvo.push({ t: 0, i: 0, f, name: 'Harpy_skill12_bullet', k: kOf() }); } else { const [mx, my] = muzzle(); origStatic('Harpy_skill12_bullet_ver2', mx + 1 + Math.random() * 3, my + rnd(-0.4, 0.8), kOf() * 0.8); } }, // the NARAAK salvo keeps coming
       end() { origStatic('Harpy_skill2_Last_Lazer_HIt', PX + 4, 0.6, kOf()); aliveAhead(PX + 6).forEach((f) => breakFoe(f, 'shot')); for (let i = 0; i < 6; i++) addItem('coin', PX + 3 + i * 0.9, rnd(1, 3.5)); },
     },
     impet: { // MK08. 열압력탄: a thermobaric blast ahead, then a burning cone in front (not a dash)
@@ -1750,9 +1753,9 @@
       tick() { if (Math.random() < 0.4) streak(PX + rnd(-1, 1), P.y + rnd(0.2, 1.8), 0xe0c8ff); },
     },
     raven: { // two piercing sniper shots across the whole screen (ground and fences)
-      start() { aliveAhead().forEach((f) => ring(f.x, foeMid(f), 0xfff2b0, 1.8, 0.6)); AUDIO.play('beam', 0.5); },
+      start() { aliveAhead().slice(0, 3).forEach((f) => { if (!f.scope) { f.scope = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.reticle, color: 0xff5a5a, depthTest: false, depthWrite: false, transparent: true })); f.scope.scale.set(1.2, 1.2, 1); f.scope.renderOrder = L.FX; scene.add(f.scope); } origStatic('Raven_skill2_Scofe_Dot', f.x, foeMid(f), kOf()); }); AUDIO.play('beam', 0.5); }, // scopes on the targets
       tick(dt, t) { const k = Math.floor((t + 0.3) / 1.4); if (k <= (P.uqN || 0) || k > 2) return; P.uqN = k;
-        const [mx, my] = muzzle(); beamFx(mx, VW + 1, my, 0xfff2b0, 0.18, 0.12); AUDIO.play('handgun', 0.8);
+        const [mx, my] = muzzle(); beamFx(mx, VW + 1, my, 0xfff2b0, 0.3, 0.22); beamFx(mx, VW + 1, my, 0xffffff, 0.3, 0.07); shake = Math.max(shake, 0.2); AUDIO.play('handgun', 0.8);
         aliveAhead().slice(0, 3).forEach((f) => { origShot('FX_Raven_skill1_bullet', mx, my, f, kOf(), null, f.x, foeMid(f)); origStatic('Raven_skill1_Hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 3); }); },
     },
     nymph: { // water bubbles: every enemy on screen floats away as a bear jelly
@@ -1804,6 +1807,7 @@
       tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.7; if (!sendSummon(18, 1.4)) sendRunner(0xff5530, 'glow', 1.2, 20, 1.3, false, 'Brunhild_N_Skill1_Hit'); AUDIO.play('expS', 0.35, 0.8); },
     },
     titania: { // 서리 폭풍: everything freezes into ice blocks to stand on, then shatters into bears
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.28; origStatic(Math.random() < 0.5 ? 'Titania_skill1_iceKnife_hit' : 'Titania_skill1_Ground_ice', PX + rnd(2, 9), rnd(0.2, 2.5), kOf() * 0.8); for (let i = 0; i < 6; i++) burst(rnd(PX, VW), rnd(0, GB + VH), 0xdff8ff, 1, 0.4, 2, 'snow', false); aliveAhead(PX + 12).forEach((f) => freeze(f, 2)); }, // the storm keeps freezing what arrives
       start(d) { origStatic('Titania_skill2_All_ice', PX + 5, 0.3, kOf()); origStatic('Titania_skill2_Ice_Road_Fx', PX + 5, 0.1, kOf() * 0.45); aliveAhead(PX + 12).forEach((f) => freeze(f, Math.min(3, d))); for (let i = 0; i < 30; i++) burst(rnd(0, VW), rnd(0, GB + VH), 0xdff8ff, 1, 0.3, 1, 'snow', false); AUDIO.play('ice', 0.8); },
     },
     empress: { // 펭귄 서프라이즈!: a penguin squad slides along the ground, enemies freeze where they are hit
@@ -2149,6 +2153,7 @@
     for (let i = foes.length - 1; i >= 0; i--) {
       const f = foes[i];
       f.t += dt;
+      if (f.scope) { f.scope.position.set(f.x, foeMid(f), 0); f.scope.material.rotation += dt * 3; if (f.dead || P.skillOn <= 0) { scene.remove(f.scope); f.scope.material.dispose(); f.scope = null; } }
       if (f.flashT > 0 && f.rig) { f.flashT -= dt; const w = f.flashT > 0; f.rig.c.setTint(w ? 3 : 1, w ? 3 : f.dead ? 0.75 : 1, w ? 3 : f.dead ? 0.6 : 1); }
       if (f.dead) {
         f.x += (f.vx - spd) * dt; f.vy -= 30 * dt; f.y += f.vy * dt;
@@ -2793,7 +2798,7 @@
     if (to > 0) AUDIO.play('coin', 0.4, 1.2);
   }
 
-  function grade(score) { return score >= 150000 ? 'S' : score >= 70000 ? 'A' : score >= 30000 ? 'B' : 'C'; }
+  function grade(score) { return score >= 100000 ? 'S' : score >= 50000 ? 'A' : score >= 20000 ? 'B' : 'C'; }
 
   function showResult() {
     if (state !== 'play') return;
@@ -3014,7 +3019,7 @@
 
     if (!save.owned.includes(save.sel)) save.sel = 'brownie';
     // a few obstacle rigs up front; the rest stream in while the player is on the title screen
-    const enemyIds = [...ENEMIES.low.slice(0, 3), ...ENEMIES.tall.slice(0, 2), ...ENEMIES.air].map((e) => e.id);
+    const enemyIds = [...ENEMIES.low.slice(0, 6), ...ENEMIES.tall.slice(0, 4), ...ENEMIES.air].map((e) => e.id); // a varied roster from the first metre
     const jobs = [
       ...[...new Set(STAGES.flatMap((st) => [...st.layers.map((l) => l.img), st.groundImg].filter(Boolean)))].map((n) => loadTex('assets/bg2/' + n + '.webp').then((t) => {
         if (t) { t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4; IMG[n] = t; }

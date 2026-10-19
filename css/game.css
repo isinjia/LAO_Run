@@ -404,3 +404,4 @@ body.running #rotate { display: none !important; }
   .rightBox { transform: scale(.82); transform-origin: top right; }
   #titleMissions { display: none; }
 }
+@media (max-height: 480px) { #tutHint { top: 14% !important; font-size: 12px !important; max-width: 40vw; } }
