@@ -442,8 +442,8 @@
     s.scale.set(sz, sz, 1);
     s.renderOrder = L.ITEM;
     s.position.set(x, y, 0);
-    const halo = HALO[kind] || (HALO[kind] = new THREE.SpriteMaterial({ map: TEX.glow, color: { jelly: 0x6fe3ff, bear: 0xffa8d8, coin: 0xffd84a, jbig: 0xfff27a, gjelly: 0xffc23a }[kind] || 0xffffff, opacity: 0.55, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
-    const g = new THREE.Sprite(halo); g.scale.set(1.9, 1.9, 1); g.renderOrder = L.ITEM - 0.05; s.add(g);
+    const halo = HALO[kind] || (HALO[kind] = new THREE.SpriteMaterial({ map: TEX.glow, color: { jelly: 0x6fe3ff, bear: 0xffa8d8, coin: 0xffd84a, jbig: 0xfff27a, gjelly: 0xffc23a }[kind] || 0xffffff, opacity: 0.33, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
+    const g = new THREE.Sprite(halo); g.scale.set(1.5, 1.5, 1); g.renderOrder = L.ITEM - 0.05; s.add(g);
     scene.add(s);
     items.push({ kind, x, y, s, sz, pulled: false, t: Math.random() * 6 });
   }
@@ -749,12 +749,12 @@
       const ev = EVENTS[(run.evN = (run.evN || 0) + 1) % EVENTS.length];
       run.nextEvent = traveled + rnd(650, 800);
       run.evQ = ev.q.slice();
-      popup(VW / 2, 4.6, ev.name, 'bossSkill'); AUDIO.play('warning', 0.5); ann('Becareful-1'); tally('mech:event');
+      popup(VW / 2, 4.0, ev.name + ' — 무피격 +1,500', 'bossSkill'); AUDIO.play('warning', 0.5); ann('Becareful-1'); tally('mech:event');
       run.ev = { name: ev.name, hits: 0, end: null };
       return run.evQ.shift();
     }
     if (run.boss) { const r = Math.random(); return r < 0.35 ? 'flat' : r < 0.5 ? 'wave' : r < 0.65 ? 'low' : r < 0.78 ? 'pit' : r < 0.9 ? 'steps' : 'platFoe'; } // the boss's lanes plus terrain (no laser fences under its sweeps)
-    const lv = Math.min(1, traveled / 2600);
+    const lv = Math.min(1, traveled / 1800);
     const w = {
       flat: 2.0 - lv * 1.5, wave: 0.5 - lv * 0.2, low: 3, low2: 0.4 + lv * 1.6, tall: 0.6 + lv * 1.6, air: 2, airs: 0.4 + lv * 1.4,
       pit: 1.4, pitWide: lv * 1.4, lowAir: lv * 1.8, pitLow: lv * 1.5, steps: 0.5 + lv * 0.8, upper: 0.7, platFoe: 0.3 + lv * 0.8,
@@ -979,6 +979,7 @@
     f.t = 0;
     run.kills++;
     addScore(100 * (pas().killK || 1) * ((run.mod && run.mod.kill) || 1));
+    if (pas().trait === 'drain' && f.kind !== 'shot' && f.kind !== 'bomb' && (P.soulCd || 0) < performance.now()) { P.soulCd = performance.now() + 1800; addPlat(f.x - 0.6, f.x + 0.6, 1.7); plats[plats.length - 1].mesh.material.color.setHex(0xc77dff); } // a soul platform where it fell
     if (pas().lifeSteal && !P.dead) { P.hp = Math.min(P.maxHp, P.hp + pas().lifeSteal); burst(PX, P.y + 1, 0xc77dff, 3, 0.4, 1.5, 'spark'); }
     const cy = f.kind === 'air' ? f.y + 0.5 : f.y + Math.min(f.h, 3) / 2;
     const k = (P.rig ? P.rig.k : 0.14) * P.scale;
@@ -1172,7 +1173,7 @@
   function bossAttack(b) {
     const pats = BOSS_PATS[b.d.id] || ['lane'];
     const p = pats[b.pat++ % pats.length];
-    popup(VW / 2, 4.9, b.d.name + ' 「' + ((BOSS_SKILL[b.d.id] || {})[p] || PAT_NAME[p]) + '」', 'bossSkill');
+    popup(VW / 2, 4.1, b.d.name + ' 「' + ((BOSS_SKILL[b.d.id] || {})[p] || PAT_NAME[p]) + '」', 'bossSkill');
     const tn = b.tune;
     if (p === 'lane') addLane(Math.random() < 0.5, tn.warn, tn.fire);
     else if (p === 'double') { const hi = Math.random() < 0.5; addLane(hi, tn.warn); b.queue.push({ t: tn.warn * 0.8, high: !hi }); }
@@ -1628,6 +1629,11 @@
   // traits: what a member's passive does on a double jump / a landing / over time (data.js pas.trait)
   const TRIG = { halo: 'perfect', bubble: 'perfect', snipe: 'double', strafe: 'slide', frost: 'double' };
   function trait(ev, drop = 0) {
+    const cd0 = P.trCd || 0;
+    traitInner(ev, drop);
+    if ((P.trCd || 0) > cd0 + 0.5) { const o = origFor(P.def.id); origStatic(o.skill.statics[0] || o.atk.statics[0] || hitOf(), PX + 0.6, P.y + 0.8, kOf() * 0.7); }
+  }
+  function traitInner(ev, drop = 0) {
     const tr = pas().trait;
     if (!tr || P.dead || state !== 'play') return;
     if (TRIG[tr] === ev || (tr === 'smite' && ev === 'land')) P.trigNow = true; // a charged timed trait goes off on this move
@@ -1636,6 +1642,7 @@
     const kill = (f, by) => { if (f.kind === 'tall') { f.flashT = 0.12; return; } breakFoe(f, by); };
     const near = (r) => aliveAhead(PX + r).filter((f) => f.kind !== 'air' && f.x > PX + 0.3);
     const o = origFor(P.def.id), hitFx = o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT, own = (f, k = 1) => origStatic(hitFx, f.x, foeMid(f) - 0.4, kOf() * k);
+    if (ev === 'double' && tr === 'lance') P.vy += 3.2; // the lance plants and vaults her higher
     if (ev === 'double' && tr === 'lance') { const f = aliveAhead(PX + 4)[0]; if (f) { P.trCd = 3; const [mx, my] = muzzle(); beamFx(mx, f.x, my, P.def.color, 0.15, 0.2); origStatic(origFor(P.def.id).atk.hit || ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf()); kill(f, 'shot'); } }
     else if (ev === 'double' && tr === 'akimbo') { const t = aliveAhead(PX + 8).slice(0, 2); if (t.length) { P.trCd = 2.5; t.forEach((f) => { f.targeted = true; fireAt(f, shotLanded); }); } }
     else if (ev === 'double' && tr === 'salvo') { const f = aliveAhead(PX + 9)[0]; if (f) { P.trCd = 3; f.targeted = true; salvo.push({ t: 0.05, i: 0, f, name: P.def.id === 'thetis' ? 'Thetis_skill2_Small_Missile' : o.atk.bullet || o.skill.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); } }
@@ -1645,7 +1652,7 @@
     else if (ev === 'double' && tr === 'prism') { const [mx, my] = muzzle(); P.trCd = 3; beamFx(mx, PX + 8, my, P.def.color, 0.2, 0.18); items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 0.9 && it.x > mx && it.x < PX + 8) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); const f = aliveAhead(PX + 8).find((g) => Math.abs(foeMid(g) - my) < 1.4); if (f) { own(f); kill(f, 'shot'); } }
     else if (ev === 'double' && tr === 'homing') { const t = aliveAhead(PX + 9).sort((a, b) => (b.kind === 'air') - (a.kind === 'air')).slice(0, 2); if (t.length) { P.trCd = 3; t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.05 + i * 0.12, i, f, name: o.atk.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); }); } }
     else if (ev === 'double' && tr === 'gust') { const t = aliveAhead(PX + 4.5).filter((f) => f.kind === 'air'); P.trCd = 2; for (let i = 0; i < 6; i++) streak(PX + 0.5 + i * 0.6, P.y + 0.6, P.def.color); t.forEach((f) => { own(f); kill(f, 'shot'); }); }
-    else if (ev === 'land' && tr === 'bladearc' && drop > 1.4) { const t = aliveAhead(PX + 3); P.trCd = 2.5; origStatic('Tiamat_skill2_Blade_rotate_line_F', PX + 1.5, P.y + 0.8, kOf() * 0.6); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
+    else if (ev === 'land' && tr === 'bladearc' && drop > 1.4) { const t = aliveAhead(PX + 4).filter((f) => f.kind === 'shot' || f.x < PX + 3); P.trCd = 2.5; origStatic('Tiamat_skill2_Blade_rotate_line_F', PX + 1.5, P.y + 0.8, kOf() * 0.6); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
     else if (ev === 'slide' && tr === 'eyebeam') { const t = aliveAhead(PX + 7).filter((f) => f.kind === 'air'); if (t.length) { P.trCd = 2.5; const [mx, my] = muzzle(); t.forEach((f) => { tracer(mx, my, f.x, foeMid(f), P.def.color); own(f); kill(f, 'shot'); }); origStatic('valkyrie_eyes_lazer', mx, my, kOf()); } }
     else if (ev === 'slide' && tr === 'mark') { const f = aliveAhead(PX + 8)[0]; if (f) { P.trCd = 3; own(f); kill(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 4); } }
     else if (ev === 'slide' && tr === 'torpedo') { P.trCd = 3; sendRunner(0x66ccff, 'glow', 0.6, 16, 0.7, false, hitFx); }
@@ -2074,7 +2081,7 @@
     // a close shave over (or under) an obstacle: PERFECT
     if (!f.near && !f.hit && !f.dead && (f.kind === 'low' || f.kind === 'tall' || f.kind === 'air') && px0 <= fx1 && px1 >= fx0) {
       const gap = f.kind === 'air' ? fy0 - py1 : py0 - fy1;
-      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; P.inT = 0; trait('perfect'); run.pStreak = (run.pStreak || 0) + 1; const pv = 80 * Math.min(5, run.pStreak); addScore(pv); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, (run.pStreak > 1 ? 'PERFECT ×' + run.pStreak : 'PERFECT!') + ' +' + pv, 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); if (P.skillOn <= 0) { P.skillT += 1.2; ring(PX, P.y + 1, P.def.color, 1.4, 0.3); } } // a PERFECT also charges the skill
+      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; P.inT = 0; trait('perfect'); run.pStreak = (run.pStreak || 0) + 1; const pv = 80 * Math.min(5, run.pStreak); addScore(pv); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, (run.pStreak > 1 ? 'PERFECT ×' + run.pStreak : 'PERFECT!') + ' +' + pv, 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); if (P.skillOn <= 0) { P.skillT += run.pStreak === 5 ? 6 : 1.2; ring(PX, P.y + 1, P.def.color, 1.4, 0.3); } if (run.pStreak === 5) { ann('Perfect-1'); flash(hex(P.def.color), 0.3); popup(PX, P.y + 3, 'PERFECT ×5 — 스킬 충전!', 'combo'); } } // a PERFECT also charges the skill
     }
     if (px1 < fx0 || px0 > fx1 || py1 < fy0 || py0 > fy1) return;
     if (f.frozen || (f.kind === 'bomb' && !f.armed)) return;
@@ -2163,7 +2170,7 @@
       if (!P.onGround && input.slide) {
         const tr = pas().trait;
         if (tr === 'glide' && P.vy < -1.4) { P.vy = -1.4; if (Math.random() < 0.3) streak(PX - 0.3, P.y + 0.8, P.def.color); }
-        else if (tr === 'slam' && !P.slam && P.y > 0.9) { P.slam = true; P.vy = -24; P.inT = 0; AUDIO.play('swing', 0.6, 0.7); }
+        else if (tr === 'slam' && !P.slam && P.y > 0.9 && (overGround(PX, 0.3) || platAt(PX, 0.3, 0))) { P.slam = true; P.vy = -24; P.inT = 0; AUDIO.play('swing', 0.6, 0.7); } // never slams into a pit
       }
       if (P.vy < -30) P.vy = -30;
       const prevY = P.y;
