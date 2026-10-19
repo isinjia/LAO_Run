@@ -298,7 +298,7 @@
   function resetPlayer() {
     const d = P.def, lv = lvOf(d.id);
     Object.assign(P, { y: 0, vy: 0, jumps: 0, onGround: true, floor: 0, coyote: 0, jumpBuf: 0, slide: false, slideK: 0, spin: 0,
-      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false, pasT: 0, smT: null, trCd: 0, haloT: null, frT: null, bbT: null, snT: null, stT: null,
+      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false, hoverT: 0, pasT: 0, smT: null, trCd: 0, haloT: null, frT: null, bbT: null, snT: null, stT: null,
       skillT: 0, skillOn: 0, skCd: d.skill.cd * (1 - (lv - 1) * 0.06), skDur: d.skill.dur * (1 + (lv - 1) * 0.08),
       scale: 1, buff: {}, gunT: 0, fell: false, lock: 0, rainT: 0 });
     P.mods = mergeMods(d);
@@ -511,13 +511,13 @@
       // laser fence from the drone to the top of the screen: slide under it
       const top = GB + VH + 1, y0 = opt.hang ? y + 1.15 : y + d.h * 0.8;
       const b = new THREE.Sprite(new THREE.SpriteMaterial({ map: opt.hang ? TEX.cable : TEX.beam, depthTest: false, depthWrite: false, transparent: true, blending: opt.hang ? THREE.NormalBlending : THREE.AdditiveBlending }));
-      b.scale.set(opt.hang ? 0.16 : 0.55, top - y0, 1);
+      b.scale.set(opt.hang ? 0.16 : 0.4, top - y0, 1);
       b.position.set(x, (top + y0) / 2, 0);
       b.renderOrder = L.BEAM;
       scene.add(b);
       f.beam = b;
       if (!opt.hang) { // a wide outer glow around the white core
-        const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.beam, color: 0xff3050, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
+        const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.beam, color: 0xff3050, opacity: 0.6, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
         gl.scale.set(1.5, top - y0, 1); gl.position.copy(b.position); gl.renderOrder = L.BEAM - 0.1; scene.add(gl); f.glow = gl;
       }
       f.h = 99;
@@ -800,7 +800,7 @@
     if (!run.boss && run.bonus <= 0 && traveled > (run.nextEvent || 700) && traveled < run.nextBoss - 250) {
       const ev = EVENTS[(run.evN = (run.evN || 0) + 1) % EVENTS.length];
       run.nextEvent = traveled + rnd(650, 800);
-      run.evQ = ev.q.slice();
+      run.evQ = ev.q.slice(); for (let i = 0; i < Math.floor((run.evN - 1) / EVENTS.length); i++) run.evQ.push(ev.q[i % ev.q.length]); // a lap later the gauntlet is longer
       popup(VW / 2, 4.0, ev.name + ' — 무피격 +1,500', 'bossSkill'); AUDIO.play('warning', 0.5); ann('Becareful-1'); tally('mech:event');
       run.ev = { name: ev.name, hits: 0, end: null };
       return run.evQ.shift();
@@ -932,8 +932,12 @@
     fx.push({ s, vx: 0, vy: 0, life: 0.12, t: 0, size: 0, grow: 0, keepScale: true, scroll: true, g: 0 });
   }
 
+  const popAt = [];
   function popup(x, y, text, cls) {
     tally('fx:popup');
+    { const t = performance.now(); while (popAt.length && t - popAt[0].t > 700) popAt.shift();
+      let n = 0; for (const q of popAt) if (Math.abs(q.x - x) < 2.6 && Math.abs(q.y - y) < 0.5 + n * 0.55) n++;
+      popAt.push({ t, x, y: y + n * 0.55 }); y += n * 0.55; }
     const el = document.createElement('div');
     el.className = 'pop' + (cls ? ' ' + cls : '');
     el.textContent = text;
@@ -1735,8 +1739,8 @@
     if (ev === 'slide' && tr === 'spray') P.buff.bridge = Math.max(P.buff.bridge || 0, 0.45); // her slide skids over small gaps
     if (ev === 'slide' && tr === 'mark') P.buff.dash = Math.max(P.buff.dash || 0, 0.35); // a sprint after the shot
     if (ev === 'double' && tr === 'akimbo') P.vy += 2.2; // the recoil hop
-    if (ev === 'double' && tr === 'homing') P.vy += 2.6; // she rides the launch higher
-    if (ev === 'double' && tr === 'eyebeam') P.vy += 1.8;
+    if (ev === 'double' && tr === 'homing') P.hoverT = 0.45; // she hangs in the air on her missile's thrust
+    if (ev === 'double' && tr === 'eyebeam') { P.buff.dash = Math.max(P.buff.dash || 0, 0.3); P.vy = Math.max(P.vy, 2); } // an air-dash behind the laser
     if (ev === 'land' && tr === 'flame' && drop > 1.2) { P.buff.dash = Math.max(P.buff.dash || 0, 0.4); P.buff.bridge = Math.max(P.buff.bridge || 0, 0.5); } // the flame carries her on (over a pit edge too)
     else if (ev === 'double' && tr === 'homing') { const t = aliveAhead(PX + 9).sort((a, b) => (b.kind === 'air') - (a.kind === 'air')).slice(0, 2); if (t.length) { P.trCd = 3; t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.05 + i * 0.12, i, f, name: o.atk.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); }); } }
     else if (ev === 'double' && tr === 'gust') { const t = aliveAhead(PX + 4.5).filter((f) => f.kind === 'air'); P.trCd = 2; origStatic(o.skill.statics[0] || 'Sylphid_NS1_skill2_bullet', PX + 1.5, P.y + 0.6, kOf() * 0.8); t.forEach((f) => { own(f); kill(f, 'shot'); }); }
@@ -1955,16 +1959,18 @@
     }
     for (let i = rescues.length - 1; i >= 0; i--) {
       const r = rescues[i];
-      r.x -= dx; r.rig.g.position.x = r.x + (r.done ? (r.t = (r.t || 0) + dt) * 6 : 0); r.sos.position.x = r.x; r.rig.c.update(dt);
+      if (r.done) { r.t = (r.t || 0) + dt; const tx = r.t < 1.4 ? PX + 1.1 : PX + 1.1 + (r.t - 1.4) * 9; r.x += (tx - r.x) * Math.min(1, dt * 8); r.y += (P.floor - r.y) * Math.min(1, dt * 6); r.rig.g.position.set(r.x, r.y, 0); } // runs beside the squad, then dashes ahead
+      else { r.x -= dx; r.rig.g.position.x = r.x; }
+      r.sos.position.x = r.x; r.rig.c.update(dt);
       r.sos.material.opacity = r.done ? 0 : 0.5 + Math.sin(performance.now() / 120) * 0.4;
       if (!r.done && !P.dead && Math.abs(r.x - PX) < 0.8 && Math.abs(P.y - r.y) < 0.9) { // reached
-        r.done = true; r.rig.c.setTint(1, 1, 1); r.rig.c.play('move', null, true); r.rig.g.scale.x = -1;
+        r.done = true; r.rig.c.setTint(1, 1, 1); r.rig.c.play('move', null, true); r.rig.g.scale.x = -1; r.rig.c.setOrder(L.PLAYER + 0.2);
         addScore(800); run.coins += 20; run.rescued = (run.rescued || 0) + 1;
         P.shield = Math.max(P.shield, 3); P.skillT += 2;
-        popup(PX, P.y + 2.6, '구조 성공! ' + charDef(r.id).name + ' +800', 'perfect'); ann('Success-1'); voice(r.id, 'mvp', 0.8, true);
+        popup(PX + 1, P.y + 3.2, '구조 성공! ' + charDef(r.id).name + ' 합류 +800', 'perfect'); ann('Success-1'); voice(r.id, 'mvp', 0.8, true);
         origStatic(ORIG_DEFAULT_HIT, r.x, r.y + 0.8, kOf());
       }
-      if (r.x < -3 || (r.done && r.t > 1.2)) { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); rescues.splice(i, 1); }
+      if (r.x < -3 || (r.done && r.t > 2.4)) { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); rescues.splice(i, 1); }
     }
     for (let i = props.length - 1; i >= 0; i--) {
       const p = props[i];
@@ -2270,6 +2276,7 @@
       if (P.buff.fly <= dt) { P.buff.bridge = 1.2; runAnim(); }
     } else {
       P.vy -= G * dt * (pas().gravK || 1) * (run.bonus > 0 ? 0.6 : 1) * (P.vy < 0 ? (P.buff.wind > 0 ? 0.55 : pas().fallK || 1) : 1);
+      if (P.hoverT > 0) { P.hoverT -= dt; if (P.vy < 0.4) P.vy = 0.4; if (Math.random() < 0.4) puff(PX - 0.3, P.y + 0.2, 1, 0.4); }
       if (!P.onGround && input.slide) {
         const tr = pas().trait;
         if (tr === 'glide' && P.vy < -1.4) { P.vy = -1.4; if (Math.random() < 0.3) streak(PX - 0.3, P.y + 0.8, P.def.color); }
@@ -2862,6 +2869,8 @@
         const x = (i * 97) % w, y = h * 0.62 + ((i * 53) % 90), s = 6 + (i * 7) % 18;
         g.fillStyle = 'rgba(8,10,18,' + (0.5 + (i % 3) * 0.15) + ')'; g.beginPath(); g.moveTo(x, y); g.lineTo(x + s, y - s * 0.6); g.lineTo(x + s * 1.8, y + 2); g.closePath(); g.fill();
       }
+      g.strokeStyle = 'rgba(70,80,100,.5)'; g.lineWidth = 3; for (let i = 0; i < 5; i++) { const x = 20 + i * 52; g.beginPath(); g.moveTo(x, h * 0.78); g.lineTo(x + 30, h * 0.72); g.stroke(); } // broken pipes on the floor
+      const gl = g.createRadialGradient(w / 2, h, 4, w / 2, h, w * 0.6); gl.addColorStop(0, 'rgba(255,120,60,.25)'); gl.addColorStop(1, 'rgba(255,120,60,0)'); g.fillStyle = gl; g.fillRect(0, h * 0.6, w, h * 0.4);
       const m = g.createLinearGradient(0, h * 0.42, 0, h * 0.62); m.addColorStop(0, 'rgba(150,170,210,0)'); m.addColorStop(0.5, 'rgba(150,170,210,.22)'); m.addColorStop(1, 'rgba(150,170,210,0)');
       g.fillStyle = m; g.fillRect(0, h * 0.42, w, h * 0.2); // mist
     });

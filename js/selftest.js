@@ -28,16 +28,17 @@
     if (P.buff.fly > 0) return;
 
     const sim = (j1, j2) => {
-      let y = P.y, vy = P.vy, onG = P.onGround, floor = P.floor, jumps = P.jumps, coy = P.coyote, cost = 0;
+      let y = P.y, vy = P.vy, onG = P.onGround, floor = P.floor, jumps = P.jumps, coy = P.coyote, cost = 0, hov = P.hoverT || 0;
       const hit = new Set(), got = new Set();
       for (let k = 0; k < H; k++) {
         const t = (k + 1) * DT, sh = spd * t; // the world scrolls before the runner is tested (same order as update())
         const smash = t < smashT, bridge = t < bridgeT;
         if (k === j1 || k === j2) {
           if (onG || coy > 0) { vy = K.JV * gj * bj * jk; jumps = 1; onG = false; coy = 0; }
-          else if (jumps < 2) { vy = K.JV2 * bj * jk; jumps = 2; }
+          else if (jumps < 2) { vy = K.JV2 * bj * jk; jumps = 2; if (pp.trait === 'homing' && !(P.trCd > 0)) hov = 0.45; }
         }
         vy -= K.G * DT * gk * (vy < 0 ? fk : 1); if (vy < -30) vy = -30;
+        if (hov > 0) { hov -= DT; if (vy < 0.4) vy = 0.4; } // Harpy's hover after her double jump
         const py = y; y += vy * DT;
         const over = (x0, x1) => x0 - sh < px + 0.28 * sc && x1 - sh > px - 0.28 * sc;
         if (onG) {
