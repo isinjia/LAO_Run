@@ -336,3 +336,11 @@ button { font: inherit; color: inherit; }
 #pick.on { display: flex; }
 #pick .pickHead { font-weight: 900; color: #ffd36e; font-size: 14px; }
 #pick .btn { min-width: 180px; }
+/* narrow phones: score and combo drop below the HP row, ORCA slots tuck under the coin pill, call-outs wrap inside the screen */
+@media (max-width: 520px) {
+  .scoreBox { top: 92px !important; }
+  #letters { top: 56px !important; right: 12px !important; left: auto !important; transform: none !important; }
+  #letters i { width: 24px; height: 24px; font-size: 12px; }
+  .hpBar { width: min(170px, 44vw); }
+  .pop.bossSkill, .pop.warn { white-space: normal; max-width: 86vw; font-size: 17px; text-align: center; }
+}
