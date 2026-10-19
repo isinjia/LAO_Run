@@ -330,3 +330,9 @@ button { font: inherit; color: inherit; }
 #buffs { flex-wrap: wrap; margin-top: 8px; position: relative; z-index: 1; }
 /* the support member's badge sits on the portrait's lower-left, never under the HP bar */
 #supPortrait { right: auto; left: -6px; bottom: -4px; z-index: 2; border-color: #b99c5c; }
+#pick { position: absolute; left: 50%; top: 26%; transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 8px; pointer-events: auto; z-index: 13;
+  background: linear-gradient(180deg, rgba(14, 18, 30, .86), rgba(8, 10, 18, .92)), url(../assets/ui/panel_bg.webp) center / 300px; border: 1px solid #b99c5c; padding: 10px 16px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%); }
+#pick.on { display: flex; }
+#pick .pickHead { font-weight: 900; color: #ffd36e; font-size: 14px; }
+#pick .btn { min-width: 180px; }

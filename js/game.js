@@ -372,6 +372,12 @@
       g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(0, 0, 32, 3); // the lip catches the light
       g.fillStyle = 'rgba(40,30,30,.9)'; for (let y = 10; y < 128; y += 14) { g.beginPath(); g.moveTo(32, y); g.lineTo(20 + (y % 3) * 3, y + 6); g.lineTo(32, y + 12); g.fill(); }
     });
+    const wall = stageGroundTex();
+    if (wall && wall.image) { // the cliff face is the stage's own road strip, seen side-on and in shadow
+      const w = new THREE.Sprite(new THREE.SpriteMaterial({ map: wall, color: 0x4a4a52, depthTest: false, depthWrite: false, transparent: true }));
+      w.scale.set(0.5, 0.02 - (GB - 0.6), 1); w.position.set(x + side * 0.25, (0.02 + GB - 0.6) / 2, 0); w.renderOrder = L.GROUND + 0.22; w.material.rotation = Math.PI / 2;
+      scene.add(w); props.push({ s: w, x: x + side * 0.25 });
+    }
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.edge, depthTest: false, depthWrite: false, transparent: true }));
     const top = 0.02, bot = GB - 0.6;
     s.scale.set(0.45 * -side, top - bot, 1);
@@ -510,7 +516,7 @@
     if (kind === 'air') {
       // laser fence from the drone to the top of the screen: slide under it
       const top = GB + VH + 1, y0 = opt.hang ? y + 1.15 : y + d.h * 0.8;
-      const b = new THREE.Sprite(new THREE.SpriteMaterial({ map: opt.hang ? TEX.cable : TEX.beam, depthTest: false, depthWrite: false, transparent: true, blending: opt.hang ? THREE.NormalBlending : THREE.AdditiveBlending }));
+      const b = new THREE.Sprite(new THREE.SpriteMaterial({ map: opt.hang ? TEX.cable : TEX.beam, opacity: opt.hang ? 1 : 0.72, depthTest: false, depthWrite: false, transparent: true, blending: opt.hang ? THREE.NormalBlending : THREE.AdditiveBlending }));
       b.scale.set(opt.hang ? 0.16 : 0.4, top - y0, 1);
       b.position.set(x, (top + y0) / 2, 0);
       b.renderOrder = L.BEAM;
@@ -843,7 +849,7 @@
     clearWorld();
     traveled = 0;
     stageIx = 0;
-    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, ev: null, evQ: null, evN: 0, nextEvent: 700, nextRescue: 1100, rescued: 0, pStreak: 0, perfect: 0,
+    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], ev: null, evQ: null, evN: 0, nextEvent: 700, nextRescue: 1100, rescued: 0, pStreak: 0, perfect: 0,
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
     showSet(STAGES[0].id, true);
@@ -948,7 +954,7 @@
     if (popAt.length) popAt[popAt.length - 1].el = el;
     setTimeout(() => el.remove(), cls === 'bossSkill' ? 1500 : 800);
   }
-  const DMG_IMG = {};
+  const DMG_IMG = {}, DMG_POOL = [];
   ['base', 'cri'].forEach((k) => { const im = new Image(); im.src = 'assets/img/dmg_' + k + '.png'; DMG_IMG[k] = im; });
   function dmgNum(x, y, value, kind = 'base', h = 0.55) {
     const F = window.DMGFONT && window.DMGFONT[kind], im = DMG_IMG[kind];
@@ -956,7 +962,7 @@
     const str = String(Math.round(value));
     let w = 8;
     for (const c of str) w += F[c] ? F[c][6] : 0;
-    const cv = document.createElement('canvas'); cv.width = w + 8; cv.height = 72;
+    const cv = DMG_POOL.pop() || document.createElement('canvas'); cv.width = w + 8; cv.height = 72; // (width set = cleared)
     const g = cv.getContext('2d');
     let cx = 4;
     for (const c of str) { const d = F[c]; if (!d) continue; g.drawImage(im, d[0], d[1], d[2], d[3], cx + d[4], d[5], d[2], d[3]); cx += d[6]; }
@@ -1303,12 +1309,35 @@
     lipWarn.visible = false;
     if (state !== 'play' || P.dead || P.onGround || bridging() || P.vy > 4) return;
     const g = G * (pas().gravK || 1), t = (P.vy + Math.sqrt(Math.max(0, P.vy * P.vy + 2 * g * Math.max(0, P.y)))) / g, lx = PX + spd * t; // where this arc comes down
-    if (overGround(lx, 0.2) || P.jumps < 2) return; // still on target, or a double jump left to fix it
+    if (overGround(lx, 0.2)) return; // still on target
     const next = segs.filter((s) => s.x0 > PX).sort((a, b) => a.x0 - b.x0)[0];
     if (!next || next.x0 < lx) return;
-    lipWarn.visible = true; lipWarn.position.set(next.x0 + 0.1, 0.15, 0); lipWarn.material.opacity = 0.5 + Math.sin(performance.now() / 70) * 0.4;
+    const canFix = P.jumps < (pas().jumps || 2) + (P.buff.wind > 0 ? 1 : 0);
+    lipWarn.visible = true; lipWarn.material.color.setHex(canFix ? 0xffd040 : 0xff3040); // yellow: jump again now; red: lost
+    lipWarn.position.set(next.x0 + 0.1, 0.15, 0); lipWarn.material.opacity = 0.5 + Math.sin(performance.now() / (canFix ? 110 : 70)) * 0.4;
+  }
+  const PICKS = [
+    { name: '자석 12초', f: () => { P.buff.magnet = Math.max(P.buff.magnet || 0, 12); } },
+    { name: '실드 2회', f: () => { P.shield = Math.max(P.shield, 8); } },
+    { name: '스킬 충전', f: () => { P.skillT += 8; } },
+    { name: 'HP +30', f: () => { P.hp = Math.min(P.maxHp, P.hp + 30); } },
+    { name: '코인 2배 15초', f: () => { P.buff.coin2 = Math.max(P.buff.coin2 || 0, 15); } },
+  ];
+  function offerPick() {
+    const a = PICKS.slice().sort(() => Math.random() - 0.5).slice(0, 2);
+    const el = $('pick');
+    if (!el) return;
+    el.innerHTML = '<div class="pickHead">작전 보급 — 하나를 고르세요</div>';
+    let done = false;
+    const choose = (i) => { if (done) return; done = true; a[i].f(); el.classList.remove('on'); popup(PX, P.y + 2.6, a[i].name + '!', 'big'); AUDIO.play('rankUp', 0.6); window.removeEventListener('keydown', key); };
+    a.forEach((o, i) => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = (i + 1) + '. ' + o.name; b.onclick = () => choose(i); el.appendChild(b); });
+    const key = (e) => { if (e.key === '1' || e.key === '2') choose(+e.key - 1); };
+    window.addEventListener('keydown', key);
+    el.classList.add('on'); ann('LevelUp-1');
+    setTimeout(() => choose((Math.random() * 2) | 0), 3000);
   }
   function updateEvent() {
+    for (const m of [1000, 2600]) if (traveled >= m && !(run.picked || []).includes(m) && state === 'play' && !P.dead) { (run.picked = run.picked || []).push(m); offerPick(); }
     const e = run.ev;
     if (!e || e.end == null || traveled + PX < e.end || P.dead) return;
     run.ev = null;
@@ -1738,7 +1767,7 @@
     if (TRIG[tr] === ev || (tr === 'smite' && ev === 'land')) P.trigNow = true; // a charged timed trait goes off on this move
     if ((P.trCd || 0) > 0) return;
     // traits break small threats; tall ones only take the hit (they stay the runner's job)
-    const kill = (f, by) => { if (f.kind === 'tall') { f.flashT = 0.12; return; } breakFoe(f, by); };
+    const kill = (f, by) => { if (f.kind === 'tall') { f.flashT = 0.12; return; } breakFoe(f, by); flash(hex(P.def.color), 0.12); };
     const near = (r) => aliveAhead(PX + r).filter((f) => f.kind !== 'air' && f.x > PX + 0.3);
     const o = origFor(P.def.id), hitFx = o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT, own = (f, k = 1) => origStatic(hitFx, f.x, foeMid(f) - 0.4, kOf() * k);
     if (ev === 'double' && tr === 'lance') P.vy += 3.2; // the lance plants and vaults her higher
@@ -1795,7 +1824,7 @@
     if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; castOwn(); traitCall(); freeze(f, 3); } else P.frT = 0.5; }
     if (ps.smite && (P.smT = (P.smT == null ? ps.smite : P.smT) - dt) <= 0 && trig) {
       const t = aliveAhead(PX + 10).find((f) => f.x > PX + 1.5);
-      if (t) { P.smT = ps.smite; castOwn(); traitCall(); origStatic('Saraqael_skill2_Fire_lighting', t.x, 0.2, kOf() * 0.8); origStatic('Saraqael_skill1_elec_hit', t.x, foeMid(t) - 0.4, kOf()); breakFoe(t, 'shot'); AUDIO.play('elec', 0.4); } else P.smT = 0.3;
+      if (t) { P.smT = ps.smite; castOwn(); traitCall(); origStatic('Saraqael_skill2_Fire_lighting', t.x, 0.2, kOf() * 0.8); if (t.kind !== 'air') addPlat(t.x - 0.5, t.x + 0.5, 1.1); origStatic('Saraqael_skill1_elec_hit', t.x, foeMid(t) - 0.4, kOf()); breakFoe(t, 'shot'); AUDIO.play('elec', 0.4); } else P.smT = 0.3; // the strike throws up a rim to step on
     }
   }
   function uqStart(d) { P.uqT = 0; P.uqN = 0; P.uqTime = 0; const u = UQ[P.def.id]; if (u && u.start) u.start(d); }
@@ -2164,7 +2193,7 @@
       const p = fx[i];
       p.t += dt;
       const k = p.t / p.life;
-      if (k >= 1) { scene.remove(p.s); if (p.ownTex) p.s.material.map.dispose(); p.s.material.dispose(); fx.splice(i, 1); continue; }
+      if (k >= 1) { scene.remove(p.s); if (p.ownTex) { if (DMG_POOL.length < 16) DMG_POOL.push(p.s.material.map.image); p.s.material.map.dispose(); } p.s.material.dispose(); fx.splice(i, 1); continue; }
       p.s.position.x += (p.vx - (p.scroll ? spd : 0)) * dt;
       p.s.position.y += p.vy * dt;
       p.vy -= p.g * dt;
@@ -2235,7 +2264,7 @@
     for (const k in P.buff) if (P.buff[k] > 0) P.buff[k] -= dt;
     if (wasSmash && !smashing()) P.inv = Math.max(P.inv, wasFly ? 1.2 : 0.5);
     // ...and a bridge that ends with a pit below (even mid-jump) carries the runner to the far side
-    if (wasBridge && !bridging() && !overGround(PX, 0.28 * P.scale)) P.buff.bridge = 1.0;
+    if (wasBridge && !bridging() && (!overGround(PX, 0.28 * P.scale) || !P.onGround)) P.buff.bridge = 1.0; // ends only once she is down on solid ground
     if (P.windWas && !(P.buff.wind > 0) && !P.onGround) P.buff.bridge = Math.max(P.buff.bridge || 0, 1.0); // the wind dropping mid-air must not drop her into a pit
     P.windWas = P.buff.wind > 0;
     P.sinceBridge = bridging() ? 0 : (P.sinceBridge || 0) + dt;
@@ -2319,7 +2348,8 @@
       }
       if (!P.onGround && P.vy <= 0) {
         const s = surfaceBelow(PX, 0.28 * P.scale, prevY + 0.05);
-        if (s > -Infinity && P.y <= s && prevY >= s - 0.35) {
+        const caught = bridging() && s === 0 && P.y < 0 && P.y > -0.7; // a bridge that came back on (or held) just as she dipped under the road line still catches her
+        if (s > -Infinity && P.y <= s && (prevY >= s - Math.max(0.35, -P.vy * dt * 1.5 + 0.1) || caught)) { // a fast fall (heavy members, moving decks) never tunnels through
           P.y = s; P.vy = 0; P.floor = s; P.onGround = true; P.jumps = 0; P.spin = 0; P.sq = 0.82;
           tally(s > 0 ? 'mech:platform' : 'mech:land');
           if (P.buff.giant > 0) { shake = 0.25; ring(PX, s + 0.1, 0xd0c0ff, 4, 0.35); puff(PX, s, 6, 1.1); } else puff(PX, s, 3, 0.55);
@@ -2333,7 +2363,7 @@
       if (P.y < -0.5 && P.sinceBridge < 1.5 && (!P.rescued || traveled - (P.springAt || -99) > 12)) { // (a long airborne stretch under several buffs can need a second spring)
         // a fall right after a bridge / invulnerability ran out is not the player's fault: spring back up once
         P.rescued = true; P.springAt = traveled;
-        P.vy = 21; P.jumps = 1; P.buff.bridge = 1.2; P.inv = Math.max(P.inv, 1.0);
+        P.vy = 21; P.jumps = 1; P.buff.bridge = 2.0; P.inv = Math.max(P.inv, 1.0);
         ring(PX, 0, 0x9fe6ff, 3, 0.4); burst(PX, 0, 0x9fe6ff, 10, 0.5, 5, 'spark'); AUDIO.play('energy', 0.6); tally('mech:rescue');
       }
       if (P.onGround) P.rescued = false;

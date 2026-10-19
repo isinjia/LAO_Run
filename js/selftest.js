@@ -2,7 +2,7 @@
 // The bot replans each frame: ~120 jump timings (first jump, second jump) simulated 1.2 s ahead with the game's own physics
 // and hitboxes; a hit it cannot dodge is an unfair layout, so "oracle hits" measure fairness.
 (function () {
-  const H = 96, DT = 1 / 60; // 1.6 s: a light member's double-jump arc lands inside the look-ahead
+  const DT = 1 / 60;
   const out = (window.SELFTEST = { done: false, log: [] });
   out.hitLog = [];
   out.fallLog = [];
@@ -16,6 +16,7 @@
     const B = P.buff, left = (...ks) => Math.max(0, ...ks.map((k) => B[k] || 0));
     const smashT = left('giant', 'dash', 'boost', 'fly') - 0.05, bridgeT = Math.max(smashT, left('bridge') - 0.05, GAME.run.bonus - 0.05);
     const pp = P.def.pas || {}, gk = pp.gravK || 1, fk = pp.fallK || 1; // the member's own weight (game.js gravity line)
+    const H = gk < 0.95 || fk < 1 || (pp.jumpK || 1) > 1.03 ? 96 : 72; // floaty or high-jumping members land later
     const jk = (P.def.pas && P.def.pas.jumpK) || 1, bj = GAME.run.bonus > 0 ? 1.12 : 1, gj = P.buff.giant > 0 ? 1.05 : 1;
     const foes = GAME.foes.filter((f) => !f.dead && f.x > px - 2 && f.x < px + spd * 1.3 + 3);
     const items = GAME.items.filter((it) => it.x > px - 1 && it.x < px + spd * 1.3 + 2 && !it.pulled);
@@ -31,7 +32,7 @@
     const sim = (j1, j2) => {
       let y = P.y, vy = P.vy, onG = P.onGround, floor = P.floor, jumps = P.jumps, coy = P.coyote, cost = 0, hov = P.hoverT || 0;
       const hit = new Set(), got = new Set();
-      for (let k = 0; k < H; k++) {
+      for (let k = 0; k < H; k++) { // H: 1.2 s, or 1.6 s for floaty members whose arcs land later
         const t = (k + 1) * DT, sh = spd * t; // the world scrolls before the runner is tested (same order as update())
         const smash = t < smashT, bridge = t < bridgeT;
         if (k === j1 || k === j2) {
@@ -53,7 +54,7 @@
         if (!onG && vy <= 0) {
           let s = bridge || segs.some((g) => over(g.x0, g.x1)) ? 0 : -Infinity;
           for (const p of plats) { const yy = p.osc ? p.osc.y0 + Math.sin((p.osc.t + t) * p.osc.w) * p.osc.amp : p.y; if (yy <= py + 0.05 + 0.001 && yy > s && over(p.x0, p.x1)) s = yy; }
-          if (s > -Infinity && y <= s && py >= s - 0.35) { y = s; vy = 0; floor = s; onG = true; jumps = 0; }
+          if (s > -Infinity && y <= s && py >= s - Math.max(0.35, -vy * DT * 1.5 + 0.1)) { y = s; vy = 0; floor = s; onG = true; jumps = 0; }
         }
         coy = Math.max(0, coy - DT);
         if (y < K.GB - 0.4) return { cost: 1e6 + k, fell: true };
