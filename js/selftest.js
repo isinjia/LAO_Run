@@ -5,6 +5,7 @@
   const H = 72, DT = 1 / 60;
   const out = (window.SELFTEST = { done: false, log: [] });
   out.hitLog = [];
+  out.fallLog = [];
   out.trace = [];
 
   function planAndAct() {
@@ -35,7 +36,7 @@
         const smash = t < smashT, bridge = t < bridgeT;
         if (k === j1 || k === j2) {
           if (onG || coy > 0) { vy = K.JV * gj * bj * jk; jumps = 1; onG = false; coy = 0; }
-          else if (jumps < 2) { vy = K.JV2 * bj * jk; jumps = 2; if (pp.trait === 'homing' && !(P.trCd > 0)) hov = 0.45; }
+          else if (jumps < 2) { vy = K.JV2 * bj * jk; jumps = 2; if ((pp.trait === 'homing' || pp.trait === 'akimbo' || pp.trait === 'lance') && (P.trCd || 0) - t <= 0 && P.skillOn <= 0) vy += pp.trait === 'homing' ? 2.6 : pp.trait === 'lance' ? 3.2 : 2.2; }
         }
         vy -= K.G * DT * gk * (vy < 0 ? fk : 1); if (vy < -30) vy = -30;
         if (hov > 0) { hov -= DT; if (vy < 0.4) vy = 0.4; } // Harpy's hover after her double jump
@@ -115,6 +116,7 @@
         const a = performance.now(), h0 = GAME.STAT['mech:hit'] || 0;
         GAME.step(1, DT);
         cost += performance.now() - a;
+        if (GAME.P.fell && !out.fallLog.some((q) => q.f0 === s0)) out.fallLog.push({ id, f0: s0, trav: Math.round(GAME.traveled), recent: (GAME.STAT.recent || []).slice(-4), hov: GAME.P.hoverT, buff: Object.fromEntries(Object.entries(GAME.P.buff).filter(([, v]) => v > -0.5)), trace: out.trace.slice(-30) });
         if ((GAME.STAT['mech:hit'] || 0) > h0) {
           const P = GAME.P;
           out.hitLog.push({ id, y: +P.y.toFixed(2), vy: +P.vy.toFixed(1), g: P.onGround, j: P.jumps, sl: P.slide, fl: P.floor, sc: +P.scale.toFixed(2), spd: +GAME.spd.toFixed(1),

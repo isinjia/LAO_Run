@@ -1736,10 +1736,12 @@
     else if (ev === 'double' && tr === 'dashcut') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; P.buff.dash = Math.max(P.buff.dash || 0, 0.6); P.buff.bridge = Math.max(P.buff.bridge || 0, 0.6); puff(PX, P.y, 5, 0.8); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
     else if (ev === 'land' && tr === 'grenade' && drop > 1.4) { const f = near(5)[0]; if (f) { P.trCd = 3; origStatic(P.def.id === 'brownie' ? 'S_Brownie_ande_bling' : ORIG_BOOM, f.x, foeMid(f), kOf() * 0.7); kill(f, 'shot'); AUDIO.play('expS', 0.4); P.vy = 7.5; P.onGround = false; P.jumps = 1; } } // she rides the blast of a grenade that hit
     else if (ev === 'double' && tr === 'prism') { const [mx, my] = muzzle(); P.trCd = 3; origStatic('CyclopsePrincess_N_Skill2_A', mx + 0.2, my, kOf() * 0.45, 1, 0.36); items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 0.9 && it.x > mx && it.x < PX + 8) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); const f = aliveAhead(PX + 8).find((g) => Math.abs(foeMid(g) - my) < 1.4); if (f) { own(f); kill(f, 'shot'); } }
+    if (ev === 'slide' && tr === 'torpedo') P.buff.bridge = Math.max(P.buff.bridge || 0, 0.6); // she rides the torpedo's wake over gaps
+    if (ev === 'slide' && tr === 'pulse') P.buff.dash = Math.max(P.buff.dash || 0, 0.3); // the sonic blast pushes her forward
     if (ev === 'slide' && tr === 'spray') P.buff.bridge = Math.max(P.buff.bridge || 0, 0.45); // her slide skids over small gaps
     if (ev === 'slide' && tr === 'mark') P.buff.dash = Math.max(P.buff.dash || 0, 0.35); // a sprint after the shot
     if (ev === 'double' && tr === 'akimbo') P.vy += 2.2; // the recoil hop
-    if (ev === 'double' && tr === 'homing') P.hoverT = 0.45; // she hangs in the air on her missile's thrust
+    if (ev === 'double' && tr === 'homing') P.vy += 2.6; // she rides her missile's launch higher (a hover made landings unreadable over pits)
     if (ev === 'double' && tr === 'eyebeam') { P.buff.dash = Math.max(P.buff.dash || 0, 0.3); P.vy = Math.max(P.vy, 2); } // an air-dash behind the laser
     if (ev === 'land' && tr === 'flame' && drop > 1.2) { P.buff.dash = Math.max(P.buff.dash || 0, 0.4); P.buff.bridge = Math.max(P.buff.bridge || 0, 0.5); } // the flame carries her on (over a pit edge too)
     else if (ev === 'double' && tr === 'homing') { const t = aliveAhead(PX + 9).sort((a, b) => (b.kind === 'air') - (a.kind === 'air')).slice(0, 2); if (t.length) { P.trCd = 3; t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.05 + i * 0.12, i, f, name: o.atk.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); }); } }
@@ -1964,10 +1966,10 @@
       r.sos.position.x = r.x; r.rig.c.update(dt);
       r.sos.material.opacity = r.done ? 0 : 0.5 + Math.sin(performance.now() / 120) * 0.4;
       if (!r.done && !P.dead && Math.abs(r.x - PX) < 0.8 && Math.abs(P.y - r.y) < 0.9) { // reached
-        r.done = true; r.rig.c.setTint(1, 1, 1); r.rig.c.play('move', null, true); r.rig.g.scale.x = -1; r.rig.c.setOrder(L.PLAYER + 0.2);
+        r.done = true; r.rig.c.setTint(1.35, 1.35, 1.35); r.rig.c.play('move', null, true); r.rig.g.scale.set(-1.15, 1.15, 1); r.rig.c.setOrder(L.PLAYER + 0.2); setTimeout(() => r.rig && r.rig.c.setTint(1, 1, 1), 250); // a bright flash as she joins
         addScore(800); run.coins += 20; run.rescued = (run.rescued || 0) + 1;
         P.shield = Math.max(P.shield, 3); P.skillT += 2;
-        popup(PX + 1, P.y + 3.2, '구조 성공! ' + charDef(r.id).name + ' 합류 +800', 'perfect'); ann('Success-1'); voice(r.id, 'mvp', 0.8, true);
+        setTimeout(() => popup(PX + 1, P.y + 3.2, '구조 성공! ' + charDef(r.id).name + ' 합류 +800', 'perfect'), 300); // after the moment, never on top of the pickups ann('Success-1'); voice(r.id, 'mvp', 0.8, true);
         origStatic(ORIG_DEFAULT_HIT, r.x, r.y + 0.8, kOf());
       }
       if (r.x < -3 || (r.done && r.t > 2.4)) { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); rescues.splice(i, 1); }
@@ -2304,9 +2306,9 @@
       }
       P.coyote = Math.max(0, P.coyote - dt);
       P.jumpBuf = Math.max(0, P.jumpBuf - dt);
-      if (P.y < -0.5 && P.sinceBridge < 1.5 && !P.rescued) {
+      if (P.y < -0.5 && P.sinceBridge < 1.5 && (!P.rescued || traveled - (P.springAt || -99) > 12)) { // (a long airborne stretch under several buffs can need a second spring)
         // a fall right after a bridge / invulnerability ran out is not the player's fault: spring back up once
-        P.rescued = true;
+        P.rescued = true; P.springAt = traveled;
         P.vy = 21; P.jumps = 1; P.buff.bridge = 1.2; P.inv = Math.max(P.inv, 1.0);
         ring(PX, 0, 0x9fe6ff, 3, 0.4); burst(PX, 0, 0x9fe6ff, 10, 0.5, 5, 'spark'); AUDIO.play('energy', 0.6); tally('mech:rescue');
       }
