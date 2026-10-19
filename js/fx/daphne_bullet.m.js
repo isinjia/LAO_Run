@@ -1,0 +1,1 @@
+window.FX_DATA=window.FX_DATA||{};FX_DATA["daphne_bullet"]={"fmt":1,"name":"daphne_bullet","mode":"proj","T":0.1,"dist":8,"fps":30,"cx":0,"cy":0,"half":0.275,"org":[0,2.6667,5.3333,8,8,8,8],"scale":0.0,"step":1,"nf":7,"tab":[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]],"bo":{"p":[0,0],"u":[0,0],"i":[0,0],"c":[0,0]}};

@@ -196,7 +196,7 @@
         if (!out[clip].bullet && ov.bullet) { out[clip].bullet = ov.bullet; out[clip].hit = M.meta[ov.bullet] ? M.meta[ov.bullet].hit : ''; }
         if (ov.hit && !out[clip].statics.length) out[clip].statics = [ov.hit];
       }
-      out.borrowed = true;
+      out.borrowed = !ov.own; // own = the member's own original effect, baked for this game
     }
     return (origCache[id] = out);
   }
@@ -680,6 +680,7 @@
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
     showSet(STAGES[0].id, true);
+    tintClouds(STAGES[0]);
     renderer.setClearColor(STAGES[0].sky);
     addGround(-2, VW + 2);
     genX = VW + 2;
@@ -989,6 +990,8 @@
 
   // ── chase boss (every 2000 m): it runs behind the squad and sweeps a lane after a warning ──
   const BOSS_EVERY = 2000, BOSS_TIME = 20;
+  // each chase boss sweeps with its own original attack effect
+  const BOSS_FX = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A', e_DoomEater_N: 'Juggernaut_skill2_last_hit' };
   const lanes = []; // { y0, y1, warn, fire, s }
   function startBoss() {
     const all = DATA.BOSSES.filter((b) => SD.ready(b.id));
@@ -1058,7 +1061,11 @@
         l.warn -= dt;
         l.s.material.opacity = 0.25 + 0.25 * Math.abs(Math.sin(l.warn * 14));
         l.s.scale.y = (l.y1 - l.y0) * 0.35;
-        if (l.warn <= 0) { AUDIO.play('laserBig', 0.6); shake = 0.2; }
+        if (l.warn <= 0) {
+          AUDIO.play('laserBig', 0.6); shake = 0.2;
+          const b = run.boss, fxn = b && BOSS_FX[b.d.id];
+          if (fxn) for (let x = 1.5; x < VW; x += 3.2) origStatic(fxn, x, (l.y0 + l.y1) / 2 - 0.4, b.rig.k * 0.9);
+        }
       } else {
         l.fire -= dt;
         l.s.material.opacity = 1;
@@ -1230,6 +1237,7 @@
     if (f.beam) { scene.remove(f.beam); f.beam.material.dispose(); f.beam = null; }
     if (f.kind !== 'air') { const top = f.y + Math.min(f.h, 2.6) * 0.86; addPlat(f.x - f.w * 0.6, f.x + f.w * 0.6, top); f.icePlat = plats[plats.length - 1]; }
     burst(f.x, foeMid(f), 0xbff4ff, 8, 0.5, 3, 'snow', false);
+    origStatic(Math.random() < 0.5 ? 'Titania_skill1_hit' : 'Titania_skill1_iceKnife_hit', f.x, foeMid(f) - 0.5, kOf());
     tally('fx:freeze');
   }
   function shatter(f) {
@@ -1242,13 +1250,13 @@
   }
   // ground runners (fire wolves, penguins, water waves): sprites that race ahead and break what they touch
   const runners = [];
-  function sendRunner(color, tex = 'glow', size = 1.1, speed = 16, life = 1.6, air = false) {
+  function sendRunner(color, tex = 'glow', size = 1.1, speed = 16, life = 1.6, air = false, fxName = '') {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX[tex], color, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
     s.scale.set(size * 1.6, size, 1);
     s.renderOrder = L.FX;
     s.position.set(PX + 0.6, P.floor + size * 0.45, 0);
     scene.add(s);
-    runners.push({ s, x: PX + 0.6, y: P.floor + size * 0.45, vx: speed, t: 0, life, color, air });
+    runners.push({ s, x: PX + 0.6, y: P.floor + size * 0.45, vx: speed, t: 0, life, color, air, fx: fxName });
   }
   function updateRunners(dt, dx) {
     for (let i = runners.length - 1; i >= 0; i--) {
@@ -1256,7 +1264,7 @@
       r.t += dt; r.x += (r.vx - 0) * dt - dx * 0;
       r.s.position.set(r.x, r.y + Math.abs(Math.sin(r.t * 18)) * 0.15, 0);
       if (Math.random() < 0.7) burst(r.x - 0.4, r.y, r.color, 1, 0.5, 1.5);
-      for (const f of foes) if (!f.dead && !f.frozen && (r.air || f.kind !== 'air') && Math.abs(f.x - r.x) < f.w * 0.6 + 0.4) { breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 2); }
+      for (const f of foes) if (!f.dead && !f.frozen && (r.air || f.kind !== 'air') && Math.abs(f.x - r.x) < f.w * 0.6 + 0.4) { if (r.fx) origStatic(r.fx, f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 2); }
       if (r.t > r.life || r.x > VW + 2) { scene.remove(r.s); r.s.material.dispose(); runners.splice(i, 1); }
     }
   }
@@ -1302,7 +1310,7 @@
     },
     lrl: { // 사이클롭스 이터널 빔: a screen-wide beam; enemies vanish, jellies on its line become bears
       tick(dt) { const [mx, my] = muzzle(); beamFx(mx, VW + 1, my, 0xb46bff, 0.06, 0.9 + Math.sin(performance.now() / 40) * 0.15); beamFx(mx, VW + 1, my, 0xffffff, 0.06, 0.25);
-        aliveAhead().forEach((f) => { breakFoe(f, 'shot'); origStatic('Azazel_skill1_Hit_m', f.x, foeMid(f), kOf()); });
+        aliveAhead().forEach((f) => { breakFoe(f, 'shot'); origStatic('LRL_skill2_glow', f.x, foeMid(f), kOf()); });
         items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 1.6 && it.x > mx) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } });
         if ((P.uqT -= dt) <= 0) { P.uqT = 0.25; AUDIO.play('laserBig', 0.35, 1, 0.2); } },
     },
@@ -1322,10 +1330,10 @@
       tick(dt) { P.hp = Math.min(P.maxHp, P.hp + 3 * dt); if (Math.random() < 0.2) burst(PX + rnd(-0.4, 0.4), P.y + rnd(0.3, 1.6), 0x7dffa8, 1, 0.4, 1, 'spark'); },
     },
     banshee: { // sonic pulses break everything close, fences included
-      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.5; const t = aliveAhead(PX + 4.6); if (t.length) { const x = t[0].x; bolt(x, 0.6, 0xffb070); origStatic(ORIG_BOOM, x, 0.7, kOf()); t.filter((f) => f.x < x + 1.6).forEach((f) => breakFoe(f, 'shot')); AUDIO.play('expS', 0.4); } },
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.5; const t = aliveAhead(PX + 4.6); if (t.length) { const x = t[0].x; bolt(x, 0.6, 0xffb070); origStatic('Banshee_skill2_Ground_Hit', x, 0.3, kOf()); t.filter((f) => f.x < x + 1.6).forEach((f) => breakFoe(f, 'shot')); AUDIO.play('expS', 0.4); } },
     },
     sylphid: { // wind: a third jump, higher jumps and a slow fall (instead of flying)
-      start(d) { P.buff.wind = d; P.buff.fly = 0; runAnim(); aliveAhead().slice(0, 3).forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.08 + i * 0.12, i, f, name: 'Harpy_skill12_bullet', k: kOf() }); }); },
+      start(d) { P.buff.wind = d; P.buff.fly = 0; runAnim(); aliveAhead().slice(0, 3).forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.08 + i * 0.12, i, f, name: 'Sylphid_NS1_skill2_bullet', k: kOf() }); }); },
       tick() { if (Math.random() < 0.4) streak(PX + rnd(-1, 1), P.y + rnd(0.2, 1.8), 0xe0c8ff); },
     },
     raven: { // two piercing sniper shots across the whole screen (ground and fences)
@@ -1342,7 +1350,7 @@
       tick() { foes.forEach((f) => { if (f.marked && !f.dead && f.x < PX + 3) { slashFx(f.x, foeMid(f), 0xff3048, 2); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); } }); },
     },
     saraqael: { // golden judgement: lightning on every enemy, each leaves a coin pile
-      start() { aliveAhead().forEach((f) => { bolt(f.x, foeMid(f), 0xffe9a0); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); }); AUDIO.play('elec', 0.7); },
+      start() { aliveAhead().forEach((f) => { bolt(f.x, foeMid(f), 0xffe9a0); origStatic('Saraqael_skill1_elec_hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); }); AUDIO.play('elec', 0.7); },
     },
     thetis: { // harpoon: the big missile blows up everything around the farthest enemy; chaff blocks one hit
       start() { P.shield = Math.max(P.shield, 6); const t = aliveAhead(); if (!t.length) return; const f = t[t.length - 1];
@@ -1355,7 +1363,7 @@
       tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.3; const t = aliveAhead(PX + 9).filter((g) => !g.targeted); const f = t.find((g) => g.kind === 'air') || t[0]; if (f) { fireAt(f, shotLanded); f.targeted = true; } },
     },
     hela: { // chain lightning through every enemy on screen, each becomes coins
-      start() { let x = PX + 0.6, y = P.y + 1.1; aliveAhead().sort((a, b) => a.x - b.x).forEach((f) => { const fy = foeMid(f); tracer(x, y, f.x, fy, 0xc77dff); x = f.x; y = fy; breakFoe(f, 'shot'); dropItems(f.x, fy, 'coin', 3); }); AUDIO.play('elec', 0.8); },
+      start() { let x = PX + 0.6, y = P.y + 1.1; aliveAhead().sort((a, b) => a.x - b.x).forEach((f) => { const fy = foeMid(f); tracer(x, y, f.x, fy, 0xc77dff); origStatic('vfx_fafnir_ns1_hit_last', f.x, fy - 0.4, kOf()); x = f.x; y = fy; breakFoe(f, 'shot'); dropItems(f.x, fy, 'coin', 3); }); AUDIO.play('elec', 0.8); },
     },
     azazel: { // 수호 천사: a shield, jellies count double in flight, a holy pillar when it lands
       start(d) { P.buff.jelly2 = d; P.shield = Math.max(P.shield, d); },
@@ -1374,14 +1382,15 @@
     khan: { // 데저트 스톰: three short dashes with sand bursts
       tick(dt, t) { const ph = t % 1.2; P.buff.dash = ph < 0.8 ? 0.05 : 0; if (ph < dt * 1.5) { puff(PX, P.floor, 8, 1.2); AUDIO.play('rifle', 0.4); } },
     },
-    brunhild: { // 핏빛 효후: blood wolves race ahead through the enemies
+    brunhild: { // 핏빛 효후: blood wolves race ahead through the enemies, opened by her fireball
+      start() { const f = aliveAhead()[0]; if (f) { f.targeted = true; origShot('Brunhild_N_Skill1_bullet', ...muzzle(), f, kOf(), shotLanded, f.x, foeMid(f)); } },
       tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.7; sendRunner(0xff5530, 'glow', 1.2, 20, 1.3); AUDIO.play('expS', 0.35, 0.8); },
     },
     titania: { // 서리 폭풍: everything freezes into ice blocks to stand on, then shatters into bears
       start(d) { aliveAhead().forEach((f) => freeze(f, Math.min(3, d))); for (let i = 0; i < 30; i++) burst(rnd(0, VW), rnd(0, GB + VH), 0xdff8ff, 1, 0.3, 1, 'snow', false); AUDIO.play('ice', 0.8); },
     },
     empress: { // 펭귄 서프라이즈!: a penguin squad slides along the ground, enemies freeze where they are hit
-      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.35; sendRunner(0x9fe6ff, 'glow', 0.8, 15, 1.5); },
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.35; sendRunner(0x9fe6ff, 'glow', 0.8, 15, 1.5, false, 'Empress_skill1_ice_Hit'); },
     },
   };
   function uqStart(d) { P.uqT = 0; P.uqN = 0; P.uqTime = 0; const u = UQ[P.def.id]; if (u && u.start) u.start(d); }
@@ -1434,6 +1443,7 @@
     slowMo(0.3, 0.3);
     $('bonusFx').classList.add('on');
     showSet('sky');
+    tintClouds({ cloud: 0xffffff, cloudA: 0.8 });
     renderer.setClearColor(0xbfe4ff);
     AUDIO.music('title');
     // clear the road ahead: enemies pop into coins, pits are bridged while it lasts
@@ -1450,6 +1460,7 @@
     $('bonusFx').classList.remove('on');
     showSet(STAGES[stageIx].id);
     renderer.setClearColor(STAGES[stageIx].sky);
+    tintClouds(STAGES[stageIx]);
     AUDIO.music(run.boss ? 'boss' : STAGES[stageIx].bgm);
     P.buff.bridge = 1.6;
     P.inv = Math.max(P.inv, 1.2);
@@ -1624,7 +1635,7 @@
         if (f.shooter && !f.fired && f.x < PX + 11 && f.x > PX + 3) { // telegraph, then a round at jump or slide height
           f.aim = (f.aim || 0) + dt;
           if (f.aim > 0.15 && f.aim < 0.2) { ring(f.x - 0.4, f.y + 0.9, 0xff4050, 1.4, 0.6); AUDIO.play('charge', 0.35, 1.8); }
-          if (f.aim > 0.75) { f.fired = true; const hi = Math.random() < 0.5; const sh = addFoe('shot', f.x - 0.5, 0); sh.y = hi ? 1.2 : 0.15; sh.base = 0; AUDIO.play('gun', 0.5); if (f.rig && f.rig.c.has('atk')) { f.rig.c.play('atk'); f.rig.c.speed = 2; } }
+          if (f.aim > 0.75) { f.fired = true; const hi = Math.random() < 0.5; const sh = addFoe('shot', f.x - 0.5, 0); sh.y = hi ? 1.2 : 0.15; sh.base = 0; AUDIO.play('gun', 0.5); origStatic('Executioner_skill1_Hit', f.x - 0.6, sh.y - 0.2, 0.08); if (f.rig && f.rig.c.has('atk')) { f.rig.c.play('atk'); f.rig.c.speed = 2; } }
         }
         if (f.beam) { f.beam.position.x = f.x; f.beam.material.opacity = 0.75 + Math.random() * 0.25; }
         if (playing && !P.dead) collideFoe(f);
@@ -1931,7 +1942,11 @@
     sh.material.opacity = 0.35 + 0.65 * k;
   }
 
+  // clouds follow the stage's sky (none indoors, warm over the sunset city)
+  function tintClouds(st) { clouds.forEach((c) => { c.material.color.setHex(st.cloud == null ? 0xffffff : st.cloud); c.material.opacity = st.cloudA == null ? 0.6 : st.cloudA * (0.75 + 0.25 * c.userData.k / 0.1); c.visible = st.cloudA !== 0; }); }
+
   function changeStage(si) {
+    tintClouds(STAGES[si]);
     tally('stage:' + STAGES[si].id);
     stageIx = si;
     const st = STAGES[si];
@@ -2198,7 +2213,9 @@
     $('resBonus').textContent = run.bonusCount;
     countUp($('resCoins'), coins, '+');
     countUp($('resScore'), score, '');
-    $('resAch').innerHTML = ach.map((a) => '<div class="achGot">업적 달성 · ' + a.t + ' <b>+' + a.pay.toLocaleString() + '</b></div>').join('');
+    // at most three lines; the rest folded into one
+    $('resAch').innerHTML = ach.slice(0, 3).map((a) => '<div class="achGot">업적 달성 · ' + a.t + ' <b>+' + a.pay.toLocaleString() + '</b></div>').join('') +
+      (ach.length > 3 ? '<div class="achGot">외 업적 ' + (ach.length - 3) + '개 · <b>+' + ach.slice(3).reduce((n, a) => n + a.pay, 0).toLocaleString() + '</b></div>' : '');
     const next = CHARS.filter((c) => !save.owned.includes(c.id)).sort((a, b) => a.cost - b.cost)[0];
     $('resNext').innerHTML = next ? '다음 해금: <b>' + next.name + '</b> ' + Math.min(save.coins, next.cost).toLocaleString() + ' / ' + next.cost.toLocaleString() + '<i style="width:' + Math.min(100, save.coins / next.cost * 100).toFixed(0) + '%"></i>' : '모든 대원 해금 완료!';
     $('resBest').textContent = save.best.toLocaleString();
@@ -2344,6 +2361,7 @@
       setPlayerChar(save.sel),
       ...enemyIds.map((id) => SD.prepare(id)),
       FXB.prepare(ORIG_DEFAULT_HIT), FXB.prepare(ORIG_BOOM),
+      ...['Banshee_skill2_Ground_Hit', 'Saraqael_skill1_elec_hit', 'LRL_skill2_glow', 'Titania_skill1_iceKnife_hit', 'nidhogg_skill1_hit', 'BlackKnight_N_Skill1_A', 'Goltarion_N_Skill1_A', 'Juggernaut_skill2_last_hit', 'Titania_skill1_hit', 'Empress_skill1_ice_Hit', 'vfx_fafnir_ns1_hit_last', 'Executioner_skill1_Hit', 'Thetis_skill2_Hit', 'Undine_skill2_Hit', 'Azazel_skill1_Hit_m', 'Phoenix_skill1_hit'].map((n) => FXB.prepare(n)),
       // original resource icons for the collectibles: power cell = jelly, nutrient = bear jelly, gold coin, parts crate = giant jelly
       ...[['jelly', 'power'], ['bear', 'nutrient'], ['coin', 'goldcoin'], ['jbig', 'parts']].map(([k, f]) => loadTex('assets/img/res_' + f + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX[k] = t; } })),
     ];
