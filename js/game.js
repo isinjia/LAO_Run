@@ -383,6 +383,7 @@
   function addPlat(x0, x1, y) {
     const mesh = slab(x0, x1, y, 0.62);
     mesh.renderOrder = L.GROUND + 0.2;
+    mesh.material.color.setHex({ snow: 0x8ea4c4, lab: 0xb8c0cc }[STAGES[stageIx].id] || 0xd8d8d8); // platforms a shade darker than the sky behind them
     plats.push({ x0, x1, y, mesh });
   }
   function addGate(x, st) {
@@ -426,7 +427,7 @@
 
   const HALO = {};
   const JELLY_TEX = { lab: 'jellyMetal' }; // the lab's cells are scrap metal (original resource icon)
-  const JELLY_TINT = { city: 0xffffff, forest: 0xb8ffb0, lab: 0xd8e4ff, snow: 0xe8fbff, red: 0xffc49a };
+  const JELLY_TINT = { city: 0xffffff, forest: 0x8dff6e, lab: 0xd8e4ff, snow: 0xb0f4ff, red: 0xff9a5a };
   function jellyMat() {
     const id = run.bonus > 0 ? 'bonus' : STAGES[stageIx].id, key = 'jelly_' + id;
     if (!sharedMat[key]) { sharedMat[key] = matFor('jelly').clone(); if (JELLY_TEX[id] && TEX[JELLY_TEX[id]]) sharedMat[key].map = TEX[JELLY_TEX[id]]; sharedMat[key].color.setHex(JELLY_TINT[id] || 0xffffff); }
@@ -735,12 +736,27 @@
     (x0) => { const len = 14; addGround(x0, x0 + len); for (let x = 0.5; x < len; x += 0.6) addItem(x % 3 < 0.6 ? 'bear' : 'jelly', x0 + x, 3.6 + Math.sin(x * 0.7) * 2.2); return len; },
   ];
 
+  const EVENTS = [
+    { name: '경보: 레이저 회랑', q: ['airs', 'air', 'lowAir', 'airs'] },
+    { name: '경보: 철충 돌격', q: ['low2', 'low', 'low2', 'tall'] },
+    { name: '경보: 붕괴 구간', q: ['pit', 'pitLow', 'steps', 'pitWide'] },
+    { name: '경보: 집중 포격', q: ['bombs', 'shooter', 'bombs', 'lowAir'] },
+  ];
   function pickChunk() {
     if (run.tutQ && run.tutQ.length) return run.tutQ.shift();
+    if (run.evQ && run.evQ.length) return run.evQ.shift();
+    if (!run.boss && run.bonus <= 0 && traveled > (run.nextEvent || 700) && traveled < run.nextBoss - 250) {
+      const ev = EVENTS[(run.evN = (run.evN || 0) + 1) % EVENTS.length];
+      run.nextEvent = traveled + rnd(650, 800);
+      run.evQ = ev.q.slice();
+      popup(VW / 2, 4.6, ev.name, 'bossSkill'); AUDIO.play('warning', 0.5); ann('Becareful-1'); tally('mech:event');
+      setTimeout(() => { if (state === 'play' && !P.dead) { addScore(1000); run.coins += 30; popup(PX, P.y + 2.6, ev.name + ' 돌파! +1,000', 'perfect'); ann('Great-1'); } }, ev.q.length * 1100 + 1500);
+      return run.evQ.shift();
+    }
     if (run.boss) { const r = Math.random(); return r < 0.35 ? 'flat' : r < 0.5 ? 'wave' : r < 0.65 ? 'low' : r < 0.78 ? 'pit' : r < 0.9 ? 'steps' : 'platFoe'; } // the boss's lanes plus terrain (no laser fences under its sweeps)
     const lv = Math.min(1, traveled / 2600);
     const w = {
-      flat: 2.2 - lv * 1.4, wave: 0.6, low: 3, low2: 0.4 + lv * 1.6, tall: 0.6 + lv * 1.6, air: 2, airs: 0.4 + lv * 1.4,
+      flat: 2.0 - lv * 1.5, wave: 0.5 - lv * 0.2, low: 3, low2: 0.4 + lv * 1.6, tall: 0.6 + lv * 1.6, air: 2, airs: 0.4 + lv * 1.4,
       pit: 1.4, pitWide: lv * 1.4, lowAir: lv * 1.8, pitLow: lv * 1.5, steps: 0.5 + lv * 0.8, upper: 0.7, platFoe: 0.3 + lv * 0.8,
       hang: 0.8 + lv * 0.6, bombs: 0.2 + lv * 1.0, shooter: 0.3 + lv * 0.9, movers: 0.3 + lv * 0.6,
     };
@@ -899,7 +915,7 @@
 
   // ── gameplay ──
   const smashing = () => P.buff.giant > 0 || P.buff.dash > 0 || P.buff.boost > 0 || P.buff.fly > 0 || P.buff.star > 0;
-  const bridging = () => smashing() || P.buff.bridge > 0 || run.bonus > 0;
+  const bridging = () => smashing() || P.buff.bridge > 0 || run.bonus > 0 || (P.slide && pas().trait === 'surf'); // Undine surfs over pits
 
   function jump() {
     if (state !== 'play' || P.dead || paused) return;
@@ -928,6 +944,7 @@
 
   function hurt() {
     if (P.inv > 0 || P.dead) return;
+    run.pStreak = 0; // a hit breaks the PERFECT streak
     tally('mech:hit');
     if (P.shield > 0) {
       P.shield = 0;
@@ -1607,7 +1624,7 @@
     if (ev === 'double' && tr === 'lance') { const f = aliveAhead(PX + 4)[0]; if (f) { P.trCd = 3; const [mx, my] = muzzle(); beamFx(mx, f.x, my, P.def.color, 0.15, 0.2); origStatic(origFor(P.def.id).atk.hit || ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf()); kill(f, 'shot'); } }
     else if (ev === 'double' && tr === 'akimbo') { const t = aliveAhead(PX + 8).slice(0, 2); if (t.length) { P.trCd = 2.5; t.forEach((f) => { f.targeted = true; fireAt(f, shotLanded); }); } }
     else if (ev === 'double' && tr === 'salvo') { const f = aliveAhead(PX + 9)[0]; if (f) { P.trCd = 3; f.targeted = true; salvo.push({ t: 0.05, i: 0, f, name: P.def.id === 'thetis' ? 'Thetis_skill2_Small_Missile' : o.atk.bullet || o.skill.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); } }
-    else if (ev === 'double' && tr === 'blink') { const t = aliveAhead(PX + 3.2); if (t.length) { P.trCd = 2.5; origStatic('Kunoichi_skill2_Sword_first_line_F', PX + 1.6, P.y + 0.5, kOf() * 0.7); t.forEach((f) => { own(f); kill(f, 'melee'); }); } }
+    else if (ev === 'double' && tr === 'blink') { P.inv = Math.max(P.inv, 0.35); P.buff.dash = Math.max(P.buff.dash || 0, 0.2); const t = aliveAhead(PX + 3.2); if (t.length) { P.trCd = 2.5; origStatic('Kunoichi_skill2_Sword_first_line_F', PX + 1.6, P.y + 0.5, kOf() * 0.7); t.forEach((f) => { own(f); kill(f, 'melee'); }); } }
     else if (ev === 'double' && tr === 'dashcut') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; P.buff.dash = Math.max(P.buff.dash || 0, 0.25); puff(PX, P.y, 5, 0.8); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
     else if (ev === 'land' && tr === 'grenade' && drop > 1.4) { const f = near(5)[0]; if (f) { P.trCd = 3; origStatic(P.def.id === 'brownie' ? 'S_Brownie_ande_bling' : ORIG_BOOM, f.x, foeMid(f), kOf() * 0.7); kill(f, 'shot'); AUDIO.play('expS', 0.4); } }
     else if (ev === 'double' && tr === 'prism') { const [mx, my] = muzzle(); P.trCd = 3; beamFx(mx, PX + 8, my, P.def.color, 0.2, 0.18); items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 0.9 && it.x > mx && it.x < PX + 8) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); const f = aliveAhead(PX + 8).find((g) => Math.abs(foeMid(g) - my) < 1.4); if (f) { own(f); kill(f, 'shot'); } }
@@ -1617,10 +1634,10 @@
     else if (ev === 'slide' && tr === 'eyebeam') { const t = aliveAhead(PX + 7).filter((f) => f.kind === 'air'); if (t.length) { P.trCd = 2.5; const [mx, my] = muzzle(); t.forEach((f) => { tracer(mx, my, f.x, foeMid(f), P.def.color); own(f); kill(f, 'shot'); }); origStatic('valkyrie_eyes_lazer', mx, my, kOf()); } }
     else if (ev === 'slide' && tr === 'mark') { const f = aliveAhead(PX + 8)[0]; if (f) { P.trCd = 3; own(f); kill(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 4); } }
     else if (ev === 'slide' && tr === 'torpedo') { P.trCd = 3; sendRunner(0x66ccff, 'glow', 0.6, 16, 0.7, false, hitFx); }
-    else if (ev === 'slide' && tr === 'wave') { P.trCd = 3.5; sendRunner(0x9feaff, 'glow', 1.2, 14, 0.9, false, 'Undine_skill2_Hit'); }
+    else if (ev === 'slide' && (tr === 'wave' || tr === 'surf')) { P.trCd = 3.5; sendRunner(0x9feaff, 'glow', 1.2, 14, 0.9, false, 'Undine_skill2_Hit'); }
     else if (ev === 'slide' && tr === 'spray') { const f = aliveAhead(PX + 6)[0]; if (f) { P.trCd = 2.5; f.targeted = true; fireAt(f, shotLanded); } }
     else if (ev === 'slide' && tr === 'pulse') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; ring(PX + 0.8, 0.6, P.def.color, 2.6, 0.3); t.forEach((f) => { own(f); kill(f, 'shot'); }); }
-    else if (ev === 'land' && tr === 'quake' && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; ring(PX + 1, 0.2, P.def.color, 3, 0.35); shake = Math.max(shake, 0.15); origStatic(P.def.id === 'labiata' ? 'Labiata_skill1_hit' : hitFx, PX + 1.4, 0.3, kOf() * (P.def.id === 'labiata' ? 0.35 : 0.8)); t.forEach((f) => kill(f, 'melee')); }
+    else if (ev === 'land' && (tr === 'quake' || tr === 'slam') && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; ring(PX + 1, 0.2, P.def.color, 3, 0.35); shake = Math.max(shake, 0.15); origStatic(P.def.id === 'labiata' ? 'Labiata_skill1_hit' : hitFx, PX + 1.4, 0.3, kOf() * (P.def.id === 'labiata' ? 0.35 : 0.8)); t.forEach((f) => kill(f, 'melee')); }
     else if (ev === 'land' && tr === 'flame' && drop > 1.2) { const t = near(2.4); P.trCd = 2; origStatic(P.def.id === 'brunhild' ? 'Brunhild_N_Skill1_Hit' : hitFx, PX + 1.2, 0.3, kOf() * 0.6); t.forEach((f) => kill(f, 'shot')); }
   }
   const hitOf = () => { const o = origFor(P.def.id); return o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT; };
@@ -2038,7 +2055,7 @@
     // a close shave over (or under) an obstacle: PERFECT
     if (!f.near && !f.hit && !f.dead && (f.kind === 'low' || f.kind === 'tall' || f.kind === 'air') && px0 <= fx1 && px1 >= fx0) {
       const gap = f.kind === 'air' ? fy0 - py1 : py0 - fy1;
-      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; addScore(80); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, 'PERFECT! +80', 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); if (P.skillOn <= 0) { P.skillT += 1.2; ring(PX, P.y + 1, P.def.color, 1.4, 0.3); } } // a PERFECT also charges the skill
+      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; run.pStreak = (run.pStreak || 0) + 1; const pv = 80 * Math.min(5, run.pStreak); addScore(pv); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, (run.pStreak > 1 ? 'PERFECT ×' + run.pStreak : 'PERFECT!') + ' +' + pv, 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); if (P.skillOn <= 0) { P.skillT += 1.2; ring(PX, P.y + 1, P.def.color, 1.4, 0.3); } } // a PERFECT also charges the skill
     }
     if (px1 < fx0 || px0 > fx1 || py1 < fy0 || py0 > fy1) return;
     if (f.frozen || (f.kind === 'bomb' && !f.armed)) return;
@@ -2124,6 +2141,11 @@
       if (P.buff.fly <= dt) { P.buff.bridge = 1.2; runAnim(); }
     } else {
       P.vy -= G * dt * (run.bonus > 0 ? 0.6 : 1) * (P.vy < 0 ? (P.buff.wind > 0 ? 0.55 : pas().fallK || 1) : 1);
+      if (!P.onGround && input.slide) {
+        const tr = pas().trait;
+        if (tr === 'glide' && P.vy < -1.4) { P.vy = -1.4; if (Math.random() < 0.3) streak(PX - 0.3, P.y + 0.8, P.def.color); }
+        else if (tr === 'slam' && !P.slam && P.y > 0.9) { P.slam = true; P.vy = -24; P.inT = 0; AUDIO.play('swing', 0.6, 0.7); }
+      }
       if (P.vy < -30) P.vy = -30;
       const prevY = P.y;
       P.y += P.vy * dt;
@@ -2139,7 +2161,7 @@
           P.y = s; P.vy = 0; P.floor = s; P.onGround = true; P.jumps = 0; P.spin = 0; P.sq = 0.82;
           tally(s > 0 ? 'mech:platform' : 'mech:land');
           if (P.buff.giant > 0) { shake = 0.25; ring(PX, s + 0.1, 0xd0c0ff, 4, 0.35); puff(PX, s, 6, 1.1); } else puff(PX, s, 3, 0.55);
-          trait('land', prevY - s);
+          trait('land', P.slam ? 9 : prevY - s); P.slam = false;
           if (P.jumpBuf > 0) { P.jumpBuf = 0; jump(); }
         }
       }
