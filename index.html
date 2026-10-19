@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>오르카 런</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/game.css">
+<link rel="icon" href="assets/img/brownie.webp">
+</head>
+<body>
+<div id="stage">
+  <!-- loading -->
+  <div id="loading" class="screen show">
+    <div class="logo"><span>ORCA</span> RUN</div>
+    <div class="bar"><i id="loadBar"></i></div>
+    <div id="loadTxt">SD 대원 불러오는 중…</div>
+  </div>
+
+  <!-- title -->
+  <div id="title" class="screen">
+    <div class="logo big"><span>ORCA</span> RUN</div>
+    <div class="sub">오르카 런 · 라스트오리진 SD 러너</div>
+    <div class="titleSel">
+      <img id="titlePortrait" alt="">
+      <div>
+        <div id="titleName"></div>
+        <div id="titleSkill"></div>
+      </div>
+    </div>
+    <div class="row">
+      <button id="btnStart" class="btn primary">출격!</button>
+      <button id="btnChars" class="btn">대원 선택</button>
+    </div>
+    <div class="row">
+      <button id="btnGear" class="btn small">장비</button>
+      <button id="btnAch" class="btn small">업적</button>
+    </div>
+    <div id="titleMissions" class="missions"></div>
+    <div class="wallet">보유 코인 <b id="walletCoins">0</b> · 최고 기록 <b id="walletBest">0</b></div>
+    <div class="help">
+      <b>점프</b> 왼쪽 화면 · Space · ↑ &nbsp;(공중에서 한 번 더: 2단 점프)<br>
+      <b>슬라이드</b> 오른쪽 화면 누르고 있기 · ↓ &nbsp;&nbsp; <b>일시정지</b> P · Esc<br>
+      <b>O·R·C·A</b> 글자를 모으면 보너스 타임 · 젤리를 끊김 없이 먹으면 콤보 배율
+    </div>
+  </div>
+
+  <!-- character select -->
+  <div id="chars" class="screen">
+    <div class="head">
+      <button id="btnBack" class="btn small">← 뒤로</button>
+      <h2>대원 선택</h2>
+      <div class="coinTag"><i class="coinIco"></i><b id="charCoins">0</b></div>
+    </div>
+    <div id="charGrid"></div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hpWrap">
+      <div id="skillRing"><img id="hudPortrait" alt=""><div id="skillName"></div><img id="supPortrait" alt="" title="지원 대원"></div>
+      <div class="hpBox">
+        <div class="hpBar"><i id="hpFill"></i><span id="hpTxt"></span></div>
+        <div id="buffs"></div>
+      </div>
+    </div>
+    <div class="scoreBox">
+      <div id="score">0</div>
+      <div id="dist">0m</div>
+      <div id="combo"></div>
+    </div>
+    <div id="letters" title="ORCA를 모으면 보너스 타임"><i>O</i><i>R</i><i>C</i><i>A</i></div>
+    <div class="rightBox">
+      <div class="coinTag"><i class="coinIco"></i><b id="coins">0</b></div>
+      <button id="btnPause" class="btn icon" aria-label="일시정지">II</button>
+    </div>
+    <div id="stageName"></div>
+    <div id="bossBar"><span id="bossName"></span><div class="bb"><i id="bossFill"></i></div></div>
+    <div id="tutHint"></div>
+    <div id="ctlJump" class="ctl left"><span>점프</span></div>
+    <div id="ctlSlide" class="ctl right"><span>슬라이드</span></div>
+    <div id="popups"></div>
+  </div>
+  <div id="bonusFx"></div>
+  <div id="hurt"></div>
+  <div id="flash"></div>
+  <div id="cutin"><div class="band"></div><img id="cutImg" alt=""><div class="txt"><div id="cutSub"></div><div id="cutName"></div></div></div>
+
+  <!-- pause -->
+  <div id="pause" class="screen dim">
+    <h2>일시정지</h2>
+    <div class="col">
+      <button id="btnResume" class="btn primary">계속하기</button>
+      <button id="btnRetire" class="btn">그만하기</button>
+      <button id="btnSound" class="btn">사운드: 켬</button>
+    </div>
+  </div>
+
+  <!-- result -->
+  <div id="result" class="screen">
+    <div class="resPanel">
+      <h2 id="resTitle">작전 종료</h2>
+      <div class="resCard">
+        <div class="resHead"><div id="resGrade" class="grade">S</div><div><div id="resName"></div><div id="resNew" class="newRec">NEW RECORD!</div></div></div>
+        <div class="resScore"><span>점수</span><b id="resScore">0</b></div>
+        <div class="resRow"><span>거리</span><b id="resDist">0m</b></div>
+        <div class="resRow"><span>젤리</span><b id="resJelly">0</b></div>
+        <div class="resRow"><span>최대 콤보</span><b id="resCombo">0</b></div>
+        <div class="resRow"><span>격파</span><b id="resKill">0</b></div>
+        <div class="resRow"><span>보너스 타임</span><b id="resBonus">0</b></div>
+        <div class="resRow"><span>획득 코인 (거리·미션 포함)</span><b id="resCoins">0</b></div>
+        <div class="resRow"><span>최고 기록</span><b id="resBest">0</b></div>
+        <div id="resMissions" class="missions"></div>
+        <div id="resAch"></div>
+        <div id="resNext"></div>
+      </div>
+      <div class="row">
+        <button id="btnRetry" class="btn primary">다시 달리기</button>
+        <button id="btnHome" class="btn">대원 선택</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- gear -->
+  <div id="gear" class="screen dim panelScreen">
+    <div class="panel">
+      <div class="head"><h2>장비</h2><div class="coinTag"><i class="coinIco"></i><b id="gearCoins">0</b></div><button class="btn small closeP">닫기</button></div>
+      <div id="gearSlots"></div>
+      <div id="gearList"></div>
+    </div>
+  </div>
+  <!-- achievements -->
+  <div id="achP" class="screen dim panelScreen">
+    <div class="panel">
+      <div class="head"><h2>업적</h2><button class="btn small closeP">닫기</button></div>
+      <div id="achList"></div>
+    </div>
+  </div>
+  <!-- attendance -->
+  <div id="attend" class="screen dim panelScreen">
+    <div class="panel">
+      <div class="head"><h2>출석 보상</h2><button class="btn small closeP">받기</button></div>
+      <div id="attDays"></div>
+      <div id="attMsg"></div>
+    </div>
+  </div>
+
+  <div id="rotate">가로 화면에서 더 넓게 볼 수 있어요</div>
+</div>
+
+<script src="js/vendor/three.min.js"></script>
+<script src="js/sd.js"></script>
+<script src="js/fxbake.js"></script>
+<script src="js/fx/_meta.js"></script>
+<script src="js/tex.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/data.js"></script>
+<script src="js/game.js"></script>
+<script>if (/[?&]selftest=1/.test(location.search)) document.write('<script src="js/selftest.js"><\/script>');</script>
+</body>
+</html>
