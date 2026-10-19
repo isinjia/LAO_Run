@@ -1495,7 +1495,7 @@
   // ── tutorial (first run): the first obstacles come with a hint and slow motion ──
   const TUT = { low: '점프! 왼쪽 화면 · Space', tall: '2단 점프! 공중에서 한 번 더', air: '슬라이드! 오른쪽 화면 누르기 · ↓', pit: '구덩이는 점프로 건너요', L: '글자 O·R·C·A를 모으면 보너스 타임!' };
   function tutHint(key) {
-    if (!run.tut || run.tutSeen[key]) return;
+    if (!run.tut || run.tutSeen[key] || run.boss) return; // never on top of a chase
     run.tutSeen[key] = true;
     const el = $('tutHint');
     el.textContent = TUT[key];

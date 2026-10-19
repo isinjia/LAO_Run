@@ -357,3 +357,25 @@ body.running #rotate { display: none !important; }
 /* touch buttons sit low and translucent so they never hide the runner or what is coming */
 .ctl span { opacity: .45; }
 @media (max-height: 480px) { .ctl { bottom: 4px !important; } .ctl span { width: 64px !important; height: 64px !important; } }
+/* landscape phones (short screens): a compact HUD that never collides */
+.ctl span { white-space: nowrap; }
+@media (max-height: 480px) {
+  .hpWrap { left: max(14px, env(safe-area-inset-left)); top: 10px; gap: 8px; }
+  #skillRing { width: 48px; height: 48px; padding: 3px; }
+  #skillRing.ready::before { inset: -3px; }
+  #skillName { font-size: 10px; }
+  .hpBar { width: min(220px, 30vw); height: 18px; }
+  #buffs { margin-top: 5px; }
+  .buff { font-size: 10px; padding: 1px 6px; }
+  .scoreBox { top: 6px !important; left: 52% !important; }
+  #score { font-size: 22px !important; }
+  #dist { font-size: 10px; }
+  #combo { font-size: 12px; }
+  #letters { top: 50px !important; }
+  #letters i { width: 24px; height: 22px; font-size: 11px; }
+  .ctl span { width: 58px !important; height: 58px !important; font-size: 12px; }
+  #tutHint { font-size: 13px !important; padding: 6px 10px !important; max-width: 46vw; top: 26% !important; }
+  #bossBar { top: 66px; } #bossBar .bb { width: 120px; }
+}
+/* the skill-ready key hint sits under the portrait's name tag, never under the HP bar */
+#skillRing.pick::after { left: 50%; top: calc(100% + 22px); transform: translateX(-50%); z-index: 3; }
