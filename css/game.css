@@ -284,3 +284,4 @@ button { font: inherit; color: inherit; }
 /* the original cut-in speed lines (UI_CutIn/CutIn_linefx) streak across the band */
 #cutin .band::after { content: ''; position: absolute; inset: -10px 0; background: url(../assets/img/cutin_linefx.png) repeat-x center / auto 140%; mix-blend-mode: screen; opacity: .85; animation: cutLines .5s linear infinite; }
 @keyframes cutLines { from { background-position-x: 0; } to { background-position-x: -512px; } }
+.pop.trait { font-size: 14px; color: #fff; background: rgba(10, 16, 34, .7); border-radius: 8px; padding: 2px 8px; }

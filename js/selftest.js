@@ -14,6 +14,7 @@
     // invulnerable / bridged only for what is left of those effects
     const B = P.buff, left = (...ks) => Math.max(0, ...ks.map((k) => B[k] || 0));
     const smashT = left('giant', 'dash', 'boost', 'fly') - 0.05, bridgeT = Math.max(smashT, left('bridge') - 0.05, GAME.run.bonus - 0.05);
+    const pp = P.def.pas || {}, gk = pp.gravK || 1, fk = pp.fallK || 1; // the member's own weight (game.js gravity line)
     const jk = (P.def.pas && P.def.pas.jumpK) || 1, bj = GAME.run.bonus > 0 ? 1.12 : 1, gj = P.buff.giant > 0 ? 1.05 : 1;
     const foes = GAME.foes.filter((f) => !f.dead && f.x > px - 2 && f.x < px + spd * 1.3 + 3);
     const items = GAME.items.filter((it) => it.x > px - 1 && it.x < px + spd * 1.3 + 2 && !it.pulled);
@@ -35,7 +36,7 @@
           if (onG || coy > 0) { vy = K.JV * gj * bj * jk; jumps = 1; onG = false; coy = 0; }
           else if (jumps < 2) { vy = K.JV2 * bj * jk; jumps = 2; }
         }
-        vy -= K.G * DT; if (vy < -30) vy = -30;
+        vy -= K.G * DT * gk * (vy < 0 ? fk : 1); if (vy < -30) vy = -30;
         const py = y; y += vy * DT;
         const over = (x0, x1) => x0 - sh < px + 0.28 * sc && x1 - sh > px - 0.28 * sc;
         if (onG) {
