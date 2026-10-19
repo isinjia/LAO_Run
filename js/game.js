@@ -1915,6 +1915,7 @@
   function startBonus() {
     tally('mech:bonus');
     addSeam(genX);
+    bridgeAhead(PX - 2, genX + 1); // pits already built ahead are filled and lose their walls under the bonus ground
     if (run.boss) { clearBoss(); run.nextBoss = traveled + BOSS_EVERY; } // the chase never runs into bonus time
     run.bonus = BONUS_TIME + (pas().bonusK || 0);
     run.letters = 0;
