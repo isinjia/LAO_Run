@@ -108,10 +108,28 @@ def ann():
     print('announcer', len(ANN_PICK))
 
 
+# atlases split into parts (part1 = the body) / art whose top is a prop: a hand-placed upper-body box (fractions)
+MANUAL = {
+    'zero': ('FullbodyIMG_DS_KunoichiZero_N_part1.png', (0.25, 0.0, 0.75, 0.38)),
+    'saraqael': ('FullbodyIMG_DS_Saraqael_N_part1.png', (0.06, 0.01, 0.50, 0.36)),
+    'brunhild': ('FullbodyIMG_BR_Brunhild_N_part1.png', (0.02, 0.0, 0.46, 0.33)),
+    'hela': ('FullbodyIMG_BR_Hela_N_Part1.png', (0.40, 0.03, 0.82, 0.35)),
+    'thetis': ('FullbodyIMG_BR_Thetis_N.png', (0.29, 0.26, 0.69, 0.56)),
+    'khan': ('FullbodyIMG_BR_Khan_NS1.png', (0.32, 0.17, 0.70, 0.46)),
+}
+
+
 def cutin():
     out = os.path.join(OUT, 'assets/cut')
     os.makedirs(out, exist_ok=True)
     for mid, (_, fb, _) in M.items():
+        if mid in MANUAL:
+            f, (a0, b0, a1, b1) = MANUAL[mid]
+            im = Image.open(f'{ABS}/Texture/FullbodyImg/{f}').convert('RGBA')
+            crop = im.crop((int(a0 * im.width), int(b0 * im.height), int(a1 * im.width), int(b1 * im.height)))
+            crop.thumbnail((560, 560), Image.LANCZOS)
+            crop.save(f'{out}/{mid}.webp', quality=86)
+            continue
         base = f'{ABS}/Texture/FullbodyImg/FullbodyIMG_{fb}_N'
         if os.path.exists(base + '.png'):
             im = Image.open(base + '.png').convert('RGBA')

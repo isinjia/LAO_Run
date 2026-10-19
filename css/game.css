@@ -248,3 +248,11 @@ button { font: inherit; color: inherit; }
 #resNext i { position: absolute; left: 0; bottom: 0; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--cyan), var(--accent)); }
 .card .supBtn { padding: 4px 10px; font-size: 12px; border-radius: 8px; }
 .card .supOn { color: var(--cyan); }
+
+/* cut-in with the original illustration (upper-body crop), slanted like the original cut-in frame */
+#cutin { height: 150px; top: 26%; }
+#cutin .band { inset: 22px 0; }
+#cutin img { left: 8%; top: 0; width: 230px; height: 150px; object-fit: cover; object-position: 50% 20%; border-radius: 0; border: 0;
+  clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%); box-shadow: none; background: rgba(0, 0, 0, .25); filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .5)); }
+#cutin .txt { left: calc(8% + 236px); top: 40px; }
+@media (max-width: 640px) { #cutin { height: 120px; } #cutin img { width: 170px; height: 120px; left: 2%; top: 0; } #cutin .txt { left: calc(2% + 172px); top: 28px; } }

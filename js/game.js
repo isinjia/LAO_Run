@@ -18,6 +18,18 @@
   const FACE_PLAYER = 1, FACE_ENEMY = -1;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const STAT = {};
+  // original voices (assets/voice), member skill sounds (assets/csfx) and the minigame announcer (assets/ann)
+  const VO = (id, k) => 'assets/voice/' + id + '_' + k + '.mp3';
+  let voiceAt = 0;
+  function voice(id, k, vol = 0.9, force) {
+    const t = performance.now();
+    if (!force && t - voiceAt < 2500) return; // lines never talk over each other
+    voiceAt = t;
+    AUDIO.play(VO(id, k), vol, 1, 0.5);
+  }
+  const ann = (n, vol = 0.8) => AUDIO.play('assets/ann/' + n + '.wav', vol, 1, 0.8);
+  const csfx = (id, k) => (DATA.CSFX.includes(id) ? 'assets/csfx/' + id + '_' + k + '.wav' : null);
+  function preloadVoices(id) { ['skill', 'start', 'mvp', 'hurt'].forEach((k) => AUDIO.load(VO(id, k))); ['s1', 's2'].forEach((k) => { const c = csfx(id, k); if (c) AUDIO.load(c); }); }
   const tally = (k) => { STAT[k] = (STAT[k] || 0) + 1; };
 
   // ── persistent save ──
@@ -45,32 +57,61 @@
   let TEX;
 
   // ── backdrop (stage art, mirrored so it tiles) + drifting clouds ──
-  const back = { a: null, b: null, fade: 1 };
-  const backTex = {};
   const clouds = [];
-  function makeBackMesh() {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false }));
-    m.renderOrder = L.BACK;
-    scene.add(m);
-    return m;
+  // per-stage parallax layer sets; the bonus sky is a set too
+  const IMG = {}; // strip name -> texture
+  const sets = {}; // key -> { group, layers: [{ m, t, def, k }] }
+  let curSet = null, prevSet = null, setFade = 1;
+  function makeSet(key, defs) {
+    const group = new THREE.Group();
+    const layers = defs.map((d, i) => {
+      const src = d.tex || IMG[d.img];
+      if (!src) return null;
+      const t = src.clone(); t.needsUpdate = true; t.wrapS = THREE.RepeatWrapping;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthTest: false, depthWrite: false }));
+      m.renderOrder = L.BACK + i * 0.05;
+      group.add(m);
+      return { m, t, def: d, k: 0 };
+    }).filter(Boolean);
+    group.visible = false;
+    scene.add(group);
+    sets[key] = { group, layers };
+    layoutSet(sets[key]);
+    return sets[key];
   }
-  function setBack(mesh, id) {
-    mesh.material.map = backTex[id];
-    mesh.material.needsUpdate = true;
-    layoutBack(mesh);
+  function layoutSet(set) {
+    for (const l of set.layers) {
+      const d = l.def, top = GB + VH + 0.05;
+      const h = d.full ? top - d.y0 : d.h;
+      const asp = l.t.image && l.t.image.width ? l.t.image.width / l.t.image.height : 3;
+      l.m.scale.set(VW, h, 1);
+      l.m.position.set(VW / 2, d.y0 + h / 2, 0);
+      l.t.repeat.set(VW / (h * asp), 1);
+      l.k = 1 / (h * asp);
+    }
   }
-  function layoutBack(mesh) {
-    const t = mesh.material.map;
-    if (!t) return;
-    const y0 = -0.45, y1 = GB + VH, h = y1 - y0;
-    const asp = t.image && t.image.width ? t.image.width / t.image.height : 1.8;
-    mesh.scale.set(VW, h, 1);
-    mesh.position.set(VW / 2, (y0 + y1) / 2, 0);
-    t.repeat.set(VW / (h * asp), 1);
-    mesh.userData.k = 1 / (h * asp);
+  function setOpacity(set, o) { if (!set) return; set.group.visible = o > 0.001; for (const l of set.layers) l.m.material.opacity = o; }
+  function showSet(key, instant) {
+    const set = sets[key];
+    if (!set || set === curSet) return;
+    if (prevSet && prevSet !== set) setOpacity(prevSet, 0);
+    prevSet = instant ? null : curSet;
+    if (instant && curSet) setOpacity(curSet, 0);
+    curSet = set;
+    // the new set fades in over the old one
+    for (const l of set.layers) l.m.renderOrder = L.BACK + 0.5 + set.layers.indexOf(l) * 0.05;
+    if (prevSet) for (const l of prevSet.layers) l.m.renderOrder = L.BACK + prevSet.layers.indexOf(l) * 0.05;
+    setFade = instant ? 1 : 0;
+    setOpacity(set, setFade);
+  }
+  function fadeSets(dt) {
+    if (setFade >= 1) return;
+    setFade = Math.min(1, setFade + dt / 1.2);
+    setOpacity(curSet, setFade);
+    if (setFade >= 1 && prevSet) { setOpacity(prevSet, 0); prevSet = null; }
   }
   function scrollBack(dx) {
-    for (const m of [back.a, back.b]) if (m.material.map) m.material.map.offset.x += dx * 0.14 * m.userData.k;
+    for (const set of [curSet, prevSet]) if (set) for (const l of set.layers) l.t.offset.x += dx * l.def.par * l.k;
     for (const c of clouds) {
       c.position.x -= dx * c.userData.k;
       if (c.position.x < -c.scale.x) { c.position.x = VW + c.scale.x * rnd(0.5, 1.5); c.position.y = rnd(VH * 0.55, VH * 0.85) + GB; }
@@ -218,6 +259,7 @@
 
   async function setPlayerChar(id) {
     const def = charDef(id);
+    preloadVoices(def.id);
     P.def = def;
     prepOrig(def.id);
     const rig = await makeRig(def.id, def.h, FACE_PLAYER);
@@ -278,17 +320,25 @@
   }
 
   function stageGroundTex() {
-    const key = run.bonus > 0 ? 'bonus' : STAGES[stageIx].id;
-    if (!groundTexBy[key]) groundTexBy[key] = RUNTEX.groundTex(run.bonus > 0 ? ['#fff', '#6a4fb0', '#fff7a8'] : STAGES[stageIx].ground, run.bonus > 0);
+    const st = STAGES[stageIx], key = run.bonus > 0 ? 'bonus' : st.id;
+    if (!groundTexBy[key]) {
+      if (run.bonus <= 0 && st.groundImg && IMG[st.groundImg]) {
+        const t = IMG[st.groundImg].clone(); t.needsUpdate = true; t.wrapS = THREE.RepeatWrapping;
+        t.asp = t.image.width / t.image.height;
+        groundTexBy[key] = t;
+      } else groundTexBy[key] = RUNTEX.groundTex(run.bonus > 0 ? ['#fff', '#6a4fb0', '#fff7a8'] : st.ground, run.bonus > 0);
+    }
     return groundTexBy[key];
   }
   function slab(x0, x1, top, depth) {
     const w = x1 - x0;
     const geo = new THREE.PlaneGeometry(w, depth);
     const uv = geo.attributes.uv, wx0 = x0 + traveled;
-    const u0 = wx0 / 2, u1 = (wx0 + w) / 2, v0 = 1 - depth / 2;
+    const T = stageGroundTex(), asp = T.asp;
+    // the original road strip spans the whole ground depth (2.5); the procedural tile is 2 x 2
+    const tw = asp ? 2.5 * asp : 2, u0 = wx0 / tw, u1 = (wx0 + w) / tw, v0 = asp ? 1 - depth / 2.5 : 1 - depth / 2;
     uv.setXY(0, u0, 1); uv.setXY(1, u1, 1); uv.setXY(2, u0, v0); uv.setXY(3, u1, v0);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: stageGroundTex(), depthTest: false, depthWrite: false, transparent: true }));
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: T, depthTest: false, depthWrite: false, transparent: true }));
     mesh.renderOrder = L.GROUND;
     mesh.position.set((x0 + x1) / 2, top - depth / 2, 0);
     scene.add(mesh);
@@ -297,7 +347,7 @@
   function addGround(x0, x1) {
     segs.push({ x0, x1, mesh: slab(x0, x1, 0, 0 - (GB - 0.6)) });
     if (state === 'play' && run.bonus <= 0) {
-      const kinds = { city: [1, 2, 3, 0], coast: [0, 0, 2], street: [1, 3, 0], snow: [2, 0] }[STAGES[stageIx].id];
+      const kinds = { city: [1, 2, 3, 0], forest: [0, 0, 2], lab: [1, 3, 0], snow: [2, 0], red: [2, 1, 2] }[STAGES[stageIx].id];
       for (let x = x0 + rnd(0.5, 3); x < x1 - 0.5; x += rnd(3, 7)) addProp(kinds[(Math.random() * kinds.length) | 0], x);
     }
   }
@@ -629,9 +679,7 @@
     Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 240, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: 0, bossBeat: 0, stomps: 0, skills: 0,
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
-    setBack(back.a, STAGES[0].id);
-    back.b.material.opacity = 0;
-    back.a.material.opacity = 1;
+    showSet(STAGES[0].id, true);
     renderer.setClearColor(STAGES[0].sky);
     addGround(-2, VW + 2);
     genX = VW + 2;
@@ -789,6 +837,8 @@
       return;
     }
     P.hp -= HIT_DMG * (pas().hitK || 1);
+    voice(P.def.id, 'hurt', 0.7);
+    if (P.hp < P.maxHp * 0.3 && !run.dangerSaid) { run.dangerSaid = true; setTimeout(() => ann('Danger-1'), 700); }
     P.inv = 1.3;
     shake = 0.35;
     run.combo = 0;
@@ -847,6 +897,7 @@
     P.hp = 0;
     slowMo(0.35, 0.6);
     AUDIO.play('fail', 0.8);
+    ann('GameOver-1');
     if (P.rig && !fell) { P.rig.c.setOpacity(1); P.rig.c.setTint(1, 1, 1); P.rig.c.play('die'); P.rig.c.speed = 1; P.rig.pivot.rotation.z = 0; P.rig.pivot.position.y = P.rig.baseY; }
   }
 
@@ -860,7 +911,7 @@
     const [mx, my] = muzzle();
     const ty = f.kind === 'air' ? f.y + 0.5 : f.y + Math.min(f.h, 2.5) * 0.5;
     const name = o.atk.bullet || o.skill.bullet;
-    AUDIO.play(d.sfx, 0.45, 1, 0.06);
+    AUDIO.play(csfx(d.id, 's1') || d.sfx, csfx(d.id, 's1') ? 0.35 : 0.45, 1, csfx(d.id, 's1') ? 0.18 : 0.06);
     if (origShot(name, mx, my, f, k, onDone, f.x, ty)) return;
     tracer(mx, my, f.x, ty, d.color);
     onDone(f, f.x, ty, '');
@@ -953,7 +1004,8 @@
     tally('mech:boss');
     AUDIO.play('warning', 0.8);
     AUDIO.music('boss');
-    cutin(d.name + ' 추격!', '경고 라인이 뜨면 점프·슬라이드로 피하세요', 'assets/img/' + P.def.id + '.webp', '#ff3048');
+    cutin(d.name + ' 추격!', '경고 라인이 뜨면 점프·슬라이드로 피하세요', 'assets/cut/' + P.def.id + '.webp', '#ff3048');
+    ann('BossAlert-1', 0.9);
     $('bossBar').classList.add('on');
     $('bossName').textContent = d.name;
     shake = 0.4;
@@ -993,6 +1045,7 @@
           run.coins += 40;
           AUDIO.play('win', 0.6);
           popup(PX, 3.2, b.d.name + ' 격퇴! +500 · 코인 +40', 'big');
+          ann('StageClear-1');
           flash('#fff6b0', 0.5);
           $('bossBar').classList.remove('on');
           AUDIO.music(STAGES[stageIx].bgm);
@@ -1238,9 +1291,10 @@
     zero: { // blink cuts: every 0.55 s a slash line clears the next 5 units, fences included
       tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.55; slashFx(PX + 2.5, P.y + 1, P.def.color, 5); aliveAhead(PX + 5.5).forEach((f) => breakFoe(f, 'melee')); AUDIO.play('slash', 0.5); },
     },
-    phoenix: { // the flight ends in a dive explosion
+    phoenix: { // 포격 난사: shells on what is below during the flight, a dive explosion at the end
+      tick2(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.45; const f = aliveAhead(PX + 7)[0]; if (f) { f.targeted = true; fireAt(f, shotLanded); } },
       end() { ring(PX + 2, 0.8, 0xff7a2a, 7, 0.5); burst(PX + 2, 0.8, 0xff5a1f, 24, 0.9, 9); aliveAhead(PX + 8).forEach((f) => breakFoe(f, 'shot')); origStatic('Phoenix_skill1_hit', PX + 2, 0.5, kOf() * 1.5); AUDIO.play('expM', 0.8); shake = 0.3; },
-      tick() { if (Math.random() < 0.6) burst(PX - 0.6, P.y + 0.6, 0xff7a2a, 1, 0.7, 2); },
+      tick(dt) { if (Math.random() < 0.6) burst(PX - 0.6, P.y + 0.6, 0xff7a2a, 1, 0.7, 2); UQ.phoenix.tick2(dt); },
     },
     labiata: { // 백화요란: every second a ground strike wipes the ground ahead
       tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 1.0; const x = PX + 3 * P.scale; origStatic(origFor('labiata').atk.statics[0] || 'simple_explosion', x, 0.3, kOf()); ring(x, 0.3, 0xffd36e, 6, 0.4);
@@ -1255,34 +1309,37 @@
     harpy: { // the spare missiles rain down as coin drops
       end() { for (let i = 0; i < 6; i++) addItem('coin', PX + 3 + i * 0.9, rnd(1, 3.5)); },
     },
-    impet: { // flamethrower: a burning cone in front, not a dash
+    impet: { // MK08. 열압력탄: a thermobaric blast ahead, then a burning cone in front (not a dash)
+      start() { origStatic('2rpg_bullet_fx', PX + 3, 0.8, kOf()); origStatic(ORIG_BOOM, PX + 3.5, 0.8, kOf() * 1.3); aliveAhead(PX + 5).filter((f) => f.kind !== 'air').forEach((f) => breakFoe(f, 'shot')); shake = 0.3; },
       tick() { const [mx, my] = muzzle(); for (let i = 0; i < 2; i++) { const s = burst(mx + rnd(0.3, 2.6), my - rnd(0, 0.6), Math.random() < 0.5 ? 0xff6a2a : 0xffc040, 1, 0.8, 1.5); }
         aliveAhead(PX + 3.4).filter((f) => f.kind !== 'air').forEach((f) => { breakFoe(f, 'melee'); dropItems(f.x, foeMid(f), 'coin', 1); });
         AUDIO.play('spray', 0.25, 1, 0.25); },
     },
-    gnome: { // engineer: grenades + pits bridged with planks for the whole skill
-      start(d) { P.buff.bridge = d; },
+    gnome: { // 방벽 생성: a barrier (one hit), grenades, pits bridged with planks for the whole skill
+      start(d) { P.buff.bridge = d; P.shield = Math.max(P.shield, d); },
     },
     daphne: { // field medic: regeneration, and jellies heal while it lasts
       tick(dt) { P.hp = Math.min(P.maxHp, P.hp + 3 * dt); if (Math.random() < 0.2) burst(PX + rnd(-0.4, 0.4), P.y + rnd(0.3, 1.6), 0x7dffa8, 1, 0.4, 1, 'spark'); },
     },
     banshee: { // sonic pulses break everything close, fences included
-      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.5; ring(PX + 1, P.y + 1, 0x7affd4, 6, 0.35); aliveAhead(PX + 4.2).forEach((f) => breakFoe(f, 'shot')); AUDIO.play('laser', 0.3, 1.4); },
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.5; const t = aliveAhead(PX + 4.6); if (t.length) { const x = t[0].x; bolt(x, 0.6, 0xffb070); origStatic(ORIG_BOOM, x, 0.7, kOf()); t.filter((f) => f.x < x + 1.6).forEach((f) => breakFoe(f, 'shot')); AUDIO.play('expS', 0.4); } },
     },
     sylphid: { // wind: a third jump, higher jumps and a slow fall (instead of flying)
-      start(d) { P.buff.wind = d; P.buff.fly = 0; runAnim(); },
+      start(d) { P.buff.wind = d; P.buff.fly = 0; runAnim(); aliveAhead().slice(0, 3).forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.08 + i * 0.12, i, f, name: 'Harpy_skill12_bullet', k: kOf() }); }); },
       tick() { if (Math.random() < 0.4) streak(PX + rnd(-1, 1), P.y + rnd(0.2, 1.8), 0xe0c8ff); },
     },
     raven: { // two piercing sniper shots across the whole screen (ground and fences)
+      start() { aliveAhead().forEach((f) => ring(f.x, foeMid(f), 0xfff2b0, 1.8, 0.6)); AUDIO.play('beam', 0.5); },
       tick(dt, t) { const k = Math.floor((t + 0.3) / 1.4); if (k <= (P.uqN || 0) || k > 2) return; P.uqN = k;
         const [mx, my] = muzzle(); beamFx(mx, VW + 1, my, 0xfff2b0, 0.25, 0.35); AUDIO.play('handgun', 0.8);
         aliveAhead().forEach((f) => { breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 3); }); },
     },
     nymph: { // water bubbles: every enemy on screen floats away as a bear jelly
-      start() { aliveAhead().forEach((f) => { ring(f.x, foeMid(f), 0x6fe3ff, 2.4, 0.5); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); }); },
+      start() { const [mx, my] = muzzle(); aliveAhead().forEach((f) => { tracer(mx, my, f.x, foeMid(f), 0x6fe3ff); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); }); AUDIO.play('mg', 0.6); },
     },
     amy: { // tractor beam: huge reach, every coin counts double
-      start(d) { P.buff.magnet = d; P.buff.coin2 = d; },
+      start(d) { P.buff.magnet = d; P.buff.coin2 = d; aliveAhead().slice(0, 3).forEach((f) => { f.marked = true; ring(f.x, foeMid(f), 0xff3048, 1.6, 0.8); }); },
+      tick() { foes.forEach((f) => { if (f.marked && !f.dead && f.x < PX + 3) { slashFx(f.x, foeMid(f), 0xff3048, 2); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); } }); },
     },
     saraqael: { // golden judgement: lightning on every enemy, each leaves a coin pile
       start() { aliveAhead().forEach((f) => { bolt(f.x, foeMid(f), 0xffe9a0); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); }); AUDIO.play('elec', 0.7); },
@@ -1292,16 +1349,16 @@
         origShot('Thetis_skill2_big_Missile', ...muzzle(), f, kOf(), (g, x, y) => { origStatic('Thetis_skill2_Hit', x, y, kOf()); ring(x, y, 0x66ccff, 8, 0.5); foes.filter((h) => !h.dead && Math.abs(h.x - x) < 4).forEach((h) => breakFoe(h, 'shot')); shake = 0.3; }, f.x, foeMid(f)); },
     },
     undine: { // a water wave that rolls ahead
-      start() { sendRunner(0x9feaff, 'glow', 1.6, 18, 1.4); origStatic('Undine_skill2_Hit', PX + 2, 0.6, kOf()); },
+      start() { sendRunner(0x9feaff, 'glow', 1.6, 18, 1.4); origStatic('Undine_skill2_Hit', PX + 2, 0.6, kOf()); aliveAhead().slice(0, 2).forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.1 + i * 0.15, i, f, name: 'Undine_skill2_bullet', k: kOf() }); }); },
     },
     hraesvelgr: { // storm flight with a laser strafing what is below
-      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.3; const f = aliveAhead(PX + 8)[0]; if (f) { fireAt(f, shotLanded); f.targeted = true; } },
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.3; const t = aliveAhead(PX + 9).filter((g) => !g.targeted); const f = t.find((g) => g.kind === 'air') || t[0]; if (f) { fireAt(f, shotLanded); f.targeted = true; } },
     },
     hela: { // chain lightning through every enemy on screen, each becomes coins
       start() { let x = PX + 0.6, y = P.y + 1.1; aliveAhead().sort((a, b) => a.x - b.x).forEach((f) => { const fy = foeMid(f); tracer(x, y, f.x, fy, 0xc77dff); x = f.x; y = fy; breakFoe(f, 'shot'); dropItems(f.x, fy, 'coin', 3); }); AUDIO.play('elec', 0.8); },
     },
-    azazel: { // jellies count double in flight; a holy pillar when it lands
-      start(d) { P.buff.jelly2 = d; },
+    azazel: { // 수호 천사: a shield, jellies count double in flight, a holy pillar when it lands
+      start(d) { P.buff.jelly2 = d; P.shield = Math.max(P.shield, d); },
       end() { origStatic('Azazel_skill1_Hit_m', PX + 1.5, 0.5, kOf() * 1.3); bolt(PX + 1.5, 0.5, 0xffe9a0); aliveAhead(PX + 6).forEach((f) => breakFoe(f, 'shot')); },
     },
     leona: { // laser lance: fences in front melt too, jellies during the charge count double
@@ -1355,7 +1412,9 @@
     if (!['gun', 'missile', 'snipe', 'beam'].includes(sk.type)) openingVolley();
     uqStart(P.skDur);
     AUDIO.play('charge', 0.7);
-    cutin(sk.name, P.def.name, portrait(P.def.id), hex(P.def.color));
+    cutin(sk.name, P.def.name, 'assets/cut/' + P.def.id + '.webp', hex(P.def.color));
+    voice(P.def.id, 'skill', 0.95, true);
+    { const c = csfx(P.def.id, 's2'); if (c) AUDIO.play(c, 0.7); }
     slowMo(0.3, 0.28);
     flash(hex(P.def.color), 0.35);
     ring(PX, P.y + 1, P.def.color, 3.5, 0.45);
@@ -1370,11 +1429,11 @@
     letterHud();
     AUDIO.play('rankUpSS', 0.8);
     flash('#fff6b0', 0.8);
-    cutin('BONUS TIME!', '젤리 2배 · 장애물 없음', portrait(P.def.id), '#ffcf3a');
+    cutin('BONUS TIME!', '젤리 2배 · 장애물 없음', 'assets/cut/' + P.def.id + '.webp', '#ffcf3a');
+    ann('Aamazing-1');
     slowMo(0.3, 0.3);
     $('bonusFx').classList.add('on');
-    backTex.sky = TEX.skyBack;
-    setBack(back.b, 'sky'); back.b.renderOrder = L.BACK + 0.5; back.b.material.opacity = 0; back.fade = 0;
+    showSet('sky');
     renderer.setClearColor(0xbfe4ff);
     AUDIO.music('title');
     // clear the road ahead: enemies pop into coins, pits are bridged while it lasts
@@ -1389,7 +1448,7 @@
   }
   function endBonus() {
     $('bonusFx').classList.remove('on');
-    setBack(back.b, STAGES[stageIx].id); back.b.renderOrder = L.BACK + 0.5; back.b.material.opacity = 0; back.fade = 0;
+    showSet(STAGES[stageIx].id);
     renderer.setClearColor(STAGES[stageIx].sky);
     AUDIO.music(run.boss ? 'boss' : STAGES[stageIx].bgm);
     P.buff.bridge = 1.6;
@@ -1405,7 +1464,7 @@
       run.combo++;
       run.comboT = 1.3;
       run.maxCombo = Math.max(run.maxCombo, run.combo);
-      if (run.combo % 50 === 0) { popup(PX, P.y + 2.6, run.combo + ' COMBO!', 'combo'); AUDIO.play('genA', 0.5); }
+      if (run.combo % 50 === 0) { popup(PX, P.y + 2.6, run.combo + ' COMBO!', 'combo'); AUDIO.play('genA', 0.5); if (run.combo % 100 === 0) ann(['Combo-1', 'Great-1', 'Nice-1', 'Combo-2', 'Perfect-1', 'Combo-3'][Math.min(5, run.combo / 100 - 1)]); }
     }
     if (k === 'jelly') { addScore(10 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1)); run.jelly++; sparkle(it.x, it.y, 0x9ff3ff); AUDIO.play('coin', 0.16, 1.6, 0.05); }
     else if (k === 'bear') { addScore(50 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1)); run.jelly++; AUDIO.play('coin', 0.24, 1.3, 0.05); burst(it.x, it.y, 0xff7ab8, 3, 0.4, 2); }
@@ -1464,11 +1523,8 @@
       const si = Math.floor(traveled / STAGE_LEN) % STAGES.length;
       if (si !== stageIx) changeStage(si);
     }
-    if (back.fade < 1) {
-      back.fade = Math.min(1, back.fade + dt / 1.2);
-      back.b.material.opacity = back.fade;
-      if (back.fade >= 1) { const t = back.a; back.a = back.b; back.b = t; back.b.material.opacity = 0; back.a.renderOrder = L.BACK; back.b.renderOrder = L.BACK + 0.5; }
-    }
+    fadeSets(dt);
+
 
     for (const arr of [segs, plats]) {
       for (let i = arr.length - 1; i >= 0; i--) {
@@ -1879,10 +1935,7 @@
     tally('stage:' + STAGES[si].id);
     stageIx = si;
     const st = STAGES[si];
-    setBack(back.b, st.id);
-    back.b.renderOrder = L.BACK + 0.5;
-    back.b.material.opacity = 0;
-    back.fade = 0;
+    showSet(st.id);
     renderer.setClearColor(st.sky);
     AUDIO.music(st.bgm);
     AUDIO.play('warning', 0.4);
@@ -1902,6 +1955,7 @@
       run.done.push(i);
       AUDIO.play('genSS', 0.6);
       popup(PX, P.y + 3.0, '미션 완료! ' + missionText(m), 'mission');
+      ann('Success-1');
     });
   }
   function missionList(el, showDone) {
@@ -2017,7 +2071,7 @@
         '<div class="top"><img class="por" src="' + portrait(d.id) + '" alt=""><div><div class="nm">' + d.name + '</div>' +
         '<span class="rk" style="background:' + rk.color + '33;color:' + rk.color + '">' + d.rank + '</span>' +
         (owned ? ' <span class="lv">Lv.' + lv + '</span>' : '') + '</div></div>' +
-        '<div class="sk">' + d.skill.name + ' <small>· ' + (d.skill.cd * (1 - (lv - 1) * 0.06)).toFixed(1) + '초</small></div>' +
+        '<div class="sk">' + d.skill.name + ' <small>· 원작: ' + d.skill.n1 + ' · ' + (d.skill.cd * (1 - (lv - 1) * 0.06)).toFixed(1) + '초</small></div>' +
         '<div class="ds">' + d.desc + '</div>' +
         (d.pas ? '<div class="pas">' + d.pas.t + '</div>' : '') +
         '<div class="ft"><span>HP ' + (d.hp + (lv - 1) * 10) + ' · 최고 ' + ((save.bestBy[d.id] || 0).toLocaleString()) + '</span>' +
@@ -2032,6 +2086,7 @@
           save.coins -= UPG[lv];
           save.lv[d.id] = lv + 1;
           AUDIO.play('rankUp', 0.7);
+          ann('LevelUp-1');
           persist();
           buildCharGrid();
           return;
@@ -2042,6 +2097,7 @@
           save.owned.push(d.id);
           AUDIO.play('purchase', 0.7);
         } else AUDIO.play('click', 0.5);
+        voice(d.id, 'start', 0.8, true);
         save.sel = d.id;
         if (save.sup === d.id) save.sup = '';
         persist();
@@ -2075,6 +2131,8 @@
     $('skillRing').style.setProperty('--sc', hex(P.def.color));
     show(null);
     AUDIO.music(STAGES[0].bgm);
+    ann('GameStart-1');
+    setTimeout(() => state === 'play' && voice(P.def.id, 'start', 0.9, true), 1300);
     Object.keys(hudCache).forEach((k) => delete hudCache[k]);
     hud();
     makeSupport();
@@ -2149,6 +2207,7 @@
     show('result');
     AUDIO.music('');
     AUDIO.play(isNew || g === 'S' ? 'win' : 'clear', 0.7);
+    setTimeout(() => voice(P.def.id, 'mvp', 0.95, true), 600);
   }
 
   function setPause(v) {
@@ -2209,7 +2268,7 @@
     PX = Math.min(3.4, VW * 0.22);
     camera.left = 0; camera.right = VW; camera.bottom = GB; camera.top = GB + VH;
     camera.updateProjectionMatrix();
-    layoutBack(back.a); layoutBack(back.b);
+    Object.values(sets).forEach(layoutSet);
     abyss.scale.set(VW + 2, 0.15 - GB, 1);
     abyss.position.set(VW / 2, (0.15 + GB) / 2 - 0.1, 0);
     $('rotate').classList.toggle('can', MOBILE);
@@ -2253,9 +2312,6 @@
     scene = new THREE.Scene();
     camera = new THREE.OrthographicCamera(0, 16, 7.7, GB, -100, 100);
     TEX = RUNTEX.build();
-    back.a = makeBackMesh();
-    back.b = makeBackMesh();
-    back.b.material.opacity = 0;
     for (let i = 0; i < 4; i++) {
       const c = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.cloud, depthTest: false, depthWrite: false, transparent: true, opacity: rnd(0.45, 0.75) }));
       const s = rnd(3, 6);
@@ -2282,12 +2338,14 @@
     // a few obstacle rigs up front; the rest stream in while the player is on the title screen
     const enemyIds = [...ENEMIES.low.slice(0, 3), ...ENEMIES.tall.slice(0, 2), ...ENEMIES.air].map((e) => e.id);
     const jobs = [
-      ...STAGES.map((s) => loadTex('assets/bg/' + s.id + '.webp').then((t) => {
-        if (t) { t.wrapS = THREE.MirroredRepeatWrapping; t.minFilter = THREE.LinearFilter; backTex[s.id] = t; }
+      ...[...new Set(STAGES.flatMap((st) => [...st.layers.map((l) => l.img), st.groundImg].filter(Boolean)))].map((n) => loadTex('assets/bg2/' + n + '.webp').then((t) => {
+        if (t) { t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4; IMG[n] = t; }
       })),
       setPlayerChar(save.sel),
       ...enemyIds.map((id) => SD.prepare(id)),
       FXB.prepare(ORIG_DEFAULT_HIT), FXB.prepare(ORIG_BOOM),
+      // original resource icons for the collectibles: power cell = jelly, nutrient = bear jelly, gold coin, parts crate = giant jelly
+      ...[['jelly', 'power'], ['bear', 'nutrient'], ['coin', 'goldcoin'], ['jbig', 'parts']].map(([k, f]) => loadTex('assets/img/res_' + f + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX[k] = t; } })),
     ];
     let done = 0;
     jobs.forEach((p) => p.then(() => {
@@ -2295,6 +2353,8 @@
       $('loadBar').style.width = (done / jobs.length * 100).toFixed(0) + '%';
     }));
     await Promise.all(jobs);
+    STAGES.forEach((st) => makeSet(st.id, st.layers));
+    makeSet('sky', [{ tex: TEX.skyBack, y0: -0.45, full: true, par: 0.06 }]);
     bindInput();
     goTitle();
     checkAttendance();
@@ -2305,10 +2365,10 @@
 
   // a little for debugging / the lab pages
   window.GAME = {
-    P, run, foes, items, segs, plats, get scene() { return scene; }, get state() { return state; }, get genX() { return genX; }, get traveled() { return traveled; },
+    P, run, foes, items, segs, plats, get scene() { return scene; }, get state() { return state; }, get genX() { return genX; }, get traveled() { return traveled; }, set traveled(v) { traveled = v; },
     startRun, setChar: setPlayerChar, jump, setSlide: (v) => { input.slide = v; }, startBonus, activateSkill,
     STAT, K: { G, JV, JV2, GB }, get spd() { return spd; }, get PX() { return PX; }, get VW() { return VW; }, get renderer() { return renderer; },
-    smashing: () => smashing(), bridging: () => bridging(), origFor, save, lanes,
+    smashing: () => smashing(), bridging: () => bridging(), origFor, save, lanes, changeStage: (i) => changeStage(i),
     // test hook: hold the clock and advance n fixed frames (the page's own loop stays paused meanwhile)
     hold(v) { held = v; },
     step(n = 1, dt = 1 / 60, each) {
