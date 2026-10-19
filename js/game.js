@@ -569,7 +569,7 @@
       else if (pat === 1) for (let x = a; x <= b; x += 0.55) addItem('jelly', x, 0.55 + (1 - Math.cos((x - a) * 1.1)) * 0.75); // a wave: hop along it
       else if (pat === 2) { const h = gs * 0.25; jellyArc(a + h, 2.4, h); jellyArc(b - h, 2.4, h, 'jelly'); addItem('bear', a + h, 2.95); addItem('bear', b - h, 2.95); } // two hops, a bear at each peak
       else if (pat === 3) { jellyLine(a, b, 0.55, 'jelly', 0.7); jellyLine(a + 1.5, b - 1.5, 4.3, 'bear', 0.7); addItem('gjelly', (a + b) / 2, 5.0); } // a high route for a double jump, a gold bar on top
-      else if (pat === 4) { jellyLine(a, b, 0.55, 'coin', 0.62); const c = (a + b) / 2; [[0, 1.5], [-0.5, 2], [0.5, 2], [-1, 2.5], [1, 2.5], [0, 3]].forEach(([dx, y]) => addItem(dx === 0 && y === 3 ? 'jbig' : 'bear', c + dx, y)); }
+      else if (pat === 4) { jellyLine(a, b, 0.55, 'coin', 0.9); const c = (a + b) / 2; [[0, 1.5], [-0.5, 2], [0.5, 2], [-1, 2.5], [1, 2.5], [0, 3]].forEach(([dx, y]) => addItem(dx === 0 && y === 3 ? 'jbig' : 'bear', c + dx, y)); }
       else if (pat === 5) { for (let x = a, i = 0; x <= b; x += 0.62, i++) addItem(i % 4 === 3 ? 'bear' : 'jelly', x, i % 8 < 4 ? 0.55 : 1.3); } // steps up and down
       else if (pat === 6) { for (let x = a, i = 0; x <= b; x += 0.5, i++) addItem(i % 2 ? 'coin' : 'jelly', x, 0.55 + Math.abs(Math.sin((x - a) * 0.7)) * 2.2); } // a bouncing line, coin and jelly in turn
       else if (pat === 7) { const c = (a + b) / 2; for (let i = 0; i < 12; i++) { const t = i / 12 * Math.PI * 2; addItem(i % 3 ? 'jelly' : 'bear', c + Math.cos(t) * 1.4, 2.4 + Math.sin(t) * 1.4); } addItem('gjelly', c, 2.4); } // a ring with gold inside: jump through it
@@ -749,7 +749,7 @@
     },
     (x0) => { const len = 12; addGround(x0, x0 + len); for (let r = 0; r < 4; r++) jellyLine(x0 + 0.5, x0 + len - 0.5, 0.55 + r * 0.95, r % 2 ? 'coin' : 'jelly', 0.6); return len; },
     (x0) => { const len = 12; addGround(x0, x0 + len); for (let x = 0.5; x < len; x += 0.5) addItem(x % 2 < 1 ? 'bear' : 'coin', x0 + x, 2.2 + Math.sin(x * 0.9) * 1.7); return len; },
-    (x0) => { const len = 10; addGround(x0, x0 + len); jellyArc(x0 + 5, 4.6, 4.5, 'bear'); jellyLine(x0 + 0.5, x0 + len - 0.5, 0.55, 'coin', 0.5); return len; },
+    (x0) => { const len = 10; addGround(x0, x0 + len); jellyArc(x0 + 5, 4.6, 4.5, 'bear'); jellyLine(x0 + 0.5, x0 + len - 0.5, 0.55, 'coin', 0.8); return len; },
     (x0) => { const len = 12; addGround(x0, x0 + len); for (let r = 0; r < 3; r++) jellyLine(x0 + 1 + r, x0 + len - 1 - r, 4 + r * 0.8, r === 2 ? 'jbig' : 'bear', r === 2 ? 3 : 0.8); return len; },
     (x0) => { const len = 14; addGround(x0, x0 + len); for (let x = 0.5; x < len; x += 0.6) addItem(x % 3 < 0.6 ? 'bear' : 'jelly', x0 + x, 3.6 + Math.sin(x * 0.7) * 2.2); return len; },
   ];
@@ -1175,7 +1175,7 @@
     e_BlackKnight_N: { charge: '척살', double: '충격 흡입', lane: '조직 재생' },
     e_Goltarion_N: { track: '작열! 헬파이어 빔', bombs: '소환!! 데모닉 웨폰', sweep3: '불사의 장갑' },
     // Doom Eater has no skill names in the original table (only the monster): its call-outs are its own effect IDs (DoomEater_skill1_Eat / Big_fire / skill2_Hit)
-    e_DoomEater_N: { double: 'EAT', lane: 'BIG FIRE', sweep3: 'SKILL2 HIT', bombs: 'BIG FIRE' },
+    e_DoomEater_N: { double: '포식', lane: '대화염', sweep3: '폭쇄', bombs: '대화염 포격' },
   };
   const lanes = []; // { y0, y1, warn, fire, s, high }
   function startBoss() {
@@ -1206,7 +1206,7 @@
     s.renderOrder = L.FX - 0.1;
     scene.add(s);
     lanes.push({ y0, y1, warn, fire, s, high });
-    popup(PX + 3, high ? 3.4 : 2.0, high ? '▼ 슬라이드!' : '▲ 점프!', 'warn');
+    popup(PX + 3.4, high ? 2.9 : 1.6, high ? '▼ 슬라이드!' : '▲ 점프!', 'warn');
     AUDIO.play('charge', 0.5, 1.4);
   }
   // one boss attack, by pattern
@@ -1883,8 +1883,8 @@
   function update(dt) {
     const playing = state === 'play';
     if (playing && !P.dead) {
-      baseSpd = (8.2 + 6.3 * (1 - Math.exp(-traveled / 2200)) + run.loop * 0.9) * ((run.mod && run.mod.spd) || 1) * (traveled > 2000 ? 1.1 : traveled > 1000 ? 1.05 : 1); // a step up at each tier // each episode lap a little faster
-      spd = baseSpd * (P.buff.dash > 0 ? 1.65 : P.buff.boost > 0 ? 1.5 : run.bonus > 0 ? 1.15 : 1);
+      baseSpd = (8.2 + 6.3 * (1 - Math.exp(-traveled / 2200)) + run.loop * 0.9) * ((run.mod && run.mod.spd) || 1) * (1 + Math.min(0.16, traveled / 25000)); // keeps climbing smoothly (+4% per 1000 m, up to +16%) // each episode lap a little faster
+      spd = baseSpd * (pas().runK || 1) * (P.buff.dash > 0 ? 1.65 : P.buff.boost > 0 ? 1.5 : run.bonus > 0 ? 1.15 : 1);
     } else if (playing && P.dead) spd = Math.max(0, spd - 18 * dt);
     else if (state === 'result') spd = 0;
     else spd = 6.5;
@@ -2131,7 +2131,7 @@
     // a close shave over (or under) an obstacle: PERFECT
     if (!f.near && !f.hit && !f.dead && (f.kind === 'low' || f.kind === 'tall' || f.kind === 'air') && px0 <= fx1 && px1 >= fx0) {
       const gap = f.kind === 'air' ? fy0 - py1 : py0 - fy1;
-      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; P.inT = 0; trait('perfect'); run.pStreak = (run.pStreak || 0) + 1; const pv = 80 * Math.min(5, run.pStreak); addScore(pv); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, (run.pStreak > 1 ? 'PERFECT ×' + run.pStreak : 'PERFECT!') + ' +' + pv, 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); if (P.skillOn <= 0) { P.skillT += run.pStreak === 5 ? 6 : 1.2; ring(PX, P.y + 1, P.def.color, 1.4, 0.3); } if (run.pStreak === 5) { ann('Perfect-1'); flash(hex(P.def.color), 0.3); popup(PX, P.y + 3, 'PERFECT ×5 — 스킬 충전!', 'combo'); } } // a PERFECT also charges the skill
+      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; P.inT = 0; trait('perfect'); run.pStreak = (run.pStreak || 0) + 1; const pv = 80 * Math.min(5, run.pStreak); addScore(pv); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, (run.pStreak > 1 ? 'PERFECT ×' + run.pStreak : 'PERFECT!') + ' +' + pv, 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); if (P.skillOn <= 0) { P.skillT += run.pStreak === 5 ? 6 : 1.2; ring(PX, P.y + 1, P.def.color, 1.4, 0.3); } if (run.pStreak === 5) { P.buff.boost = Math.max(P.buff.boost || 0, 2.5); P.inv = Math.max(P.inv, 2.5); for (let i = 0; i < 14; i++) addItem(i % 4 ? 'jelly' : 'bear', PX + 3 + i * 0.7, 2.2 + Math.sin(i) * 1.2); ann('Perfect-1'); flash(hex(P.def.color), 0.3); popup(PX, P.y + 3, 'PERFECT ×5 — 스킬 충전!', 'combo'); } } // a PERFECT also charges the skill
     }
     if (px1 < fx0 || px0 > fx1 || py1 < fy0 || py0 > fy1) return;
     if (f.frozen || (f.kind === 'bomb' && !f.armed)) return;
@@ -2216,7 +2216,7 @@
       P.jumps = 1;
       if (P.buff.fly <= dt) { P.buff.bridge = 1.2; runAnim(); }
     } else {
-      P.vy -= G * dt * (run.bonus > 0 ? 0.6 : 1) * (P.vy < 0 ? (P.buff.wind > 0 ? 0.55 : pas().fallK || 1) : 1);
+      P.vy -= G * dt * (pas().gravK || 1) * (run.bonus > 0 ? 0.6 : 1) * (P.vy < 0 ? (P.buff.wind > 0 ? 0.55 : pas().fallK || 1) : 1);
       if (!P.onGround && input.slide) {
         const tr = pas().trait;
         if (tr === 'glide' && P.vy < -1.4) { P.vy = -1.4; if (Math.random() < 0.3) streak(PX - 0.3, P.y + 0.8, P.def.color); }
