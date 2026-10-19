@@ -296,7 +296,7 @@
   function resetPlayer() {
     const d = P.def, lv = lvOf(d.id);
     Object.assign(P, { y: 0, vy: 0, jumps: 0, onGround: true, floor: 0, coyote: 0, jumpBuf: 0, slide: false, slideK: 0, spin: 0,
-      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false, pasT: 0, smT: null, trCd: 0, haloT: null, frT: null, bbT: null,
+      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false, pasT: 0, smT: null, trCd: 0, haloT: null, frT: null, bbT: null, snT: null, stT: null,
       skillT: 0, skillOn: 0, skCd: d.skill.cd * (1 - (lv - 1) * 0.06), skDur: d.skill.dur * (1 + (lv - 1) * 0.08),
       scale: 1, buff: {}, gunT: 0, fell: false, lock: 0, rainT: 0 });
     P.mods = mergeMods(d);
@@ -403,10 +403,11 @@
   }
 
   const HALO = {};
+  const JELLY_TEX = { lab: 'jellyMetal' }; // the lab's cells are scrap metal (original resource icon)
   const JELLY_TINT = { city: 0xffffff, forest: 0xb8ffb0, lab: 0xd8e4ff, snow: 0xe8fbff, red: 0xffc49a };
   function jellyMat() {
     const id = run.bonus > 0 ? 'bonus' : STAGES[stageIx].id, key = 'jelly_' + id;
-    if (!sharedMat[key]) { sharedMat[key] = matFor('jelly').clone(); sharedMat[key].color.setHex(JELLY_TINT[id] || 0xffffff); }
+    if (!sharedMat[key]) { sharedMat[key] = matFor('jelly').clone(); if (JELLY_TEX[id] && TEX[JELLY_TEX[id]]) sharedMat[key].map = TEX[JELLY_TEX[id]]; sharedMat[key].color.setHex(JELLY_TINT[id] || 0xffffff); }
     return sharedMat[key];
   }
   function addItem(kind, x, y) {
@@ -714,7 +715,7 @@
 
   function pickChunk() {
     if (run.tutQ && run.tutQ.length) return run.tutQ.shift();
-    if (run.boss) { const r = Math.random(); return r < 0.45 ? 'flat' : r < 0.65 ? 'wave' : r < 0.85 ? 'low' : 'air'; } // the boss's lanes are the main threat during a chase
+    if (run.boss) { const r = Math.random(); return r < 0.35 ? 'flat' : r < 0.5 ? 'wave' : r < 0.65 ? 'low' : r < 0.78 ? 'pit' : r < 0.9 ? 'steps' : 'platFoe'; } // the boss's lanes plus terrain (no laser fences under its sweeps)
     const lv = Math.min(1, traveled / 2600);
     const w = {
       flat: 2.2 - lv * 1.4, wave: 0.6, low: 3, low2: 0.4 + lv * 1.6, tall: 0.6 + lv * 1.6, air: 2, airs: 0.4 + lv * 1.4,
@@ -1078,7 +1079,7 @@
   // the boss's own effect at its body when it attacks, and its timing: Black Knight's 척살 strikes with a short warning, Goltarion's beam burns longer
   const BOSS_CAST = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_DoomEater_N: 'DoomEater_Big_fire_F', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A' };
   const BOSS_TUNE = { e_Nidhogg_N: { warn: 1.0, fire: 0.32, gap: 2.7 }, e_DoomEater_N: { warn: 0.95, fire: 0.36, gap: 2.3 }, e_BlackKnight_N: { warn: 0.72, fire: 0.26, gap: 2.6 }, e_Goltarion_N: { warn: 1.05, fire: 0.62, gap: 3.0 } };
-  const BOSS_X = { e_Nidhogg_N: 0.7, e_DoomEater_N: 0.9, e_BlackKnight_N: 0.9, e_Goltarion_N: 0.9 }; // rig origin -> whole silhouette in view
+  const BOSS_X = { e_Nidhogg_N: 1.2, e_DoomEater_N: 0.9, e_BlackKnight_N: 0.9, e_Goltarion_N: 0.9 }; // rig origin -> whole silhouette in view
   // Nidhogg: barrage and a three-sweep; Doom Eater: double sweeps; Black Knight: a charge through the squad (jump it);
   // Goltarion: a hellfire beam aimed at the height the runner is at when it locks on
   const BOSS_PATS = { e_Nidhogg_N: ['lane', 'barrage', 'sweep3'], e_DoomEater_N: ['double', 'lane', 'sweep3', 'bombs'], e_BlackKnight_N: ['charge', 'double', 'charge', 'lane'], e_Goltarion_N: ['track', 'bombs', 'track', 'sweep3'] };
@@ -1584,6 +1585,14 @@
     else if (ev === 'double' && tr === 'blink') { const t = aliveAhead(PX + 3.2); if (t.length) { P.trCd = 2.5; origStatic('Kunoichi_skill2_Sword_first_line_F', PX + 1.6, P.y + 0.5, kOf() * 0.7); t.forEach((f) => { own(f); breakFoe(f, 'melee'); }); } }
     else if (ev === 'double' && tr === 'dashcut') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; P.buff.dash = Math.max(P.buff.dash || 0, 0.25); puff(PX, P.y, 5, 0.8); t.forEach((f) => { own(f); breakFoe(f, 'melee'); }); }
     else if (ev === 'land' && tr === 'grenade' && drop > 1.4) { const f = near(5)[0]; if (f) { P.trCd = 3; origStatic(P.def.id === 'brownie' ? 'S_Brownie_ande_bling' : ORIG_BOOM, f.x, foeMid(f), kOf() * 0.7); breakFoe(f, 'shot'); AUDIO.play('expS', 0.4); } }
+    else if (ev === 'double' && tr === 'prism') { const [mx, my] = muzzle(); P.trCd = 3; beamFx(mx, PX + 8, my, P.def.color, 0.2, 0.18); items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 0.9 && it.x > mx && it.x < PX + 8) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); const f = aliveAhead(PX + 8).find((g) => Math.abs(foeMid(g) - my) < 1.4); if (f) { own(f); breakFoe(f, 'shot'); } }
+    else if (ev === 'double' && tr === 'homing') { const t = aliveAhead(PX + 9).sort((a, b) => (b.kind === 'air') - (a.kind === 'air')).slice(0, 2); if (t.length) { P.trCd = 3; t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.05 + i * 0.12, i, f, name: o.atk.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); }); } }
+    else if (ev === 'double' && tr === 'gust') { const t = aliveAhead(PX + 4.5).filter((f) => f.kind === 'air'); P.trCd = 2; for (let i = 0; i < 6; i++) streak(PX + 0.5 + i * 0.6, P.y + 0.6, P.def.color); t.forEach((f) => { own(f); breakFoe(f, 'shot'); }); }
+    else if (ev === 'land' && tr === 'bladearc' && drop > 1.4) { const t = aliveAhead(PX + 3); P.trCd = 2.5; origStatic('Tiamat_skill2_Blade_rotate_line_F', PX + 1.5, P.y + 0.8, kOf() * 0.6); t.forEach((f) => { own(f); breakFoe(f, 'melee'); }); }
+    else if (ev === 'slide' && tr === 'eyebeam') { const t = aliveAhead(PX + 7).filter((f) => f.kind === 'air'); if (t.length) { P.trCd = 2.5; const [mx, my] = muzzle(); t.forEach((f) => { tracer(mx, my, f.x, foeMid(f), P.def.color); own(f); breakFoe(f, 'shot'); }); origStatic('valkyrie_eyes_lazer', mx, my, kOf()); } }
+    else if (ev === 'slide' && tr === 'mark') { const f = aliveAhead(PX + 8)[0]; if (f) { P.trCd = 3; own(f); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 4); } }
+    else if (ev === 'slide' && tr === 'torpedo') { P.trCd = 3; sendRunner(0x66ccff, 'glow', 0.6, 16, 0.7, false, hitFx); }
+    else if (ev === 'slide' && tr === 'wave') { P.trCd = 3.5; sendRunner(0x9feaff, 'glow', 1.2, 14, 0.9, false, 'Undine_skill2_Hit'); }
     else if (ev === 'slide' && tr === 'spray') { const f = aliveAhead(PX + 6)[0]; if (f) { P.trCd = 2.5; f.targeted = true; fireAt(f, shotLanded); } }
     else if (ev === 'slide' && tr === 'pulse') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; ring(PX + 0.8, 0.6, P.def.color, 2.6, 0.3); t.forEach((f) => { own(f); breakFoe(f, 'shot'); }); }
     else if (ev === 'land' && tr === 'quake' && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; ring(PX + 1, 0.2, P.def.color, 3, 0.35); shake = Math.max(shake, 0.15); origStatic(P.def.id === 'labiata' ? 'Labiata_skill1_hit' : hitFx, PX + 1.4, 0.3, kOf() * (P.def.id === 'labiata' ? 0.35 : 0.8)); t.forEach((f) => breakFoe(f, 'melee')); }
@@ -1596,6 +1605,8 @@
     if (P.trCd > 0) P.trCd -= dt;
     if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0) { P.haloT = 10; if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
     if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; ring(f.x, foeMid(f), 0x6fe3ff, 1.8, 0.5); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
+    if (ps.trait === 'snipe' && (P.snT = (P.snT == null ? 7 : P.snT) - dt) <= 0) { const t = foes.filter((f) => !f.dead && !f.frozen && f.x > PX + 4 && f.x < VW + 0.5); const f = t[t.length - 1]; if (f) { P.snT = 7; const [mx, my] = muzzle(); beamFx(mx, f.x, my, 0xfff2b0, 0.12, 0.08); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); AUDIO.play('handgun', 0.5); } else P.snT = 0.4; }
+    if (ps.trait === 'strafe' && (P.stT = (P.stT == null ? 6 : P.stT) - dt) <= 0) { const f = foes.find((g) => !g.dead && g.kind === 'air' && g.x > PX + 1.5 && g.x < PX + 10); if (f) { P.stT = 6; f.targeted = true; fireAt(f, shotLanded); } else P.stT = 0.4; }
     if (ps.trait === 'regen' && P.onGround) P.hp = Math.min(P.maxHp, P.hp + 0.6 * dt);
     if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; freeze(f, 3); } else P.frT = 0.5; }
     if (ps.autoGun && (P.pasT = (P.pasT || 0) - dt) <= 0) {
@@ -1632,7 +1643,7 @@
     P.skillT = 0;
     SKILL[sk.type].start(P.skDur);
     run.skills = (run.skills || 0) + 1;
-    if (run.boss) setTimeout(() => hitBoss(24, P.def.color, true), 350);
+    if (run.boss) setTimeout(() => hitBoss({ beam: 34, snipe: 32, missile: 30, dash: 30, giant: 30, wind: 22, melee: 28, slash: 28, gun: 26, akimbo: 26, flame: 26, frost: 24, wolves: 28, fly: 24 }[sk.type] || 18, P.def.color, true), 350); // strikers hit the chase boss harder than supporters
     if (!['gun', 'missile', 'snipe', 'beam'].includes(sk.type)) openingVolley();
     uqStart(P.skDur);
     AUDIO.play('charge', 0.7);
@@ -2671,7 +2682,7 @@
       // original resource icons for the collectibles: power cell = jelly, nutrient = bear jelly, gold coin, parts crate = giant jelly
       ...['prop_fence', 'prop_stone1', 'prop_stone2', 'prop_fence2'].map((n, i) => loadTex('assets/img/' + n + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX.props[i] = t; } })),
       loadTex('assets/bg2/sky_bonus.webp').then((t) => { if (t) { t.minFilter = THREE.LinearMipmapLinearFilter; IMG.sky_bonus = t; } }),
-      ...[['jelly', 'power'], ['bear', 'nutrient'], ['coin', 'goldcoin'], ['jbig', 'parts'], ['gjelly', 'goldbar']].map(([k, f]) => loadTex('assets/img/res_' + f + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX[k] = t; } })),
+      ...[['jelly', 'power'], ['bear', 'nutrient'], ['coin', 'goldcoin'], ['jbig', 'parts'], ['gjelly', 'goldbar'], ['jellyMetal', 'metal']].map(([k, f]) => loadTex('assets/img/res_' + f + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX[k] = t; } })),
     ];
     let done = 0;
     jobs.forEach((p) => p.then(() => {
