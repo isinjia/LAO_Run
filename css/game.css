@@ -324,3 +324,7 @@ button { font: inherit; color: inherit; }
 .pop.bossSkill::before { content: ''; }
 .hpBar { border: 2px solid #b99c5c; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
 #skillRing.ready::before { inset: -5px; } /* the ready octagon stays inside the screen */
+/* the HUD keeps clear of the screen edge (the ready octagon reaches out) and buff tags wrap below the bar, never under it */
+.hpWrap { left: max(18px, env(safe-area-inset-left)); top: 14px; }
+#skillRing.ready::before { inset: -4px; }
+#buffs { flex-wrap: wrap; margin-top: 8px; position: relative; z-index: 1; }

@@ -1964,13 +1964,14 @@
       if (r.done) { r.t = (r.t || 0) + dt; const tx = r.t < 1.4 ? PX + 1.1 : PX + 1.1 + (r.t - 1.4) * 9; r.x += (tx - r.x) * Math.min(1, dt * 8); r.y += (P.floor - r.y) * Math.min(1, dt * 6); r.rig.g.position.set(r.x, r.y, 0); } // runs beside the squad, then dashes ahead
       else { r.x -= dx; r.rig.g.position.x = r.x; }
       r.sos.position.x = r.x; r.rig.c.update(dt);
+      if (r.tag && r.t < 1.4 && Math.floor(r.t * 10) !== r.tagN) { r.tagN = Math.floor(r.t * 10); if (r.tagN % 5 === 0) popup(r.x, r.y + 2.1, '▼ ' + charDef(r.id).name, 'trait'); } // her name over her head while she runs with the squad
       r.sos.material.opacity = r.done ? 0 : 0.5 + Math.sin(performance.now() / 120) * 0.4;
       if (!r.done && !P.dead && Math.abs(r.x - PX) < 0.8 && Math.abs(P.y - r.y) < 0.9) { // reached
-        r.done = true; r.rig.c.setTint(1.35, 1.35, 1.35); r.rig.c.play('move', null, true); r.rig.g.scale.set(-1.15, 1.15, 1); r.rig.c.setOrder(L.PLAYER + 0.2); setTimeout(() => r.rig && r.rig.c.setTint(1, 1, 1), 250); // a bright flash as she joins
+        r.done = true; r.rig.c.setTint(1.35, 1.35, 1.35); r.rig.c.play('move', null, true); r.rig.g.scale.set(-1.15, 1.15, 1); r.rig.c.setOrder(L.PLAYER + 0.2); setTimeout(() => r.rig && r.rig.c.setTint(1, 1, 1), 250); r.tag = true; // a bright flash as she joins
         addScore(800); run.coins += 20; run.rescued = (run.rescued || 0) + 1;
         P.shield = Math.max(P.shield, 3); P.skillT += 2;
-        setTimeout(() => popup(PX + 1, P.y + 3.2, '구조 성공! ' + charDef(r.id).name + ' 합류 +800', 'perfect'), 300); // after the moment, never on top of the pickups ann('Success-1'); voice(r.id, 'mvp', 0.8, true);
-        origStatic(ORIG_DEFAULT_HIT, r.x, r.y + 0.8, kOf());
+        setTimeout(() => popup(PX + 1, P.y + 3.2, '구조 성공! ' + charDef(r.id).name + ' 합류 +800', 'perfect'), 300); ann('Success-1'); voice(r.id, 'mvp', 0.8, true); // the popup waits for the moment, never on top of the pickups
+        { const o = origFor(r.id); origStatic(o.skill.statics[0] || o.atk.hit || ORIG_DEFAULT_HIT, r.x, r.y + 0.8, kOf()); } // her own skill effect
       }
       if (r.x < -3 || (r.done && r.t > 2.4)) { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); rescues.splice(i, 1); }
     }
