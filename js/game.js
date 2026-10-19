@@ -559,7 +559,7 @@
       addPlat(x0 + 4, x0 + 9, 2.4);
       addFoe('low', x0 + 6.5, 0);
       jellyArc(x0 + 6.5, 3.6, gs * 0.27, 'coin');
-      const pool = save.owned.filter((id) => id !== P.def.id && SD.ready(id));
+      const pool = CHARS.map((c) => c.id).filter((id) => id !== P.def.id && SD.ready(id)); // owned or not: a stranded squadmate
       const id = pool.length ? pool[(Math.random() * pool.length) | 0] : null;
       if (id) {
         const rig = rigFrom(id, 1.25, FACE_ENEMY);
@@ -786,7 +786,7 @@
   ];
   function pickChunk() {
     if (run.tutQ && run.tutQ.length) return run.tutQ.shift();
-    if (!run.boss && run.bonus <= 0 && traveled > (run.nextRescue || 1100) && (!run.evQ || !run.evQ.length)) { run.nextRescue = traveled + rnd(800, 1000); return 'rescue'; }
+    if (!run.boss && run.bonus <= 0 && traveled > (run.nextRescue == null ? 1100 : run.nextRescue) && (!run.evQ || !run.evQ.length)) { run.nextRescue = traveled + rnd(800, 1000); return 'rescue'; }
     if (run.evQ && run.evQ.length) { const k = run.evQ.shift(); if (!run.evQ.length && run.ev) run.ev.endG = true; return k; }
     if (!run.boss && run.bonus <= 0 && traveled > (run.nextEvent || 700) && traveled < run.nextBoss - 250) {
       const ev = EVENTS[(run.evN = (run.evN || 0) + 1) % EVENTS.length];
@@ -2636,7 +2636,7 @@
     Object.keys(hudCache).forEach((k) => delete hudCache[k]);
     hud();
     makeSupport();
-    save.owned.filter((id) => id !== P.def.id).sort(() => Math.random() - 0.5).slice(0, 3).forEach((id) => SD.prepare(id)); // members who may need a rescue
+    CHARS.map((c) => c.id).filter((id) => id !== P.def.id).sort(() => Math.random() - 0.5).slice(0, 3).forEach((id) => SD.prepare(id)); // members who may need a rescue
     applyBoosts();
     run.mod = daily();
     setTimeout(() => state === 'play' && popup(VW / 2, 4.2, '오늘의 작전: ' + run.mod.name + ' (' + run.mod.t + ')', 'big'), 2200);
