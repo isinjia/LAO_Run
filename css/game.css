@@ -391,3 +391,16 @@ body.running #rotate { display: none !important; }
 }
 /* tutorial cards ride high, clear of the running lane */
 #tutHint { top: 22% !important; }
+/* supply cards: original resource icons on gold-trimmed cards */
+.pickRow { display: flex; gap: 10px; }
+.pickCard { width: 112px; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; color: #fff; font: inherit;
+  background: linear-gradient(180deg, rgba(40, 52, 80, .95), rgba(16, 20, 34, .95)); border: 1px solid #b99c5c; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); }
+.pickCard:hover { box-shadow: inset 0 0 0 2px #ffd36e; }
+.pickCard img { width: 46px; height: 46px; object-fit: contain; filter: drop-shadow(0 0 6px rgba(255, 220, 140, .5)); }
+.pickCard b { font-size: 13px; } .pickCard small { color: #ffd36e; font-size: 11px; }
+@media (max-height: 480px) {
+  .pickCard { width: 92px; padding: 5px 4px; } .pickCard img { width: 34px; height: 34px; }
+  .hpWrap { transform: scale(.82); transform-origin: top left; }
+  .rightBox { transform: scale(.82); transform-origin: top right; }
+  #titleMissions { display: none; }
+}

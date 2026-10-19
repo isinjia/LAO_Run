@@ -318,7 +318,7 @@
   }
 
   // ── world building ──
-  function disposeMesh(m) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
+  function disposeMesh(m) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); m.children.forEach((c) => { c.geometry.dispose(); if (c.material.map && c.material.map !== TEX.rim) c.material.map.dispose(); c.material.dispose(); }); }
   function clearWorld() {
     segs.forEach((s) => disposeMesh(s.mesh)); segs.length = 0;
     plats.forEach((s) => disposeMesh(s.mesh)); plats.length = 0;
@@ -360,7 +360,17 @@
     scene.add(mesh);
     return mesh;
   }
+  function addChevrons(a, b) { // red/yellow arrows on the road ahead of a pit: the gap is announced before it arrives
+    if (!TEX.chev) TEX.chev = RUNTEX.canvasTex(64, 32, (g) => { g.fillStyle = 'rgba(255,60,60,.85)'; for (let i = 0; i < 2; i++) { g.beginPath(); g.moveTo(6 + i * 28, 4); g.lineTo(22 + i * 28, 16); g.lineTo(6 + i * 28, 28); g.lineTo(14 + i * 28, 28); g.lineTo(30 + i * 28, 16); g.lineTo(14 + i * 28, 4); g.fill(); } });
+    for (let x = Math.max(a, 0); x < b; x += 1.1) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.chev, depthTest: false, depthWrite: false, transparent: true }));
+      s.scale.set(0.7, 0.32, 1); s.position.set(x, 0.12, 0); s.renderOrder = L.GROUND + 0.3;
+      scene.add(s); props.push({ s, x, pit: true });
+    }
+  }
+  function rimTex() { if (!TEX.rim) TEX.rim = RUNTEX.canvasTex(64, 16, (g) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#1b1b1b' : '#ffc928'; g.beginPath(); g.moveTo(i * 8, 16); g.lineTo(i * 8 + 8, 16); g.lineTo(i * 8 + 16, 0); g.lineTo(i * 8 + 8, 0); g.fill(); } }); return TEX.rim; }
   function addRim(x) { // a lit hazard stripe along the lip: the pit reads as a gap, not as shadowed road
+    rimTex();
     if (!TEX.rim) TEX.rim = RUNTEX.canvasTex(64, 16, (g) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#1b1b1b' : '#ffc928'; g.beginPath(); g.moveTo(i * 8, 16); g.lineTo(i * 8 + 8, 16); g.lineTo(i * 8 + 16, 0); g.lineTo(i * 8 + 8, 0); g.fill(); } });
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.rim, depthTest: false, depthWrite: false, transparent: true }));
     s.scale.set(0.9, 0.16, 1); s.position.set(x, 0.05, 0); s.renderOrder = L.GROUND + 0.3;
@@ -397,7 +407,7 @@
   }
   function addGround(x0, x1, noArt = false) {
     const prev = segs.length ? segs.reduce((a, b) => (b.x1 > a.x1 ? b : a)) : null;
-    if (!noArt && prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(prev.x1 - 0.35); addLip(x0 + 0.35); addRim(prev.x1 - 0.45); addRim(x0 + 0.45); }
+    if (!noArt && prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(prev.x1 - 0.35); addLip(x0 + 0.35); addRim(prev.x1 - 0.45); addRim(x0 + 0.45); addChevrons(prev.x1 - Math.max(4, gs * 0.9), prev.x1 - 0.8); }
     segs.push({ x0, x1, mesh: slab(x0, x1, 0, 0 - (GB - 0.6)) });
     if (!noArt && state === 'play' && run.bonus <= 0) {
       const kinds = { city: [3, 2, 3, 1], forest: [0, 0, 1, 2], lab: [2], snow: [2, 1], red: [2, 1, 2] }[STAGES[stageIx].id];
@@ -409,6 +419,9 @@
     const mesh = slab(x0, x1, y, 0.62);
     mesh.renderOrder = L.GROUND + 0.2;
     mesh.material.color.setHex({ snow: 0x8ea4c4, lab: 0xb8c0cc }[STAGES[stageIx].id] || 0xd8d8d8); // platforms a shade darker than the sky behind them
+    rimTex();
+    { const t = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, 0.12), new THREE.MeshBasicMaterial({ map: TEX.rim, transparent: true, depthTest: false, depthWrite: false })); t.material.map = TEX.rim.clone(); t.material.map.needsUpdate = true; t.material.map.wrapS = THREE.RepeatWrapping; t.material.map.repeat.set((x1 - x0) / 0.9, 1); t.position.set(0, 0.31 - 0.06, 0); t.renderOrder = L.GROUND + 0.25; mesh.add(t); } // hazard trim along the top edge
+    { const sh = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, 0.35), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthTest: false, depthWrite: false })); sh.position.set(0, -0.31 - 0.17, 0); sh.renderOrder = L.GROUND + 0.15; mesh.add(sh); } // a shadow beneath
     plats.push({ x0, x1, y, mesh });
   }
   function addGate(x, st) {
@@ -1321,7 +1334,7 @@
     if (key === abyssKey) return;
     abyssKey = key;
     const t = stageGroundTex();
-    if (!t || !t.image) { abyssArt.visible = false; return; }
+    if (true) { abyssArt.visible = false; return; } // (kept off: a road strip in the void read as darker road)
     const m = t.clone(); m.needsUpdate = true; m.wrapS = THREE.RepeatWrapping; m.repeat.set((VW + 2) / 4, 1);
     if (abyssArt.material.map) abyssArt.material.map.dispose();
     abyssArt.material.map = m; abyssArt.material.needsUpdate = true; abyssArt.visible = true;
@@ -1340,25 +1353,26 @@
     lipWarn.position.set(next.x0 + 0.1, 0.15, 0); lipWarn.material.opacity = 0.5 + Math.sin(performance.now() / (canFix ? 110 : 70)) * 0.4;
   }
   const PICKS = [
-    { name: '자석 12초', f: () => { P.buff.magnet = Math.max(P.buff.magnet || 0, 12); } },
-    { name: '실드 2회', f: () => { P.shield = Math.max(P.shield, 8); } },
-    { name: '스킬 충전', f: () => { P.skillT += 8; } },
-    { name: 'HP +30', f: () => { P.hp = Math.min(P.maxHp, P.hp + 30); } },
-    { name: '코인 2배 15초', f: () => { P.buff.coin2 = Math.max(P.buff.coin2 || 0, 15); } },
+    { name: '자석 12초', ico: 'res_metal', f: () => { P.buff.magnet = Math.max(P.buff.magnet || 0, 12); } },
+    { name: '실드 2회', ico: 'res_medal', f: () => { P.shield = Math.max(P.shield, 8); } },
+    { name: '스킬 충전', ico: 'res_power', f: () => { P.skillT += 8; } },
+    { name: 'HP +30', ico: 'res_nutrient', f: () => { P.hp = Math.min(P.maxHp, P.hp + 30); } },
+    { name: '코인 2배 15초', ico: 'res_goldcoin', f: () => { P.buff.coin2 = Math.max(P.buff.coin2 || 0, 15); } },
   ];
   function offerPick() {
-    const a = PICKS.slice().sort(() => Math.random() - 0.5).slice(0, 2);
+    const a = PICKS.slice().sort(() => Math.random() - 0.5).slice(0, 3);
     const el = $('pick');
     if (!el) return;
     el.innerHTML = '<div class="pickHead">작전 보급 — 하나를 고르세요</div>';
     let done = false;
     const choose = (i) => { if (done) return; done = true; run.pick = null; a[i].f(); el.classList.remove('on'); popup(PX, P.y + 2.6, a[i].name + '!', 'big'); AUDIO.play('rankUp', 0.6); window.removeEventListener('keydown', key); };
-    a.forEach((o, i) => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = (i + 1) + '. ' + o.name; b.onclick = () => choose(i); el.appendChild(b); });
-    const key = (e) => { if (e.key === '1' || e.key === '2') choose(+e.key - 1); };
+    const row = document.createElement('div'); row.className = 'pickRow'; el.appendChild(row);
+    a.forEach((o, i) => { const b = document.createElement('button'); b.className = 'pickCard'; b.innerHTML = '<img src="assets/img/' + o.ico + '.webp" alt=""><b>' + o.name + '</b><small>' + (i + 1) + '</small>'; b.onclick = () => choose(i); row.appendChild(b); });
+    const key = (e) => { if (e.key === '1' || e.key === '2' || e.key === '3') choose(+e.key - 1); };
     window.addEventListener('keydown', key);
     el.classList.add('on'); ann('LevelUp-1');
     $('tutHint').classList.remove('on'); [...$('popups').children].forEach((c) => c.remove()); $('stageName').classList.remove('show', 'on'); // the pick has the screen to itself
-    run.pick = { t: 3, choose, key }; // the auto-choice runs in game time (paused = paused) and is dropped with the run
+    run.pick = { t: 3.5, choose, key }; // the auto-choice runs in game time (paused = paused) and is dropped with the run
     run.evQ = ['flat', 'flat'].concat(run.evQ || []); // two clear chunks while the player decides
     for (let i = foes.length - 1; i >= 0; i--) { const f = foes[i]; if (!f.dead && f.x > PX + 4) { if (f.x < VW + 0.5) { origStatic(ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf() * 0.8); burst(f.x, foeMid(f), 0x9fe6ff, 10, 0.5, 4, 'spark'); } freeFoe(f); foes.splice(i, 1); } } // the ground already laid ahead is cleared: on-screen threats warp out
     bridgeAhead(PX + 4, VW + 10);
@@ -1376,7 +1390,7 @@
     if (run.timers) for (let i = run.timers.length - 1; i >= 0; i--) { const tm = run.timers[i]; if ((tm.t -= dt) <= 0) { run.timers.splice(i, 1); tm.f(); } }
     const pk = run.pick;
     if (!pk) return;
-    if ((pk.t -= dt) <= 0) { run.pick = null; pk.choose((Math.random() * 2) | 0); }
+    if ((pk.t -= dt) <= 0) { run.pick = null; pk.choose((Math.random() * 3) | 0); }
   }
   function dropPick() { const pk = run.pick; if (!pk) return; run.pick = null; window.removeEventListener('keydown', pk.key); const el = $('pick'); if (el) el.classList.remove('on'); }
   function updateEvent() {
@@ -1905,6 +1919,7 @@
     voice(P.def.id, 'skill', 0.95, true);
     { const c = csfx(P.def.id, 's2'); if (c) AUDIO.play(c, 0.7); }
     slowMo(0.3, 0.28);
+    shake = Math.max(shake, 0.35);
     flash(hex(P.def.color), 0.35);
     ring(PX, P.y + 1, P.def.color, 3.5, 0.45);
     burst(PX, P.y + 1, P.def.color, 14, 0.5, 6, 'spark');
@@ -2430,7 +2445,7 @@
     if (P.inv > 0) {
       P.inv -= dt;
       if (r) {
-        r.c.setOpacity(Math.sin(P.inv * 40) > 0 ? 0.35 : 1);
+        r.c.setOpacity(P.skillOn > 0 || smashing() ? 1 : Math.sin(P.inv * 40) > 0 ? 0.35 : 1);
         if (P.inv <= 0) { r.c.setOpacity(1); r.c.setTint(1, 1, 1); }
         else if (P.inv < 1.0) r.c.setTint(1, 1, 1);
       }
