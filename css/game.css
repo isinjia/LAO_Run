@@ -281,3 +281,6 @@ button { font: inherit; color: inherit; }
 .pop.perfect { font-family: 'Black Han Sans', sans-serif; font-size: 22px; color: #fff27a; text-shadow: 0 0 10px rgba(255, 230, 80, .9), 0 2px 0 #540; }
 .daily { font-size: 13px; color: #dfe9ff; background: rgba(10, 16, 34, .72); border: 1px solid var(--line); border-radius: 10px; padding: 4px 12px; }
 .daily b { color: var(--accent); }
+/* the original cut-in speed lines (UI_CutIn/CutIn_linefx) streak across the band */
+#cutin .band::after { content: ''; position: absolute; inset: -10px 0; background: url(../assets/img/cutin_linefx.png) repeat-x center / auto 140%; mix-blend-mode: screen; opacity: .85; animation: cutLines .5s linear infinite; }
+@keyframes cutLines { from { background-position-x: 0; } to { background-position-x: -512px; } }

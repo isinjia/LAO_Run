@@ -82,7 +82,7 @@ window.DATA = (function () {
     { id: 'tiamat', pas: { gunR: 13, skillStart: 0.3, trait: 'bladearc', t: '중장갑 포대: 사격 거리 +40%, 게이지 30% 출발 · 높은 곳에서 착지하면 회전 검격, 적 탄환도 베어냄' }, color: 0x6ef0ff, sfx: 'laserBig', name: '티아멧', rank: 'LR', cost: 6000, h: 1.9, hp: 110,
       skill: { type: 'gun', name: '풀 웨폰 어썰트', n1: '대 장갑 블레이드', cd: 10, dur: 5 },
       desc: '대구경 레이저 연사 + 미사일 3발 동시 발사.' },
-    { id: 'khan', ofx: { bullet: 'Khan_NS2_skill1_bullet', own: true }, pas: { jumpK: 1.05, skillStart: 0.4, trait: 'dashcut', t: '신속: 게이지 40% 출발, 점프력 +5% · 2단 점프 때 창 돌격으로 가까운 적 격파' }, color: 0xffcf7a, sfx: 'rifle', name: '신속의 칸', rank: 'LR', cost: 6500, h: 1.9, hp: 110,
+    { id: 'khan', ofx: { bullet: 'Khan_NS2_skill1_bullet', own: true }, pas: { jumpK: 1.05, skillStart: 0.4, trait: 'dashcut', t: '신속: 게이지 40% 출발, 점프력 +5% · 2단 점프 때 창 돌격: 구덩이를 건너며 가까운 적 격파' }, color: 0xffcf7a, sfx: 'rifle', name: '신속의 칸', rank: 'LR', cost: 6500, h: 1.9, hp: 110,
       skill: { type: 'dash', name: '데저트 스톰', n1: '영거리 포격', cd: 10, dur: 4 },
       desc: '0.8초 질주 3연속, 매번 모래폭풍을 일으킵니다.' },
     { id: 'brunhild', ofx: { bullet: 'Brunhild_N_Skill1_bullet', own: true }, pas: { drainK: 0.85, hitK: 0.85, trait: 'flame', t: '전장의 여신: 체력 감소·받는 피해 -15% · 착지하면 불꽃이 일어 앞의 지상 적 격파' }, color: 0xff5530, sfx: 'expM', name: '브륀힐드', rank: 'LR', cost: 8000, h: 1.9, hp: 125,

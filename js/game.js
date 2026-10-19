@@ -542,6 +542,15 @@
   // gaps and arcs are sized for the base speed (a boost ending mid-chunk must not leave an uncrossable gap)
   let gs = 8;
   const CHUNKS = {
+    risk(x0) {
+      const len = 12;
+      addGround(x0, x0 + len);
+      jellyLine(x0 + 0.6, x0 + len - 0.6, 0.55, 'jelly', 0.8);
+      addPlat(x0 + 3, x0 + 10, 3.0);
+      addFoe('low', x0 + 6.2, 3.0);
+      for (let x = x0 + 3.5; x < x0 + 9.6; x += 1.1) if (Math.abs(x - (x0 + 6.2)) > 0.9) addItem('gjelly', x, 3.7);
+      return len;
+    },
     flat(x0) {
       const len = 7 + Math.random() * 4, a = x0 + 0.8, b = x0 + len - 0.8;
       addGround(x0, x0 + len);
@@ -758,7 +767,7 @@
     const w = {
       flat: 2.0 - lv * 1.5, wave: 0.5 - lv * 0.2, low: 3, low2: 0.4 + lv * 1.6, tall: 0.6 + lv * 1.6, air: 2, airs: 0.4 + lv * 1.4,
       pit: 1.4, pitWide: lv * 1.4, lowAir: lv * 1.8, pitLow: lv * 1.5, steps: 0.5 + lv * 0.8, upper: 0.7, platFoe: 0.3 + lv * 0.8,
-      hang: 0.8 + lv * 0.6, bombs: 0.2 + lv * 1.0, shooter: 0.3 + lv * 0.9, movers: 0.3 + lv * 0.6,
+      risk: 0.25 + lv * 0.5, hang: 0.8 + lv * 0.6, bombs: 0.2 + lv * 1.0, shooter: 0.3 + lv * 0.9, movers: 0.3 + lv * 0.6,
     };
     // past the first lap the mix keeps hardening: more combined hazards, fewer breathers
     const lv2 = Math.min(1.5, Math.max(0, (traveled - 2600) / 3000));
@@ -889,6 +898,27 @@
     $('popups').appendChild(el);
     setTimeout(() => el.remove(), cls === 'bossSkill' ? 1500 : 800);
   }
+  const DMG_IMG = {};
+  ['base', 'cri'].forEach((k) => { const im = new Image(); im.src = 'assets/img/dmg_' + k + '.png'; DMG_IMG[k] = im; });
+  function dmgNum(x, y, value, kind = 'base', h = 0.55) {
+    const F = window.DMGFONT && window.DMGFONT[kind], im = DMG_IMG[kind];
+    if (!F || !im || !im.complete || !im.naturalWidth) return false;
+    const str = String(Math.round(value));
+    let w = 8;
+    for (const c of str) w += F[c] ? F[c][6] : 0;
+    const cv = document.createElement('canvas'); cv.width = w + 8; cv.height = 72;
+    const g = cv.getContext('2d');
+    let cx = 4;
+    for (const c of str) { const d = F[c]; if (!d) continue; g.drawImage(im, d[0], d[1], d[2], d[3], cx + d[4], d[5], d[2], d[3]); cx += d[6]; }
+    const tex = new THREE.CanvasTexture(cv);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false, transparent: true }));
+    sp.scale.set(h * cv.width / cv.height * 1.3, h * 1.3, 1);
+    sp.position.set(x, y, 0);
+    sp.renderOrder = L.FX + 1;
+    scene.add(sp);
+    fx.push({ s: sp, vx: 0, vy: 2.2, life: 0.85, t: 0, size: 0, grow: 0, keepScale: true, scroll: true, g: 2, ownTex: true });
+    return true;
+  }
   function flash(color = '#fff', strength = 0.7) {
     tally('fx:flash');
     const el = $('flash');
@@ -948,6 +978,7 @@
     if (P.inv > 0 || P.dead) return;
     run.pStreak = 0; // a hit breaks the PERFECT streak
     if (run.ev) run.ev.hits++;
+    if (run.boss && run.boss.final) run.boss.finalHits++;
     setTimeout(() => trait('hurt'), 0); // Phoenix rises in flame right after the hit
     tally('mech:hit');
     if (P.shield > 0) {
@@ -988,7 +1019,7 @@
     if (!origStatic(hfx, f.x, cy - 0.4, k * 1.1) && (by !== 'shot' || !origStatic(ORIG_BOOM, f.x, cy, k * 0.9))) burst(f.x, cy, 0xffc070, 12, 0.7, 7);
     if (f.kind === 'tall' && P.skillOn > 0 && slowT <= 0) slowMo(0.06, 0.15); // a beat of hit-stop on the big ones
     ring(f.x, cy, P.def.color, 2.4, 0.3);
-    popup(f.x, cy + 1.1, '+' + Math.round(100 * (pas().killK || 1)) + ' ' + f.d.name, 'kill');
+    if (!dmgNum(f.x, cy + 0.9, 100 * (pas().killK || 1) * ((run.mod && run.mod.kill) || 1), P.skillOn > 0 ? 'cri' : 'base', 0.5)) popup(f.x, cy + 1.1, '+' + Math.round(100 * (pas().killK || 1)) + ' ' + f.d.name, 'kill');
     AUDIO.play(by === 'shot' ? 'expM' : P.def.sfx === 'slash' ? 'slash' : 'expS', 0.7);
     if (by === 'melee') {
       slashFx(f.x, cy, P.def.color, 2.6 * P.scale);
@@ -1198,7 +1229,7 @@
     const o = origFor(P.def.id);
     if (!origStatic(o.atk.hit || o.skill.hit || ORIG_DEFAULT_HIT, bx, by - 0.4, b.rig.k * (big ? 1.4 : 0.9))) burst(bx, by, color || 0xffffff, 10, 0.7, 6);
     b.hp -= dmg; b.flash = 0.15;
-    popup(bx + 0.6, by + 1.2, '-' + dmg, big ? 'big' : 'kill');
+    if (!dmgNum(bx + 0.6, by + 1.2, dmg * 37, big ? 'cri' : 'base', big ? 0.9 : 0.6)) popup(bx + 0.6, by + 1.2, '-' + dmg, big ? 'big' : 'kill'); // the boss's HP bar is in tenths: numbers in the original's scale
     AUDIO.play(big ? 'expM' : 'expS', 0.5);
     if (b.hp <= 0) bossDown(b);
   }
@@ -1247,7 +1278,13 @@
       } else if (!b.leaving) {
         for (let i = b.queue.length - 1; i >= 0; i--) { if ((b.queue[i].t -= dt) <= 0) { addLane(b.queue[i].high, b.tune.warn * 0.8); b.queue.splice(i, 1); } }
         b.next -= dt;
+        if (!b.final && b.t >= BOSS_TIME - 5) {
+          b.final = true; b.finalHits = 0; b.next = 99;
+          popup(VW / 2, 4.1, b.d.name + ' 「최후의 발악」 — 무피격이면 격파!', 'bossSkill'); ann('Danger-1');
+          const hi = Math.random() < 0.5; addLane(hi, 1.0); b.queue.push({ t: 1.0, high: !hi }, { t: 2.0, high: hi });
+        }
         if (b.next <= 0 && b.t < BOSS_TIME - 1) { b.next = b.tune.gap + rnd(0, 0.5); bossAttack(b); }
+        if (b.t >= BOSS_TIME && b.final && b.finalHits === 0 && !lanes.length) { bossDown(b); return; } // dodged the last stand clean
         if (b.t >= BOSS_TIME) { // it got away
           b.leaving = true;
           addScore(200);
@@ -1647,7 +1684,7 @@
     else if (ev === 'double' && tr === 'akimbo') { const t = aliveAhead(PX + 8).slice(0, 2); if (t.length) { P.trCd = 2.5; t.forEach((f) => { f.targeted = true; fireAt(f, shotLanded); }); } }
     else if (ev === 'double' && tr === 'salvo') { const f = aliveAhead(PX + 9)[0]; if (f) { P.trCd = 3; f.targeted = true; salvo.push({ t: 0.05, i: 0, f, name: P.def.id === 'thetis' ? 'Thetis_skill2_Small_Missile' : o.atk.bullet || o.skill.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); } }
     else if (ev === 'double' && tr === 'blink') { P.inv = Math.max(P.inv, 0.35); P.buff.dash = Math.max(P.buff.dash || 0, 0.2); const t = aliveAhead(PX + 3.2); if (t.length) { P.trCd = 2.5; origStatic('Kunoichi_skill2_Sword_first_line_F', PX + 1.6, P.y + 0.5, kOf() * 0.7); t.forEach((f) => { own(f); kill(f, 'melee'); }); } }
-    else if (ev === 'double' && tr === 'dashcut') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; P.buff.dash = Math.max(P.buff.dash || 0, 0.25); puff(PX, P.y, 5, 0.8); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
+    else if (ev === 'double' && tr === 'dashcut') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; P.buff.dash = Math.max(P.buff.dash || 0, 0.6); P.buff.bridge = Math.max(P.buff.bridge || 0, 0.6); puff(PX, P.y, 5, 0.8); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
     else if (ev === 'land' && tr === 'grenade' && drop > 1.4) { const f = near(5)[0]; if (f) { P.trCd = 3; origStatic(P.def.id === 'brownie' ? 'S_Brownie_ande_bling' : ORIG_BOOM, f.x, foeMid(f), kOf() * 0.7); kill(f, 'shot'); AUDIO.play('expS', 0.4); } }
     else if (ev === 'double' && tr === 'prism') { const [mx, my] = muzzle(); P.trCd = 3; beamFx(mx, PX + 8, my, P.def.color, 0.2, 0.18); items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 0.9 && it.x > mx && it.x < PX + 8) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); const f = aliveAhead(PX + 8).find((g) => Math.abs(foeMid(g) - my) < 1.4); if (f) { own(f); kill(f, 'shot'); } }
     else if (ev === 'double' && tr === 'homing') { const t = aliveAhead(PX + 9).sort((a, b) => (b.kind === 'air') - (a.kind === 'air')).slice(0, 2); if (t.length) { P.trCd = 3; t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.05 + i * 0.12, i, f, name: o.atk.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); }); } }
@@ -2031,7 +2068,7 @@
       const p = fx[i];
       p.t += dt;
       const k = p.t / p.life;
-      if (k >= 1) { scene.remove(p.s); p.s.material.dispose(); fx.splice(i, 1); continue; }
+      if (k >= 1) { scene.remove(p.s); if (p.ownTex) p.s.material.map.dispose(); p.s.material.dispose(); fx.splice(i, 1); continue; }
       p.s.position.x += (p.vx - (p.scroll ? spd : 0)) * dt;
       p.s.position.y += p.vy * dt;
       p.vy -= p.g * dt;
