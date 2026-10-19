@@ -846,6 +846,7 @@
   }
 
   function startWorld(attract) {
+    dropPick();
     clearWorld();
     traveled = 0;
     stageIx = 0;
@@ -1329,15 +1330,22 @@
     if (!el) return;
     el.innerHTML = '<div class="pickHead">작전 보급 — 하나를 고르세요</div>';
     let done = false;
-    const choose = (i) => { if (done) return; done = true; a[i].f(); el.classList.remove('on'); popup(PX, P.y + 2.6, a[i].name + '!', 'big'); AUDIO.play('rankUp', 0.6); window.removeEventListener('keydown', key); };
+    const choose = (i) => { if (done) return; done = true; run.pick = null; a[i].f(); el.classList.remove('on'); popup(PX, P.y + 2.6, a[i].name + '!', 'big'); AUDIO.play('rankUp', 0.6); window.removeEventListener('keydown', key); };
     a.forEach((o, i) => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = (i + 1) + '. ' + o.name; b.onclick = () => choose(i); el.appendChild(b); });
     const key = (e) => { if (e.key === '1' || e.key === '2') choose(+e.key - 1); };
     window.addEventListener('keydown', key);
     el.classList.add('on'); ann('LevelUp-1');
-    setTimeout(() => choose((Math.random() * 2) | 0), 3000);
+    run.pick = { t: 3, choose, key }; // the auto-choice runs in game time (paused = paused) and is dropped with the run
+    run.evQ = ['flat', 'flat'].concat(run.evQ || []); // two clear chunks while the player decides
   }
+  function tickPick(dt) {
+    const pk = run.pick;
+    if (!pk) return;
+    if ((pk.t -= dt) <= 0) { run.pick = null; pk.choose((Math.random() * 2) | 0); }
+  }
+  function dropPick() { const pk = run.pick; if (!pk) return; run.pick = null; window.removeEventListener('keydown', pk.key); const el = $('pick'); if (el) el.classList.remove('on'); }
   function updateEvent() {
-    for (const m of [1000, 2600]) if (traveled >= m && !(run.picked || []).includes(m) && state === 'play' && !P.dead) { (run.picked = run.picked || []).push(m); offerPick(); }
+    for (const m of [1150, 2750]) if (traveled >= m && !(run.picked || []).includes(m) && state === 'play' && !P.dead && !run.boss && !run.ev) { (run.picked = run.picked || []).push(m); offerPick(); } // clear of the stage banners at every 500 m
     const e = run.ev;
     if (!e || e.end == null || traveled + PX < e.end || P.dead) return;
     run.ev = null;
@@ -1767,7 +1775,7 @@
     if (TRIG[tr] === ev || (tr === 'smite' && ev === 'land')) P.trigNow = true; // a charged timed trait goes off on this move
     if ((P.trCd || 0) > 0) return;
     // traits break small threats; tall ones only take the hit (they stay the runner's job)
-    const kill = (f, by) => { if (f.kind === 'tall') { f.flashT = 0.12; return; } breakFoe(f, by); flash(hex(P.def.color), 0.12); };
+    const kill = (f, by) => { if (f.kind === 'tall') { f.flashT = 0.12; return; } breakFoe(f, by); ring(f.x, foeMid(f), P.def.color, 1.6, 0.25); }; // a flash where it fell, not over the whole screen
     const near = (r) => aliveAhead(PX + r).filter((f) => f.kind !== 'air' && f.x > PX + 0.3);
     const o = origFor(P.def.id), hitFx = o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT, own = (f, k = 1) => origStatic(hitFx, f.x, foeMid(f) - 0.4, kOf() * k);
     if (ev === 'double' && tr === 'lance') P.vy += 3.2; // the lance plants and vaults her higher
@@ -2045,7 +2053,7 @@
     updateFoes(dt, dx, playing);
     updateShots(dt, dx);
     updateRunners(dt, dx);
-    if (playing) { updateBoss(dt); updateSupport(dt); updateEvent(); updateLipWarn(); tutWatch(); }
+    if (playing) { updateBoss(dt); updateSupport(dt); updateEvent(); updateLipWarn(); tickPick(dt); tutWatch(); }
     updateParticles(dt, dx);
     updateAmbient(dt, dx);
 
@@ -2617,6 +2625,7 @@
 
   function goTitle() {
     state = 'title';
+    document.body.classList.remove('running');
     if (sup) { freeRig(sup.rig); sup = null; }
     clearBoss();
     paused = false;
@@ -2701,6 +2710,7 @@
     state = 'play';
     paused = false;
     $('attend').classList.remove('show'); // the attendance card never covers a run
+    document.body.classList.add('running'); // (the rotate hint hides during runs)
     clearOverlays();
     resetPlayer();
     startWorld(false);

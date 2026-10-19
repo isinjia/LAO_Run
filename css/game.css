@@ -344,3 +344,5 @@ button { font: inherit; color: inherit; }
   .hpBar { width: min(170px, 44vw); }
   .pop.bossSkill, .pop.warn { white-space: normal; max-width: 86vw; font-size: 17px; text-align: center; }
 }
+body.running #rotate { display: none !important; }
+#pick { top: 15%; }
