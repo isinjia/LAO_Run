@@ -328,3 +328,5 @@ button { font: inherit; color: inherit; }
 .hpWrap { left: max(18px, env(safe-area-inset-left)); top: 14px; }
 #skillRing.ready::before { inset: -4px; }
 #buffs { flex-wrap: wrap; margin-top: 8px; position: relative; z-index: 1; }
+/* the support member's badge sits on the portrait's lower-left, never under the HP bar */
+#supPortrait { right: auto; left: -6px; bottom: -4px; z-index: 2; border-color: #b99c5c; }

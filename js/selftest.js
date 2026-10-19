@@ -2,7 +2,7 @@
 // The bot replans each frame: ~120 jump timings (first jump, second jump) simulated 1.2 s ahead with the game's own physics
 // and hitboxes; a hit it cannot dodge is an unfair layout, so "oracle hits" measure fairness.
 (function () {
-  const H = 72, DT = 1 / 60;
+  const H = 96, DT = 1 / 60; // 1.6 s: a light member's double-jump arc lands inside the look-ahead
   const out = (window.SELFTEST = { done: false, log: [] });
   out.hitLog = [];
   out.fallLog = [];
@@ -35,10 +35,11 @@
         const t = (k + 1) * DT, sh = spd * t; // the world scrolls before the runner is tested (same order as update())
         const smash = t < smashT, bridge = t < bridgeT;
         if (k === j1 || k === j2) {
-          if (onG || coy > 0) { vy = K.JV * gj * bj * jk; jumps = 1; onG = false; coy = 0; }
-          else if (jumps < 2) { vy = K.JV2 * bj * jk; jumps = 2; if ((pp.trait === 'homing' || pp.trait === 'akimbo' || pp.trait === 'lance') && (P.trCd || 0) - t <= 0 && P.skillOn <= 0) vy += pp.trait === 'homing' ? 2.6 : pp.trait === 'lance' ? 3.2 : 2.2; }
+          if (onG || coy > 0) { vy = K.JV * gj * bj * jk * ((P.buff.wind || 0) > t ? 1.12 : 1); jumps = 1; onG = false; coy = 0; }
+          else if (jumps < 2 || (jumps < 3 && (P.buff.wind || 0) > t)) { vy = K.JV2 * bj * jk * ((P.buff.wind || 0) > t ? 1.15 : 1); jumps++; if (pp.trait === 'snipe') vy += 1.6; else if ((pp.trait === 'homing' || pp.trait === 'akimbo' || pp.trait === 'lance') && (P.trCd || 0) - t <= 0 && P.skillOn <= 0) vy += pp.trait === 'homing' ? 2.6 : pp.trait === 'lance' ? 3.2 : 2.2; }
         }
-        vy -= K.G * DT * gk * (vy < 0 ? fk : 1); if (vy < -30) vy = -30;
+        const windOn = (P.buff.wind || 0) > t; // Sylphid's wind: slow fall and a third jump
+        vy -= K.G * DT * gk * (vy < 0 ? (windOn ? 0.55 : fk) : 1); if (vy < -30) vy = -30;
         if (hov > 0) { hov -= DT; if (vy < 0.4) vy = 0.4; } // Harpy's hover after her double jump
         const py = y; y += vy * DT;
         const over = (x0, x1) => x0 - sh < px + 0.28 * sc && x1 - sh > px - 0.28 * sc;
@@ -94,7 +95,7 @@
       }
     }
     // a press that can do nothing now would only be buffered into the landing: the bot never mashes
-    if (bj1 === 0 && (P.onGround || P.coyote > 0 || P.jumps < 2)) GAME.jump();
+    if (bj1 === 0 && (P.onGround || P.coyote > 0 || P.jumps < 2 || (P.jumps < 3 && P.buff.wind > 0))) GAME.jump();
     out.trace.push([+P.y.toFixed(2), +P.vy.toFixed(1), P.jumps, P.onGround ? 1 : 0, P.slide ? 1 : 0, bj1 === 0 ? 'J' : '', +best.cost.toFixed(1), +(P.jumpBuf || 0).toFixed(2), +(P.coyote || 0).toFixed(2)]);
     if (out.trace.length > 45) out.trace.shift();
   }

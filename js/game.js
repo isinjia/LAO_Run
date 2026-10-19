@@ -329,7 +329,7 @@
     props.forEach((p) => scene.remove(p.s)); props.length = 0;
     salvo.length = 0;
     runners.forEach((r) => { scene.remove(r.s); r.s.material.dispose(); if (r.inst) r.inst.dispose(); freeSummon(r); }); runners.length = 0;
-    rescues.forEach((r) => { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); }); rescues.length = 0;
+    rescues.forEach((r) => { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); if (r.label) { scene.remove(r.label); r.label.material.map.dispose(); r.label.material.dispose(); } }); rescues.length = 0;
   }
 
   function stageGroundTex() {
@@ -937,6 +937,7 @@
     tally('fx:popup');
     { const t = performance.now(); while (popAt.length && t - popAt[0].t > 700) popAt.shift();
       let n = 0; for (const q of popAt) if (Math.abs(q.x - x) < 2.6 && Math.abs(q.y - y) < 0.5 + n * 0.55) n++;
+      if (n >= 2) { const old = popAt.filter((q) => Math.abs(q.x - x) < 2.6 && q.el).shift(); if (old && old.el.parentNode) old.el.remove(); n = 1; } // no more than two in one place
       popAt.push({ t, x, y: y + n * 0.55 }); y += n * 0.55; }
     const el = document.createElement('div');
     el.className = 'pop' + (cls ? ' ' + cls : '');
@@ -944,6 +945,7 @@
     el.style.left = (x / VW * W) + 'px';
     el.style.top = ((1 - (y - GB) / VH) * H) + 'px';
     $('popups').appendChild(el);
+    if (popAt.length) popAt[popAt.length - 1].el = el;
     setTimeout(() => el.remove(), cls === 'bossSkill' ? 1500 : 800);
   }
   const DMG_IMG = {};
@@ -1294,6 +1296,17 @@
     ann('StageClear-1');
     flash('#fff6b0', 0.6);
     $('bossBar').classList.remove('on');
+  }
+  let lipWarn = null;
+  function updateLipWarn() {
+    if (!lipWarn) { lipWarn = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xff3040, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending })); lipWarn.scale.set(1.2, 0.8, 1); lipWarn.renderOrder = L.FX; scene.add(lipWarn); }
+    lipWarn.visible = false;
+    if (state !== 'play' || P.dead || P.onGround || bridging() || P.vy > 4) return;
+    const g = G * (pas().gravK || 1), t = (P.vy + Math.sqrt(Math.max(0, P.vy * P.vy + 2 * g * Math.max(0, P.y)))) / g, lx = PX + spd * t; // where this arc comes down
+    if (overGround(lx, 0.2) || P.jumps < 2) return; // still on target, or a double jump left to fix it
+    const next = segs.filter((s) => s.x0 > PX).sort((a, b) => a.x0 - b.x0)[0];
+    if (!next || next.x0 < lx) return;
+    lipWarn.visible = true; lipWarn.position.set(next.x0 + 0.1, 0.15, 0); lipWarn.material.opacity = 0.5 + Math.sin(performance.now() / 70) * 0.4;
   }
   function updateEvent() {
     const e = run.ev;
@@ -1741,6 +1754,7 @@
     if (ev === 'slide' && tr === 'spray') P.buff.bridge = Math.max(P.buff.bridge || 0, 0.45); // her slide skids over small gaps
     if (ev === 'slide' && tr === 'mark') P.buff.dash = Math.max(P.buff.dash || 0, 0.35); // a sprint after the shot
     if (ev === 'double' && tr === 'akimbo') P.vy += 2.2; // the recoil hop
+    if (ev === 'double' && tr === 'snipe') P.vy += 1.6; // the rifle's kick lifts her
     if (ev === 'double' && tr === 'homing') P.vy += 2.6; // she rides her missile's launch higher (a hover made landings unreadable over pits)
     if (ev === 'double' && tr === 'eyebeam') { P.buff.dash = Math.max(P.buff.dash || 0, 0.3); P.vy = Math.max(P.vy, 2); } // an air-dash behind the laser
     if (ev === 'land' && tr === 'flame' && drop > 1.2) { P.buff.dash = Math.max(P.buff.dash || 0, 0.4); P.buff.bridge = Math.max(P.buff.bridge || 0, 0.5); } // the flame carries her on (over a pit edge too)
@@ -1964,7 +1978,14 @@
       if (r.done) { r.t = (r.t || 0) + dt; const tx = r.t < 1.4 ? PX + 1.1 : PX + 1.1 + (r.t - 1.4) * 9; r.x += (tx - r.x) * Math.min(1, dt * 8); r.y += (P.floor - r.y) * Math.min(1, dt * 6); r.rig.g.position.set(r.x, r.y, 0); } // runs beside the squad, then dashes ahead
       else { r.x -= dx; r.rig.g.position.x = r.x; }
       r.sos.position.x = r.x; r.rig.c.update(dt);
-      if (r.tag && r.t < 1.4 && Math.floor(r.t * 10) !== r.tagN) { r.tagN = Math.floor(r.t * 10); if (r.tagN % 5 === 0) popup(r.x, r.y + 2.1, '▼ ' + charDef(r.id).name, 'trait'); } // her name over her head while she runs with the squad
+      if (r.tag && !r.label) { // her name over her head while she runs with the squad
+        const cv = document.createElement('canvas'); cv.width = 256; cv.height = 56; const g = cv.getContext('2d');
+        g.fillStyle = 'rgba(10,16,34,.8)'; g.fillRect(8, 6, 240, 44); g.strokeStyle = '#b99c5c'; g.lineWidth = 3; g.strokeRect(8, 6, 240, 44);
+        g.fillStyle = '#fff'; g.font = 'bold 28px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(charDef(r.id).name, 128, 29);
+        r.label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, depthWrite: false, transparent: true }));
+        r.label.scale.set(1.6, 0.35, 1); r.label.renderOrder = L.FX + 2; scene.add(r.label);
+      }
+      if (r.label) { r.label.position.set(r.x, r.y + 1.95, 0); r.label.material.opacity = r.t < 1.4 ? 1 : Math.max(0, 1 - (r.t - 1.4) * 3); }
       r.sos.material.opacity = r.done ? 0 : 0.5 + Math.sin(performance.now() / 120) * 0.4;
       if (!r.done && !P.dead && Math.abs(r.x - PX) < 0.8 && Math.abs(P.y - r.y) < 0.9) { // reached
         r.done = true; r.rig.c.setTint(1.35, 1.35, 1.35); r.rig.c.play('move', null, true); r.rig.g.scale.set(-1.15, 1.15, 1); r.rig.c.setOrder(L.PLAYER + 0.2); setTimeout(() => r.rig && r.rig.c.setTint(1, 1, 1), 250); r.tag = true; // a bright flash as she joins
@@ -1973,7 +1994,7 @@
         setTimeout(() => popup(PX + 1, P.y + 3.2, '구조 성공! ' + charDef(r.id).name + ' 합류 +800', 'perfect'), 300); ann('Success-1'); voice(r.id, 'mvp', 0.8, true); // the popup waits for the moment, never on top of the pickups
         { const o = origFor(r.id); origStatic(o.skill.statics[0] || o.atk.hit || ORIG_DEFAULT_HIT, r.x, r.y + 0.8, kOf()); } // her own skill effect
       }
-      if (r.x < -3 || (r.done && r.t > 2.4)) { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); rescues.splice(i, 1); }
+      if (r.x < -3 || (r.done && r.t > 2.4)) { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); if (r.label) { scene.remove(r.label); r.label.material.map.dispose(); r.label.material.dispose(); } rescues.splice(i, 1); }
     }
     for (let i = props.length - 1; i >= 0; i--) {
       const p = props[i];
@@ -1995,7 +2016,7 @@
     updateFoes(dt, dx, playing);
     updateShots(dt, dx);
     updateRunners(dt, dx);
-    if (playing) { updateBoss(dt); updateSupport(dt); updateEvent(); tutWatch(); }
+    if (playing) { updateBoss(dt); updateSupport(dt); updateEvent(); updateLipWarn(); tutWatch(); }
     updateParticles(dt, dx);
     updateAmbient(dt, dx);
 
@@ -2215,6 +2236,8 @@
     if (wasSmash && !smashing()) P.inv = Math.max(P.inv, wasFly ? 1.2 : 0.5);
     // ...and a bridge that ends with a pit below (even mid-jump) carries the runner to the far side
     if (wasBridge && !bridging() && !overGround(PX, 0.28 * P.scale)) P.buff.bridge = 1.0;
+    if (P.windWas && !(P.buff.wind > 0) && !P.onGround) P.buff.bridge = Math.max(P.buff.bridge || 0, 1.0); // the wind dropping mid-air must not drop her into a pit
+    P.windWas = P.buff.wind > 0;
     P.sinceBridge = bridging() ? 0 : (P.sinceBridge || 0) + dt;
     if (P.shield > 0) P.shield -= dt;
 
