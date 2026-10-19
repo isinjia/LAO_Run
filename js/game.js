@@ -223,6 +223,7 @@
     if (!inst) return false;
     tally('orig:' + name);
     inst.root.position.set(x, y, 0);
+    if (Math.abs(x - PX) < 2.2 && k > kOf() * 0.9 && state === 'play') k = kOf() * 0.9; // never a wall of effect over the runner
     inst.root.scale.set(k * face, k, 1);
     inst.root.rotation.z = rot;
     inst.setOrder(L.FX);
@@ -336,8 +337,9 @@
   function stageGroundTex() {
     const st = STAGES[stageIx], key = run.bonus > 0 ? 'bonus' : st.id;
     if (!groundTexBy[key]) {
-      if (run.bonus <= 0 && st.groundImg && IMG[st.groundImg]) {
-        const t = IMG[st.groundImg].clone(); t.needsUpdate = true; t.wrapS = THREE.RepeatWrapping;
+      const src = run.bonus > 0 ? IMG.garage : st.groundImg && IMG[st.groundImg]; // bonus time runs on the original sky-deck walkway (the lab's garage strip, tinted)
+      if (src) {
+        const t = src.clone(); t.needsUpdate = true; t.wrapS = THREE.RepeatWrapping;
         t.asp = t.image.width / t.image.height;
         groundTexBy[key] = t;
       } else groundTexBy[key] = RUNTEX.groundTex(run.bonus > 0 ? ['#fff', '#6a4fb0', '#fff7a8'] : st.ground, run.bonus > 0);
@@ -352,11 +354,17 @@
     // the original road strip spans the whole ground depth (2.5); the procedural tile is 2 x 2
     const tw = asp ? 2.5 * asp : 2, u0 = wx0 / tw, u1 = (wx0 + w) / tw, v0 = asp ? 1 - depth / 2.5 : 1 - depth / 2;
     uv.setXY(0, u0, 1); uv.setXY(1, u1, 1); uv.setXY(2, u0, v0); uv.setXY(3, u1, v0);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: T, depthTest: false, depthWrite: false, transparent: true }));
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: T, color: run.bonus > 0 ? 0xcfe4ff : 0xffffff, depthTest: false, depthWrite: false, transparent: true }));
     mesh.renderOrder = L.GROUND;
     mesh.position.set((x0 + x1) / 2, top - depth / 2, 0);
     scene.add(mesh);
     return mesh;
+  }
+  function addRim(x) { // a lit hazard stripe along the lip: the pit reads as a gap, not as shadowed road
+    if (!TEX.rim) TEX.rim = RUNTEX.canvasTex(64, 16, (g) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#1b1b1b' : '#ffc928'; g.beginPath(); g.moveTo(i * 8, 16); g.lineTo(i * 8 + 8, 16); g.lineTo(i * 8 + 16, 0); g.lineTo(i * 8 + 8, 0); g.fill(); } });
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.rim, depthTest: false, depthWrite: false, transparent: true }));
+    s.scale.set(0.9, 0.16, 1); s.position.set(x, 0.05, 0); s.renderOrder = L.GROUND + 0.3;
+    scene.add(s); props.push({ s, x, pit: true });
   }
   function addLip(x) { // broken road at the pit's edge (original rubble prop)
     const t = TEX.props[2];
@@ -373,7 +381,7 @@
       g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(0, 0, 32, 3); // the lip catches the light
       g.fillStyle = 'rgba(40,30,30,.9)'; for (let y = 10; y < 128; y += 14) { g.beginPath(); g.moveTo(32, y); g.lineTo(20 + (y % 3) * 3, y + 6); g.lineTo(32, y + 12); g.fill(); }
     });
-    const wall = stageGroundTex();
+    const wall = null; // (a side-on road strip read as slabs sticking out of the pit)
     if (wall && wall.image) { // the cliff face is the stage's own road strip, seen side-on and in shadow
       const w = new THREE.Sprite(new THREE.SpriteMaterial({ map: wall, color: 0x4a4a52, depthTest: false, depthWrite: false, transparent: true }));
       w.scale.set(0.5, 0.02 - (GB - 0.6), 1); w.position.set(x + side * 0.25, (0.02 + GB - 0.6) / 2, 0); w.renderOrder = L.GROUND + 0.22; w.material.rotation = Math.PI / 2;
@@ -389,7 +397,7 @@
   }
   function addGround(x0, x1, noArt = false) {
     const prev = segs.length ? segs.reduce((a, b) => (b.x1 > a.x1 ? b : a)) : null;
-    if (!noArt && prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(prev.x1 - 0.35); addLip(x0 + 0.35); }
+    if (!noArt && prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(prev.x1 - 0.35); addLip(x0 + 0.35); addRim(prev.x1 - 0.45); addRim(x0 + 0.45); }
     segs.push({ x0, x1, mesh: slab(x0, x1, 0, 0 - (GB - 0.6)) });
     if (!noArt && state === 'play' && run.bonus <= 0) {
       const kinds = { city: [3, 2, 3, 1], forest: [0, 0, 1, 2], lab: [2], snow: [2, 1], red: [2, 1, 2] }[STAGES[stageIx].id];
@@ -1209,13 +1217,13 @@
   };
 
   // ── chase boss (every 2000 m): it runs behind the squad and attacks; jellies charge counter shots, skills hit it hard ──
-  const BOSS_EVERY = 2000, BOSS_TIME = 30, BOSS_HP = 120, COUNTER_EVERY = 8;
+  const BOSS_EVERY = 2000, BOSS_TIME = 34, BOSS_HP = 220, COUNTER_EVERY = 8;
   // each chase boss attacks with its own original effect and its own mix of patterns
   const BOSS_FX = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A', e_DoomEater_N: 'DoomEater_skill2_Hit_F' };
   // the boss's own effect at its body when it attacks, and its timing: Black Knight's 척살 strikes with a short warning, Goltarion's beam burns longer
   const BOSS_CAST = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_DoomEater_N: 'DoomEater_Big_fire_F', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A' };
   const BOSS_TUNE = { e_Nidhogg_N: { warn: 1.0, fire: 0.32, gap: 2.7 }, e_DoomEater_N: { warn: 0.95, fire: 0.36, gap: 2.3 }, e_BlackKnight_N: { warn: 0.72, fire: 0.26, gap: 2.6 }, e_Goltarion_N: { warn: 1.05, fire: 0.62, gap: 3.0 } };
-  const BOSS_X = { e_Nidhogg_N: -0.7, e_DoomEater_N: 0.9, e_BlackKnight_N: 0.9, e_Goltarion_N: 0.9 }; // rig origin -> whole silhouette in view
+  const BOSS_X = { e_Nidhogg_N: 0.2, e_DoomEater_N: 0.9, e_BlackKnight_N: 0.9, e_Goltarion_N: 0.9 }; // rig origin -> whole silhouette in view
   // Nidhogg: barrage and a three-sweep; Doom Eater: double sweeps; Black Knight: a charge through the squad (jump it);
   // Goltarion: a hellfire beam aimed at the height the runner is at when it locks on
   const BOSS_PATS = { e_Nidhogg_N: ['lane', 'barrage', 'sweep3'], e_DoomEater_N: ['double', 'lane', 'sweep3', 'bombs'], e_BlackKnight_N: ['charge', 'double', 'charge', 'lane'], e_Goltarion_N: ['track', 'bombs', 'track', 'sweep3'] };
@@ -1233,7 +1241,7 @@
     const all = DATA.BOSSES.filter((b) => SD.ready(b.id));
     if (!all.length) { run.nextBoss += 600; return; }
     const d = all[run.bossCount % all.length];
-    const rig = rigFrom(d.id, d.id === 'e_Nidhogg_N' ? 3.0 : 3.8, FACE_PLAYER); // the dragon is wide: a little smaller so it stays behind the squad
+    const rig = rigFrom(d.id, d.id === 'e_Nidhogg_N' ? 2.5 : 3.6, FACE_PLAYER); // the dragon is wide: a little smaller so it stays behind the squad
     rig.c.setOrder(L.PLAYER - 0.5);
     rig.c.play(rig.c.has('move') ? 'move' : 'idle', null, true);
     rig.g.position.set(-4, 0, 0);
@@ -1264,7 +1272,7 @@
   function bossAttack(b) {
     const pats = BOSS_PATS[b.d.id] || ['lane'];
     const p = pats[b.pat++ % pats.length];
-    popup(VW / 2, 4.1, b.d.name + ' 「' + ((BOSS_SKILL[b.d.id] || {})[p] || PAT_NAME[p]) + '」', 'bossSkill');
+    popup(VW / 2, H < 480 ? 3.0 : 4.1, b.d.name + ' 「' + ((BOSS_SKILL[b.d.id] || {})[p] || PAT_NAME[p]) + '」', 'bossSkill');
     const tn = b.tune;
     if (p === 'lane') addLane(Math.random() < 0.5, tn.warn, tn.fire);
     else if (p === 'double') { const hi = Math.random() < 0.5; addLane(hi, tn.warn); b.queue.push({ t: tn.warn * 0.8, high: !hi }); }
@@ -1349,6 +1357,7 @@
     const key = (e) => { if (e.key === '1' || e.key === '2') choose(+e.key - 1); };
     window.addEventListener('keydown', key);
     el.classList.add('on'); ann('LevelUp-1');
+    $('tutHint').classList.remove('on'); [...$('popups').children].forEach((c) => c.remove()); // the pick has the screen to itself
     run.pick = { t: 3, choose, key }; // the auto-choice runs in game time (paused = paused) and is dropped with the run
     run.evQ = ['flat', 'flat'].concat(run.evQ || []); // two clear chunks while the player decides
     for (let i = foes.length - 1; i >= 0; i--) { const f = foes[i]; if (!f.dead && f.x > PX + 4) { if (f.x < VW + 0.5) { origStatic(ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf() * 0.8); burst(f.x, foeMid(f), 0x9fe6ff, 10, 0.5, 4, 'spark'); } freeFoe(f); foes.splice(i, 1); } } // the ground already laid ahead is cleared: on-screen threats warp out
@@ -1693,7 +1702,7 @@
       tick(dt) { if (Math.random() < 0.6) burst(PX - 0.6, P.y + 0.6, 0xff7a2a, 1, 0.7, 2); UQ.phoenix.tick2(dt); },
     },
     labiata: { // 백화요란: every second a ground strike wipes the ground ahead
-      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 1.0; const x = PX + 3 * P.scale; if ((P.uqN = (P.uqN || 0) + 1) % 2) origStatic('Labiata_skill2_blade_swing', PX + 1.4 * P.scale, P.y + 1.2, kOf() * 0.3); origStatic('Labiata_skill1_hit', x, 0.4, kOf() * 0.5); ring(x, 0.3, 0xffd36e, 6, 0.4);
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 1.0; const x = PX + 3 * P.scale; if ((P.uqN = (P.uqN || 0) + 1) % 2) origStatic('Labiata_skill2_blade_swing', PX + 1.4 * P.scale, P.y + 1.2, kOf() * 0.3); origStatic(ORIG_BOOM, x, 0.5, kOf() * 0.6); ring(x, 0.3, 0xffd36e, 6, 0.4);
         aliveAhead(PX + 7.5).filter((f) => f.kind !== 'air').forEach((f) => breakFoe(f, 'melee')); shake = 0.3; AUDIO.play('quake', 0.5); },
     },
     lrl: { // 사이클롭스 이터널 빔: a screen-wide beam; enemies vanish, jellies on its line become bears
@@ -1740,7 +1749,7 @@
       tick() { foes.forEach((f) => { if (f.marked && !f.dead && f.x < PX + 3) { origStatic('sniper_hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); } }); },
     },
     saraqael: { // golden judgement: lightning on every enemy, each leaves a coin pile
-      end() { origStatic('Saraqael_skill2_Last_Big_Hit', PX + 5, 0.4, kOf()); },
+      end() { origStatic('Saraqael_skill2_Last_Big_Hit', PX + 7, 0.4, kOf() * 0.55); },
       start() { aliveAhead().slice(0, 5).forEach((f) => { bolt(f.x, foeMid(f), 0xffe9a0); origStatic('Saraqael_skill2_Fire_lighting', f.x, 0.2, kOf()); origStatic('Saraqael_skill1_elec_hit', f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 5); }); AUDIO.play('elec', 0.7); },
     },
     thetis: { // harpoon: the big missile blows up everything around the farthest enemy; chaff blocks one hit
@@ -1833,7 +1842,7 @@
     else if (ev === 'hurt' && tr === 'rebirth') { P.trCd = 6; P.inv = Math.max(P.inv, 1.2); P.buff.dash = Math.max(P.buff.dash || 0, 0.8); origStatic('Phoenix_skill2_fire', PX, P.y + 0.6, kOf()); ring(PX, P.y + 1, 0xff7a2a, 3, 0.4); popup(PX, P.y + 2.4, '불사조의 불꽃', 'kill'); }
     else if (ev === 'slide' && tr === 'spray') { const f = aliveAhead(PX + 6)[0]; if (f) { P.trCd = 2.5; f.targeted = true; fireAt(f, shotLanded); } }
     else if (ev === 'slide' && tr === 'pulse') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; t.forEach((f) => { own(f); kill(f, 'shot'); }); }
-    else if (ev === 'land' && (tr === 'quake' || tr === 'slam') && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; shake = Math.max(shake, 0.15); origStatic(P.def.id === 'labiata' ? 'Labiata_skill1_hit' : hitFx, PX + 1.4, 0.3, kOf() * (P.def.id === 'labiata' ? 0.35 : 0.8)); t.forEach((f) => kill(f, 'melee')); }
+    else if (ev === 'land' && (tr === 'quake' || tr === 'slam') && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; shake = Math.max(shake, 0.15); origStatic(hitFx, PX + 1.4, 0.3, kOf() * (P.def.id === 'labiata' ? 0.35 : 0.8)); t.forEach((f) => kill(f, 'melee')); }
     else if (ev === 'land' && tr === 'flame' && drop > 1.2) { const t = near(2.4); P.trCd = 2; origStatic(P.def.id === 'brunhild' ? 'Brunhild_N_Skill1_Hit' : hitFx, PX + 1.2, 0.3, kOf() * 0.6); t.forEach((f) => kill(f, 'shot')); }
   }
   const traitCall = () => { const nm = String(pas().t || '').split(/[:·]/)[0].trim(); if (nm) popup(PX + 0.4, P.y + 2.3, nm, 'trait'); AUDIO.play(csfx(P.def.id, 's1') || P.def.sfx || 'swing', 0.4); };

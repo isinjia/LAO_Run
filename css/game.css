@@ -379,3 +379,13 @@ body.running #rotate { display: none !important; }
 }
 /* the skill-ready key hint sits under the portrait's name tag, never under the HP bar */
 #skillRing.pick::after { left: 50%; top: calc(100% + 22px); transform: translateX(-50%); z-index: 3; }
+/* short landscape screens: the title scrolls and compacts so every button is reachable */
+@media (max-height: 480px) {
+  #title { overflow-y: auto; justify-content: flex-start; padding: 8px 0 16px; gap: 6px; }
+  #title .logo.big { font-size: 40px; }
+  #title .sub { display: none; }
+  .titleSel { padding: 6px 10px; }
+  #titleSkill { font-size: 11px; max-width: 420px; }
+  .boost { padding: 3px 10px; font-size: 12px; }
+  #title .help { display: none; }
+}
