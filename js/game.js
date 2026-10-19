@@ -296,7 +296,7 @@
   function resetPlayer() {
     const d = P.def, lv = lvOf(d.id);
     Object.assign(P, { y: 0, vy: 0, jumps: 0, onGround: true, floor: 0, coyote: 0, jumpBuf: 0, slide: false, slideK: 0, spin: 0,
-      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false,
+      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false, pasT: 0, smT: null,
       skillT: 0, skillOn: 0, skCd: d.skill.cd * (1 - (lv - 1) * 0.06), skDur: d.skill.dur * (1 + (lv - 1) * 0.08),
       scale: 1, buff: {}, gunT: 0, fell: false, lock: 0, rainT: 0 });
     P.mods = mergeMods(d);
@@ -402,6 +402,7 @@
     props.push({ s, x });
   }
 
+  const HALO = {};
   function addItem(kind, x, y) {
     const sizes = { jelly: 0.5, bear: 0.85, coin: 0.5, heart: 1.0, magnet: 1.0, boost: 1.0, giant: 1.0, L0: 1.05, L1: 1.05, L2: 1.05, L3: 1.05, jbig: 1.45, potion: 0.85, star: 1.0 };
     if (kind === 'jelly' && P.buff.bear > 0) kind = 'bear';
@@ -411,6 +412,8 @@
     s.scale.set(sz, sz, 1);
     s.renderOrder = L.ITEM;
     s.position.set(x, y, 0);
+    const halo = HALO[kind] || (HALO[kind] = new THREE.SpriteMaterial({ map: TEX.glow, color: { jelly: 0x6fe3ff, bear: 0xffa8d8, coin: 0xffd84a, jbig: 0xfff27a }[kind] || 0xffffff, opacity: 0.55, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
+    const g = new THREE.Sprite(halo); g.scale.set(1.9, 1.9, 1); g.renderOrder = L.ITEM - 0.05; s.add(g);
     scene.add(s);
     items.push({ kind, x, y, s, sz, pulled: false, t: Math.random() * 6 });
   }
@@ -426,6 +429,7 @@
     }
   }
 
+  const FOE_AURA = {};
   function addFoe(kind, x, base = 0, opt = {}) {
     const all = ENEMIES[opt.hang ? 'low' : kind === 'bomb' || kind === 'shot' ? 'low' : kind], list = all.filter((e) => SD.ready(e.id));
     const d = list.length ? list[(Math.random() * list.length) | 0] : all[0];
@@ -436,6 +440,14 @@
     f.shadow.scale.set(kind === 'air' ? 1.0 : d.w * 1.7 + 0.3, kind === 'air' ? 0.22 : 0.32, 1);
     f.shadow.material.opacity = kind === 'air' ? 0.45 : 0.9;
     if (rig) {
+      if (!FOE_AURA.a) {
+        FOE_AURA.a = new THREE.SpriteMaterial({ map: TEX.glow, color: 0xff2a48, opacity: 0.42, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending });
+        FOE_AURA.b = new THREE.SpriteMaterial({ map: TEX.glow, color: 0x000000, opacity: 0.38, depthTest: false, depthWrite: false, transparent: true });
+      }
+      const hh = opt.hang ? 1.2 : d.h;
+      for (const [m, kx, ky, o] of [[FOE_AURA.b, 1.9, 1.25, -0.12], [FOE_AURA.a, 2.3, 1.45, -0.1]]) {
+        const a = new THREE.Sprite(m); a.scale.set(d.w * kx + 0.4, hh * ky, 1); a.position.set(0, hh / 2, 0); a.renderOrder = L.ENEMY + o; rig.g.add(a);
+      }
       rig.c.setOrder(L.ENEMY);
       rig.c.play(walk && rig.c.has('move') ? 'move' : 'idle', null, true);
       rig.c.time = Math.random() * 2;
@@ -501,9 +513,16 @@
   let gs = 8;
   const CHUNKS = {
     flat(x0) {
-      const len = 7 + Math.random() * 4;
+      const len = 7 + Math.random() * 4, a = x0 + 0.8, b = x0 + len - 0.8;
       addGround(x0, x0 + len);
-      jellyLine(x0 + 0.8, x0 + len - 0.8, 0.55, Math.random() < 0.45 ? 'coin' : 'jelly', 0.62);
+      // authored jelly shapes: a jelly line is a route to follow, not just a carpet
+      const pat = traveled < 150 ? 0 : (Math.random() * 6) | 0;
+      if (pat === 0) jellyLine(a, b, 0.55, Math.random() < 0.45 ? 'coin' : 'jelly', 0.62);
+      else if (pat === 1) for (let x = a; x <= b; x += 0.55) addItem('jelly', x, 0.55 + (1 - Math.cos((x - a) * 1.1)) * 0.75); // a wave: hop along it
+      else if (pat === 2) { const h = gs * 0.25; jellyArc(a + h, 2.4, h); jellyArc(b - h, 2.4, h, 'jelly'); addItem('bear', a + h, 2.95); addItem('bear', b - h, 2.95); } // two hops, a bear at each peak
+      else if (pat === 3) { jellyLine(a, b, 0.55, 'jelly', 0.7); jellyLine(a + 1.5, b - 1.5, 4.3, 'bear', 0.7); } // a high route for a double jump
+      else if (pat === 4) { jellyLine(a, b, 0.55, 'coin', 0.62); const c = (a + b) / 2; [[0, 1.5], [-0.5, 2], [0.5, 2], [-1, 2.5], [1, 2.5], [0, 3]].forEach(([dx, y]) => addItem(dx === 0 && y === 3 ? 'jbig' : 'bear', c + dx, y)); }
+      else { for (let x = a, i = 0; x <= b; x += 0.62, i++) addItem(i % 4 === 3 ? 'bear' : 'jelly', x, i % 8 < 4 ? 0.55 : 1.3); } // steps up and down
       maybeItem(x0 + len / 2, 1.9);
       return len;
     },
@@ -898,9 +917,11 @@
     if (f.dead) return;
     tally('kill:' + by);
     f.dead = true;
+    if (f.rig) f.rig.g.children.forEach((c) => { if (c.isSprite) c.visible = false; }); // the danger glow goes with it
     f.t = 0;
     run.kills++;
     addScore(100 * (pas().killK || 1));
+    if (pas().lifeSteal && !P.dead) { P.hp = Math.min(P.maxHp, P.hp + pas().lifeSteal); burst(PX, P.y + 1, 0xc77dff, 3, 0.4, 1.5, 'spark'); }
     const cy = f.kind === 'air' ? f.y + 0.5 : f.y + Math.min(f.h, 3) / 2;
     const k = (P.rig ? P.rig.k : 0.14) * P.scale;
     if (by !== 'shot' || !origStatic(ORIG_BOOM, f.x, cy, k * 0.9)) burst(f.x, cy, 0xffc070, 12, 0.7, 7);
@@ -1127,10 +1148,10 @@
     if (b) {
       b.t += dt;
       // stays well behind the squad (the runner is never hidden)
-      const tx = b.leaving ? -9 : -0.9;
+      const tx = b.leaving ? -9 : -0.2;
       b.x += (tx - b.x) * Math.min(1, dt * 1.5);
       if (b.lunge > 0) b.lunge -= dt;
-      const lx = b.lunge > 0 ? Math.sin((1 - b.lunge / 0.45) * Math.PI) * 0.9 : 0; // a lunge before each attack
+      const lx = b.lunge > 0 ? Math.sin((1 - b.lunge / 0.45) * Math.PI) * 0.6 : 0; // a lunge before each attack
       b.rig.g.position.set(b.x + lx, 0, 0);
       b.rig.c.update(dt);
       if (b.flash > 0) { b.flash -= dt; b.rig.c.setTint(b.flash > 0 ? 2.2 : 1, b.flash > 0 ? 1.4 : 1, b.flash > 0 ? 1.4 : 1); }
@@ -1505,6 +1526,18 @@
       tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.35; sendRunner(0x9fe6ff, 'glow', 0.8, 15, 1.5, false, 'Empress_skill1_ice_Hit', 'Empris_skill2_bomb_particle'); },
     },
   };
+  // passives that act on their own between skills
+  function passiveTick(dt) {
+    const ps = pas();
+    if (ps.autoGun && (P.pasT = (P.pasT || 0) - dt) <= 0) {
+      const t = foes.find((f) => !f.dead && !f.targeted && f.x > PX + 1 && f.x < PX + 8);
+      if (t) { P.pasT = ps.autoGun; t.targeted = true; fireAt(t, shotLanded); } else P.pasT = 0.2;
+    }
+    if (ps.smite && (P.smT = (P.smT == null ? ps.smite : P.smT) - dt) <= 0) {
+      const t = aliveAhead(PX + 10).find((f) => f.x > PX + 1.5);
+      if (t) { P.smT = ps.smite; bolt(t.x, foeMid(t), 0xffe9a0); origStatic('Saraqael_skill1_elec_hit', t.x, foeMid(t) - 0.4, kOf()); breakFoe(t, 'shot'); AUDIO.play('elec', 0.4); } else P.smT = 0.3;
+    }
+  }
   function uqStart(d) { P.uqT = 0; P.uqN = 0; P.uqTime = 0; const u = UQ[P.def.id]; if (u && u.start) u.start(d); }
   function uqTick(dt) { const u = UQ[P.def.id]; P.uqTime += dt; if (u && u.tick) u.tick(dt, P.uqTime); }
   function uqEnd() { const u = UQ[P.def.id]; if (u && u.end) u.end(); }
@@ -1721,7 +1754,7 @@
         it.x += ax / d * v * dt; it.y += ay / d * v * dt;
       } else it.x -= dx;
       const plain = it.kind === 'jelly' || it.kind === 'coin' || it.kind === 'bear';
-      it.s.position.set(it.x, it.y + (plain ? 0 : Math.sin(it.t * 4) * 0.12), 0);
+      it.s.position.set(it.x, it.y + (plain ? Math.sin(performance.now() / 180 + it.x * 0.9) * 0.05 : Math.sin(it.t * 4) * 0.12), 0);
       if (it.kind === 'coin') it.s.scale.x = it.sz * Math.abs(Math.cos(it.t * 4));
       else if (!plain) { const p = 1 + Math.sin(it.t * 6) * 0.06; it.s.scale.set(it.sz * p, it.sz * p, 1); }
       if (playing && !P.dead) {
@@ -1892,11 +1925,16 @@
     const hw = f.kind === 'air' ? 0.26 : f.w / 2;
     const fx0 = f.x - hw, fx1 = f.x + hw;
     const fy0 = f.y + (f.kind === 'air' ? 0.05 : 0), fy1 = f.kind === 'air' ? 99 : f.y + f.h * (f.kind === 'tall' ? 0.82 : 0.88);
+    // a close shave over (or under) an obstacle: PERFECT
+    if (!f.near && !f.hit && !f.dead && (f.kind === 'low' || f.kind === 'tall' || f.kind === 'air') && px0 <= fx1 && px1 >= fx0) {
+      const gap = f.kind === 'air' ? fy0 - py1 : py0 - fy1;
+      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; addScore(80); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, 'PERFECT! +80', 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); }
+    }
     if (px1 < fx0 || px0 > fx1 || py1 < fy0 || py0 > fy1) return;
     if (f.frozen || (f.kind === 'bomb' && !f.armed)) return;
     // landing on a ground enemy from above: stomp it and bounce
     if (f.kind === 'low' && !f.hang && P.vy < -1 && P.y > f.y + f.h * 0.45 && !smashing()) {
-      breakFoe(f, 'stomp'); P.vy = 13.5; P.jumps = 1; run.stomps = (run.stomps || 0) + 1; addScore(150); popup(PX, P.y + 2, '밟기! +150', 'kill'); AUDIO.play('swing', 0.6, 0.8); puff(PX, P.y, 4, 0.7); return;
+      breakFoe(f, 'stomp'); P.vy = pas().stompK ? 16 : 13.5; P.jumps = 1; if (pas().stompK) { dropItems(f.x, foeMid(f) + 0.6, 'coin', 5); origStatic('sniper_hit', f.x, foeMid(f) - 0.3, kOf()); } run.stomps = (run.stomps || 0) + 1; addScore(150); popup(PX, P.y + 2, '밟기! +150', 'kill'); AUDIO.play('swing', 0.6, 0.8); puff(PX, P.y, 4, 0.7); return;
     }
     if (smashing()) { breakFoe(f, 'melee'); return; }
     if (f.hit) return;
@@ -1948,6 +1986,7 @@
       if (P.skillOn <= 0) { P.skillOn = 0; uqEnd(); if (['gun', 'snipe', 'akimbo', 'flame', 'beam'].includes(P.def.skill.type) || P.buff.fly <= 0) { P.lock = 0; runAnim(); } }
     } else {
       P.skillT += dt;
+      passiveTick(dt);
       if (P.skillT >= P.skCd) {
         if (!run.skillReady) { run.skillReady = 2.5; AUDIO.play('genB', 0.5); $('skillRing').classList.add('pick'); }
         else if ((run.skillReady -= dt) <= 0 || input.skill) { run.skillReady = 0; input.skill = false; $('skillRing').classList.remove('pick'); activateSkill(); }
