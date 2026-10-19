@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="utf-8"><title>clip probe</title><style>body{margin:0;background:#2a3346}</style></head><body>
+<script src="js/vendor/three.min.js"></script><script src="js/sd.js"></script>
+<script>
+// dev page: one member's skill clip frozen at a time (?id=lrl&clip=skill)
+const Q = new URLSearchParams(location.search), id = Q.get('id') || 'lrl', clip = Q.get('clip') || 'skill';
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(innerWidth, innerHeight); document.body.appendChild(r.domElement);
+const scene = new THREE.Scene(), cam = new THREE.OrthographicCamera(-12, 12, 8, -5.5, -100, 100);
+let c;
+SD.prepare(id).then((t) => { c = SD.create(id); const k = 2.6 / t.height; c.root.scale.set(k, k, 1); c.root.position.set(-8 - (t.box.min.x + t.box.max.x) / 2 * k, -t.box.min.y * k - 2, 0); c.play(clip, null, true); c.speed = 0; scene.add(c.root); window.info = { dur: c.clip.dur }; });
+window.setT = (t) => { if (c) { c.time = t; c.update(0.0001); } };
+(function loop() { requestAnimationFrame(loop); r.render(scene, cam); })();
+</script></body></html>

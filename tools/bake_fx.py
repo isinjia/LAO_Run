@@ -20,7 +20,14 @@ S.PROJ = PROJ
 BULLETS = ["daphne_bullet", "FX_blackLilith_bullet", "Hraesvelgr_skill1_Lazer_bullet", "Khan_NS2_skill1_bullet",
            "Sylphid_NS1_skill2_bullet", "Brunhild_N_Skill1_bullet", "Titania_NS2_Skill1_bullet"]
 STATICS = ["FX_HIT_Labiata_skill_2", "Saraqael_skill1_elec_hit", "Saraqael_skill2_Last_Hit", "LRL_skill2_glow",
-           "Banshee_skill2_Ground_Hit", "Empress_skill2_swing_Hit", "Titania_skill1_iceKnife_hit"]
+           "Banshee_skill2_Ground_Hit", "Empress_skill2_swing_Hit", "Titania_skill1_iceKnife_hit",
+           # signature skill effects (replace the procedural beams / glows)
+           "Kunoichi_skill2_Sword_first_line_F", "Kunoichi_skill2_Hit_FX_F", "KunoichiZero_skill2_first_hit_F",
+           "Brunhild_N_Skill2_A", "Brunhild_N_Skill1_A", "Brunhild_N_Skill1_Hit",
+           "Empris_skill2_ground_Ice_road", "Empress_skill2_ice_first_Hit", "Empris_skill2_bomb_particle",
+           "Saraqael_skill1_elec_lazer", "Saraqael_skill2_Last_Big_Hit", "Saraqael_skill2_Fire_lighting",
+           "Labiata_skill2_blade_swing", "Labiata_skill1_hit", "brownie_shoot",
+           "handgun_shot", "sniper_hit", "Emy_skill2_fire", "LRL_bling"] + sys.argv[1:]
 
 
 def find_prefab(name):

@@ -269,7 +269,7 @@
     const has = (pred) => sprites.some(pred);
     const T = (o, k) => o.material.map && o.material.map.image && o.material.map.image.width === k;
     return [
-      sc.children.some((o) => o.isMesh && o.renderOrder === 1 && o.material.map), // backdrop
+      (() => { let ok = false; sc.traverse((o) => { if (o.isMesh && o.visible && o.parent && o.parent.visible && o.renderOrder >= 1 && o.renderOrder < 2 && o.material.map) ok = true; }); return ok; })(), // parallax backdrop layers
       has((o) => o.renderOrder === 1.6), // clouds
       has((o) => Math.abs(o.renderOrder - 1.8) < 0.01) || has((o) => o.renderOrder === 10), // weather
       has((o) => Math.abs(o.renderOrder - 3.6) < 0.01), // props

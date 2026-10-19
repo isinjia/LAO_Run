@@ -45,7 +45,7 @@
     if (bgm) { bgm.pause(); bgm = null; }
     bgmName = name;
     if (!name) return;
-    bgm = new Audio('assets/bgm/' + name + '.mp3');
+    bgm = new Audio((name.includes('/') ? 'assets/' : 'assets/bgm/') + name + '.mp3'); // ost/<name> = original soundtrack
     bgm.loop = true;
     bgm.volume = 0.38;
     if (on) bgm.play().catch(() => {});

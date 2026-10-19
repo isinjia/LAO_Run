@@ -237,5 +237,17 @@ window.RUNTEX = (function () {
     return t;
   }
 
-  return { build, groundTex, canvasTex };
+  function gateTex() {
+    return canvasTex(96, 256, (g, w, h) => {
+      const m = g.createLinearGradient(0, 0, w, 0);
+      m.addColorStop(0, '#3a4252'); m.addColorStop(0.5, '#7d8798'); m.addColorStop(1, '#2a303c');
+      g.fillStyle = m; g.fillRect(14, 10, 68, h - 10);
+      g.fillStyle = '#1d222c'; g.fillRect(30, 26, 36, h - 40);
+      for (let y = 40; y < h - 20; y += 26) { g.fillStyle = '#ffcf3a'; g.fillRect(14, y, 68, 8); g.fillStyle = '#20242c'; for (let x = 14; x < 82; x += 16) g.fillRect(x, y, 8, 8); }
+      g.fillStyle = '#5fe1ff'; g.shadowColor = '#5fe1ff'; g.shadowBlur = 12; g.fillRect(40, 30, 16, 10);
+      g.shadowBlur = 0; g.fillStyle = '#596274'; g.fillRect(6, 0, 84, 14);
+    });
+  }
+
+  return { build, groundTex, canvasTex, gateTex };
 })();

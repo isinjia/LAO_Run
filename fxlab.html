@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FX Lab</title>
+<style>body{margin:0;background:#3a4560;color:#fff;font:12px monospace}#lb{position:fixed;inset:0;pointer-events:none}#lb div{position:absolute;color:#ff0}</style></head>
+<body><div id="lb"></div>
+<script src="js/vendor/three.min.js"></script>
+<script src="js/fxbake.js"></script>
+<script src="js/fx/_meta.js"></script>
+<script>
+// dev page: baked original effects in a grid (?names=a,b,c&k=0.14&t=0.6) — each frozen at time t (seconds) or looping
+const Q = new URLSearchParams(location.search);
+const names = (Q.get('names') || 'simple_explosion').split(','), K = +(Q.get('k') || 0.14), T = Q.get('t');
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(innerWidth, innerHeight); r.setClearColor(0x3a4560); document.body.appendChild(r.domElement);
+FXB.renderer = r;
+const scene = new THREE.Scene();
+const cols = Math.ceil(Math.sqrt(names.length)), rows = Math.ceil(names.length / cols), cw = 16 / cols, ch = 9 / rows;
+const cam = new THREE.OrthographicCamera(0, 16, 9, 0, -100, 100);
+const inst = [];
+names.forEach(async (n, i) => {
+  await FXB.prepare(n);
+  const f = FXB.create(n);
+  if (!f) return;
+  const x = (i % cols + 0.5) * cw, y = 9 - (Math.floor(i / cols) + 0.75) * ch;
+  f.root.position.set(x, y, 0); f.root.scale.set(K, K, 1); f.setOrder(1); scene.add(f.root); inst.push(f);
+  const d = document.createElement('div'); d.textContent = n; d.style.left = (x - cw / 2) / 16 * 100 + '%'; d.style.top = (Math.floor(i / cols) * ch) / 9 * 100 + '%'; document.getElementById('lb').appendChild(d);
+});
+window.setT = (t) => inst.forEach((f) => { f.time = 0; f.frame = -1; f.update(t); });
+let last = 0;
+(function loop(t) { requestAnimationFrame(loop); const dt = Math.min(0.05, (t - last) / 1000 || 0); last = t; if (T == null) inst.forEach((f) => { f.update(dt); if (f.done) { f.time = 0; } }); r.render(scene, cam); })();
+</script></body></html>
