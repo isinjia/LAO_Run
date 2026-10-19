@@ -788,7 +788,7 @@
     el.style.left = (x / VW * W) + 'px';
     el.style.top = ((1 - (y - GB) / VH) * H) + 'px';
     $('popups').appendChild(el);
-    setTimeout(() => el.remove(), 800);
+    setTimeout(() => el.remove(), cls === 'bossSkill' ? 1500 : 800);
   }
   function flash(color = '#fff', strength = 0.7) {
     tally('fx:flash');
@@ -1013,6 +1013,12 @@
   const BOSS_FX = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A', e_DoomEater_N: 'Juggernaut_skill2_last_hit' };
   const BOSS_PATS = { e_Nidhogg_N: ['lane', 'bombs', 'lane'], e_DoomEater_N: ['lane', 'double'], e_BlackKnight_N: ['double', 'lane', 'double'], e_Goltarion_N: ['bombs', 'lane', 'double'] };
   const PAT_NAME = { lane: '레이저 소인', double: '연속 소인', bombs: '집중 포격' };
+  // original boss skill names (Table_Localization_ko: SkillName_Skill_MP_Nidhogg_N_*, MP_BlackKnight_N_*, AGS_Goltarion_N_*)
+  const BOSS_SKILL = {
+    e_Nidhogg_N: { lane: '파멸의 폭발', bombs: '파멸의 징조', double: '깊은 어둠' },
+    e_BlackKnight_N: { double: '척살', lane: '충격 흡입' },
+    e_Goltarion_N: { lane: '작열! 헬파이어 빔', bombs: '소환!! 데모닉 웨폰', double: '불사의 장갑' },
+  };
   const lanes = []; // { y0, y1, warn, fire, s, high }
   function startBoss() {
     const all = DATA.BOSSES.filter((b) => SD.ready(b.id));
@@ -1049,7 +1055,7 @@
   function bossAttack(b) {
     const pats = BOSS_PATS[b.d.id] || ['lane'];
     const p = pats[b.pat++ % pats.length];
-    popup(2.4, 4.6, b.d.name + ' · ' + PAT_NAME[p], 'kill');
+    popup(VW / 2, 4.9, b.d.name + ' 「' + ((BOSS_SKILL[b.d.id] || {})[p] || PAT_NAME[p]) + '」', 'bossSkill');
     if (p === 'lane') addLane(Math.random() < 0.5);
     else if (p === 'double') { const hi = Math.random() < 0.5; addLane(hi, 1.0); b.queue.push({ t: 0.8, high: !hi }); }
     else { for (let i = 0; i < 2; i++) addFoe('bomb', VW + 2 + i * Math.max(7, spd * 0.8)); AUDIO.play('missile', 0.5); }

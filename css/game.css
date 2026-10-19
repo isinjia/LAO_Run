@@ -266,3 +266,4 @@ button { font: inherit; color: inherit; }
 #skillRing { pointer-events: auto; cursor: pointer; }
 #skillRing.pick { box-shadow: 0 0 0 3px #fff, 0 0 22px 6px var(--sc); animation: pulse .25s infinite alternate; }
 #skillRing.pick::after { content: 'E · 탭'; position: absolute; left: 70px; top: 18px; font-size: 11px; font-weight: 900; background: rgba(0, 0, 0, .7); padding: 1px 6px; border-radius: 6px; white-space: nowrap; }
+.pop.bossSkill { font-family: 'Black Han Sans', sans-serif; font-size: 30px; color: #ff6070; text-shadow: 0 0 12px rgba(255, 0, 40, .8), 0 3px 0 #400; animation-duration: 1.4s; }
