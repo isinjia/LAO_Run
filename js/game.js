@@ -810,9 +810,9 @@
   ];
   function pickChunk() {
     if (run.tutQ && run.tutQ.length) return run.tutQ.shift();
-    if (!run.boss && run.bonus <= 0 && traveled > (run.nextRescue == null ? 1100 : run.nextRescue) && (!run.evQ || !run.evQ.length)) { run.nextRescue = traveled + rnd(800, 1000); return 'rescue'; }
+    if (!run.boss && run.bonus <= 0 && traveled > (run.nextRescue == null ? 520 : run.nextRescue) && (!run.evQ || !run.evQ.length)) { run.nextRescue = traveled + rnd(800, 1000); return 'rescue'; }
     if (run.evQ && run.evQ.length) { const k = run.evQ.shift(); if (!run.evQ.length && run.ev) run.ev.endG = true; return k; }
-    if (!run.boss && run.bonus <= 0 && traveled > (run.nextEvent || 700) && traveled < run.nextBoss - 250) {
+    if (!run.boss && run.bonus <= 0 && traveled > (run.nextEvent || 380) && traveled < run.nextBoss - 250) {
       const ev = EVENTS[(run.evN = (run.evN || 0) + 1) % EVENTS.length];
       run.nextEvent = traveled + rnd(650, 800);
       run.evQ = ev.q.slice(); for (let i = 0; i < Math.floor((run.evN - 1) / EVENTS.length); i++) run.evQ.push(ev.q[i % ev.q.length]); // a lap later the gauntlet is longer
@@ -859,7 +859,7 @@
     clearWorld();
     traveled = 0;
     stageIx = 0;
-    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], timers: [], ev: null, evQ: null, evN: 0, nextEvent: 700, nextRescue: 1100, rescued: 0, pStreak: 0, perfect: 0,
+    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], timers: [], ev: null, evQ: null, evN: 0, nextEvent: 380, nextRescue: 520, rescued: 0, pStreak: 0, perfect: 0,
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
     showSet(STAGES[0].id, true);
@@ -990,7 +990,7 @@
     const el = $('flash');
     el.style.background = color;
     el.style.transition = 'none';
-    el.style.opacity = strength;
+    el.style.opacity = Math.min(0.28, strength); // a tint at the most, never a white-out
     requestAnimationFrame(() => { el.style.transition = 'opacity .35s'; el.style.opacity = 0; });
   }
   function hurtFx() {
@@ -1153,7 +1153,7 @@
 
   // skills: start once the gauge fills (automatic, like the cookies)
   const SKILL = {
-    gun: { start(d) { P.gunT = 0.15; clipFor('atk', d, true); } },
+    gun: { start(d) { P.gunT = 0.15; clipFor('atk', d, true); const o = origFor(P.def.id), [mx, my] = muzzle(); if (!origStatic(o.atk.statics[0] || 'brownie_shoot', mx, my, kOf())) burst(mx, my, 0xffd080, 8, 0.4, 5, 'spark'); } },
     snipe: { start(d) { clipFor('atk', d, true); } },
     akimbo: { start(d) { clipFor('atk', d, true); } },
     flame: { start(d) { clipFor('atk', d, true); } },
@@ -1357,7 +1357,7 @@
     const key = (e) => { if (e.key === '1' || e.key === '2') choose(+e.key - 1); };
     window.addEventListener('keydown', key);
     el.classList.add('on'); ann('LevelUp-1');
-    $('tutHint').classList.remove('on'); [...$('popups').children].forEach((c) => c.remove()); // the pick has the screen to itself
+    $('tutHint').classList.remove('on'); [...$('popups').children].forEach((c) => c.remove()); $('stageName').classList.remove('show', 'on'); // the pick has the screen to itself
     run.pick = { t: 3, choose, key }; // the auto-choice runs in game time (paused = paused) and is dropped with the run
     run.evQ = ['flat', 'flat'].concat(run.evQ || []); // two clear chunks while the player decides
     for (let i = foes.length - 1; i >= 0; i--) { const f = foes[i]; if (!f.dead && f.x > PX + 4) { if (f.x < VW + 0.5) { origStatic(ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf() * 0.8); burst(f.x, foeMid(f), 0x9fe6ff, 10, 0.5, 4, 'spark'); } freeFoe(f); foes.splice(i, 1); } } // the ground already laid ahead is cleared: on-screen threats warp out
@@ -1602,7 +1602,7 @@
   function bolt(x, y, color) { // a strike from the sky
     beamFx(x - 0.01, x + 0.01, y, color, 0.2, 0.01);
     const s = fx[fx.length - 1].s;
-    s.scale.set(0.35, (GB + VH) - y + 1, 1); s.position.y = (y + GB + VH + 1) / 2;
+    s.scale.set(0.22, (GB + VH) - y + 1, 1); s.material.userData.o0 = 0.55; s.material.opacity = 0.55; s.position.y = (y + GB + VH + 1) / 2;
     burst(x, y, color, 6, 0.5, 4, 'spark');
   }
   // frozen enemies become ice blocks to stand on, then shatter into bear jellies
@@ -1855,6 +1855,7 @@
     P.trigNow = false;
     if (P.trCd > 0) P.trCd -= dt;
     P.inT = (P.inT || 0) + dt;
+    if (P.onGround && Math.random() < dt * 3) { if (P.def.id === 'brownie') burst(PX - 0.2, P.y + 0.9, 0xffc24a, 1, 0.5, 3, 'spark'); else if (P.def.id === 'leprechaun') sparkle(PX - 0.3, P.y + 0.6, 0x9dff7a); }
     if (ps.trait === 'regen' && P.onGround) P.hp = Math.min(P.maxHp, P.hp + 0.6 * dt); // always on
     if (ps.autoGun && (P.pasT = (P.pasT || 0) - dt) <= 0) {
       const t = foes.find((f) => !f.dead && !f.targeted && f.x > PX + 1 && f.x < PX + 8);
@@ -2832,7 +2833,7 @@
     $('resAch').innerHTML = ach.slice(0, 3).map((a) => '<div class="achGot">업적 달성 · ' + a.t + ' <b>+' + a.pay.toLocaleString() + '</b></div>').join('') +
       (ach.length > 3 ? '<div class="achGot">외 업적 ' + (ach.length - 3) + '개 · <b>+' + ach.slice(3).reduce((n, a) => n + a.pay, 0).toLocaleString() + '</b></div>' : '');
     const next = CHARS.filter((c) => !save.owned.includes(c.id)).sort((a, b) => a.cost - b.cost)[0];
-    $('resNext').innerHTML = next ? '다음 해금: <b>' + next.name + '</b> ' + Math.min(save.coins, next.cost).toLocaleString() + ' / ' + next.cost.toLocaleString() + '<i style="width:' + Math.min(100, save.coins / next.cost * 100).toFixed(0) + '%"></i>' : '모든 대원 해금 완료!';
+    $('resNext').innerHTML = next ? '다음 해금: <b>' + next.name + '</b> ' + (save.coins >= next.cost ? '<b style="color:#7dff8a">지금 해금 가능! (보유 ' + save.coins.toLocaleString() + ')</b>' : Math.min(save.coins, next.cost).toLocaleString() + ' / ' + next.cost.toLocaleString()) + '<i style="width:' + Math.min(100, save.coins / next.cost * 100).toFixed(0) + '%"></i>' : '모든 대원 해금 완료!';
     $('resBest').textContent = save.best.toLocaleString();
     $('resNew').classList.toggle('on', isNew);
     $('resTitle').textContent = isNew ? '신기록!' : '작전 종료';
@@ -2972,7 +2973,7 @@
     // the abyss seen through pits: dark below the ground line, behind the ground segments
     const abyssTex = RUNTEX.canvasTex(256, 256, (g, w, h) => {
       const r = g.createLinearGradient(0, 0, 0, h);
-      r.addColorStop(0, '#4a4440'); r.addColorStop(0.18, '#2c2a30'); r.addColorStop(0.5, '#141620'); r.addColorStop(1, '#03050a');
+      r.addColorStop(0, '#8a9ab8'); r.addColorStop(0.2, '#56627e'); r.addColorStop(0.55, '#262c40'); r.addColorStop(1, '#0a0c16');
       g.fillStyle = r; g.fillRect(0, 0, w, h);
       for (let y = 6, i = 0; y < h * 0.6; y += 9 + (i % 4) * 3, i++) { // rock strata
         g.fillStyle = 'rgba(' + (90 + (i % 3) * 14) + ',' + (80 + (i % 3) * 10) + ',' + (72 + (i % 2) * 8) + ',' + (0.35 - y / h * 0.45) + ')';
@@ -2990,7 +2991,7 @@
     abyss = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: abyssTex, depthTest: false, depthWrite: false }));
     abyss.renderOrder = L.BACK + 1;
     scene.add(abyss);
-    abyssArt = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x3a3a46, transparent: true, opacity: 0.55, depthTest: false, depthWrite: false }));
+    abyssArt = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x6a7084, transparent: true, opacity: 0.3, depthTest: false, depthWrite: false }));
     abyssArt.renderOrder = L.BACK + 1.02;
     scene.add(abyssArt);
     resize();
@@ -3019,7 +3020,7 @@
     }));
     await Promise.all(jobs);
     STAGES.forEach((st) => makeSet(st.id, st.layers));
-    makeSet('sky', IMG.sky_bonus ? [{ img: 'sky_bonus', y0: -0.45, full: true, par: 0.04, mirror: true }] : [{ tex: TEX.skyBack, y0: -0.45, full: true, par: 0.06 }]);
+    makeSet('sky', IMG.sky_bonus ? [{ img: 'sky_bonus', y0: -0.45, full: true, par: 0.04, mirror: true }, { img: 'city_mid', y0: -0.6, h: 3.2, par: 0.06, tint: 0xc4dcff }] : [{ tex: TEX.skyBack, y0: -0.45, full: true, par: 0.06 }]); // the sky deck flies over a pale city far below
     bindInput();
     goTitle();
     checkAttendance();

@@ -389,3 +389,5 @@ body.running #rotate { display: none !important; }
   .boost { padding: 3px 10px; font-size: 12px; }
   #title .help { display: none; }
 }
+/* tutorial cards ride high, clear of the running lane */
+#tutHint { top: 22% !important; }
