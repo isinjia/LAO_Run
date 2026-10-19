@@ -744,13 +744,13 @@
   ];
   function pickChunk() {
     if (run.tutQ && run.tutQ.length) return run.tutQ.shift();
-    if (run.evQ && run.evQ.length) return run.evQ.shift();
+    if (run.evQ && run.evQ.length) { const k = run.evQ.shift(); if (!run.evQ.length && run.ev) run.ev.endG = true; return k; }
     if (!run.boss && run.bonus <= 0 && traveled > (run.nextEvent || 700) && traveled < run.nextBoss - 250) {
       const ev = EVENTS[(run.evN = (run.evN || 0) + 1) % EVENTS.length];
       run.nextEvent = traveled + rnd(650, 800);
       run.evQ = ev.q.slice();
       popup(VW / 2, 4.6, ev.name, 'bossSkill'); AUDIO.play('warning', 0.5); ann('Becareful-1'); tally('mech:event');
-      setTimeout(() => { if (state === 'play' && !P.dead) { addScore(1000); run.coins += 30; popup(PX, P.y + 2.6, ev.name + ' 돌파! +1,000', 'perfect'); ann('Great-1'); } }, ev.q.length * 1100 + 1500);
+      run.ev = { name: ev.name, hits: 0, end: null };
       return run.evQ.shift();
     }
     if (run.boss) { const r = Math.random(); return r < 0.35 ? 'flat' : r < 0.5 ? 'wave' : r < 0.65 ? 'low' : r < 0.78 ? 'pit' : r < 0.9 ? 'steps' : 'platFoe'; } // the boss's lanes plus terrain (no laser fences under its sweeps)
@@ -763,6 +763,7 @@
     // past the first lap the mix keeps hardening: more combined hazards, fewer breathers
     const lv2 = Math.min(1.5, Math.max(0, (traveled - 2600) / 3000));
     if (lv2 > 0) { w.flat *= 1 - lv2 * 0.4; w.wave *= 1 - lv2 * 0.3; for (const k of ['low2', 'airs', 'lowAir', 'pitLow', 'pitWide', 'bombs', 'shooter', 'movers', 'platFoe']) w[k] += lv2 * 0.8; }
+    if (run.mod && run.mod.foes) for (const k of ['low', 'low2', 'tall', 'air', 'airs', 'lowAir', 'platFoe']) w[k] *= run.mod.foes;
     const mix = STAGES[stageIx].mix || {}; // each stage leans on its own obstacles
     for (const k in mix) if (w[k] != null) w[k] *= mix[k];
     let sum = 0;
@@ -781,6 +782,7 @@
       tally('chunk:' + ck);
       (STAT.recent = STAT.recent || []).push(ck + '@' + Math.round(traveled + genX) + ' spd' + spd.toFixed(1)); if (STAT.recent.length > 6) STAT.recent.shift();
       genX += CHUNKS[ck](genX);
+      if (run.ev && run.ev.endG && run.ev.end == null) run.ev.end = traveled + genX; // where the gauntlet's last chunk ends (world distance)
     }
   }
 
@@ -788,7 +790,7 @@
     clearWorld();
     traveled = 0;
     stageIx = 0;
-    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: 0, bossBeat: 0, stomps: 0, skills: 0,
+    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: 0, bossBeat: 0, stomps: 0, skills: 0, ev: null, evQ: null, evN: 0, nextEvent: 700, pStreak: 0, perfect: 0,
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
     showSet(STAGES[0].id, true);
@@ -945,6 +947,8 @@
   function hurt() {
     if (P.inv > 0 || P.dead) return;
     run.pStreak = 0; // a hit breaks the PERFECT streak
+    if (run.ev) run.ev.hits++;
+    setTimeout(() => trait('hurt'), 0); // Phoenix rises in flame right after the hit
     tally('mech:hit');
     if (P.shield > 0) {
       P.shield = 0;
@@ -974,7 +978,7 @@
     if (f.rig) f.rig.g.children.forEach((c) => { if (c.isSprite) c.visible = false; }); // the danger glow goes with it
     f.t = 0;
     run.kills++;
-    addScore(100 * (pas().killK || 1));
+    addScore(100 * (pas().killK || 1) * ((run.mod && run.mod.kill) || 1));
     if (pas().lifeSteal && !P.dead) { P.hp = Math.min(P.maxHp, P.hp + pas().lifeSteal); burst(PX, P.y + 1, 0xc77dff, 3, 0.4, 1.5, 'spark'); }
     const cy = f.kind === 'air' ? f.y + 0.5 : f.y + Math.min(f.h, 3) / 2;
     const k = (P.rig ? P.rig.k : 0.14) * P.scale;
@@ -1024,7 +1028,7 @@
     if (P.rig && !fell) { P.rig.c.setOpacity(1); P.rig.c.setTint(1, 1, 1); P.rig.c.play('die'); P.rig.c.speed = 1; P.rig.pivot.rotation.z = 0; P.rig.pivot.position.y = P.rig.baseY; }
   }
 
-  function addScore(v) { run.score += v * (1 + Math.min(0.5, Math.floor(run.combo / 25) * 0.1)) * (run.bonus > 0 ? 2 : 1); }
+  function addScore(v) { run.score += v * ((run.mod && run.mod.score) || 1) * (1 + Math.min(0.5, Math.floor(run.combo / 25) * 0.1)) * (run.bonus > 0 ? 2 : 1); }
 
   // the runner's muzzle (front of the body, at chest height)
   const muzzle = () => [PX + 0.75 * P.scale, P.y + 1.0 * P.scale];
@@ -1209,6 +1213,15 @@
     ann('StageClear-1');
     flash('#fff6b0', 0.6);
     $('bossBar').classList.remove('on');
+  }
+  function updateEvent() {
+    const e = run.ev;
+    if (!e || e.end == null || traveled + PX < e.end || P.dead) return;
+    run.ev = null;
+    const pay = e.hits === 0 ? 1500 : e.hits === 1 ? 600 : 200;
+    addScore(pay); run.coins += e.hits === 0 ? 40 : 10;
+    popup(PX, P.y + 2.6, e.name.replace('경보: ', '') + (e.hits === 0 ? ' 완벽 돌파! +' : ' 돌파 +') + pay.toLocaleString(), e.hits === 0 ? 'perfect' : 'big');
+    ann(e.hits === 0 ? 'Perfect-1' : 'Good-1');
   }
   function updateBoss(dt) {
     const b = run.boss;
@@ -1613,9 +1626,11 @@
     },
   };
   // traits: what a member's passive does on a double jump / a landing / over time (data.js pas.trait)
+  const TRIG = { halo: 'perfect', bubble: 'perfect', snipe: 'double', strafe: 'slide', frost: 'double' };
   function trait(ev, drop = 0) {
     const tr = pas().trait;
     if (!tr || P.dead || state !== 'play') return;
+    if (TRIG[tr] === ev || (tr === 'smite' && ev === 'land')) P.trigNow = true; // a charged timed trait goes off on this move
     if ((P.trCd || 0) > 0) return;
     // traits break small threats; tall ones only take the hit (they stay the runner's job)
     const kill = (f, by) => { if (f.kind === 'tall') { f.flashT = 0.12; return; } breakFoe(f, by); };
@@ -1635,6 +1650,9 @@
     else if (ev === 'slide' && tr === 'mark') { const f = aliveAhead(PX + 8)[0]; if (f) { P.trCd = 3; own(f); kill(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 4); } }
     else if (ev === 'slide' && tr === 'torpedo') { P.trCd = 3; sendRunner(0x66ccff, 'glow', 0.6, 16, 0.7, false, hitFx); }
     else if (ev === 'slide' && (tr === 'wave' || tr === 'surf')) { P.trCd = 3.5; sendRunner(0x9feaff, 'glow', 1.2, 14, 0.9, false, 'Undine_skill2_Hit'); }
+    else if (ev === 'slide' && tr === 'turret') { const t = aliveAhead(PX + 9).slice(0, 2); P.trCd = 4; origStatic('Gnome_skill2_ground_Hit', PX + 0.6, 0.05, kOf() * 0.6); t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.15 + i * 0.2, i, f, name: 'Gnome_bullet', k: kOf() }); }); AUDIO.play('click', 0.5, 0.7); }
+    else if (ev === 'slide' && tr === 'sled') { if (sendSummon(16, 1.1)) { P.trCd = 3.5; AUDIO.play('ice', 0.4, 1.3); } }
+    else if (ev === 'hurt' && tr === 'rebirth') { P.trCd = 6; P.inv = Math.max(P.inv, 1.2); P.buff.dash = Math.max(P.buff.dash || 0, 0.8); origStatic('Phoenix_skill2_fire', PX, P.y + 0.6, kOf()); ring(PX, P.y + 1, 0xff7a2a, 3, 0.4); popup(PX, P.y + 2.4, '불사조의 불꽃', 'kill'); }
     else if (ev === 'slide' && tr === 'spray') { const f = aliveAhead(PX + 6)[0]; if (f) { P.trCd = 2.5; f.targeted = true; fireAt(f, shotLanded); } }
     else if (ev === 'slide' && tr === 'pulse') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; ring(PX + 0.8, 0.6, P.def.color, 2.6, 0.3); t.forEach((f) => { own(f); kill(f, 'shot'); }); }
     else if (ev === 'land' && (tr === 'quake' || tr === 'slam') && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; ring(PX + 1, 0.2, P.def.color, 3, 0.35); shake = Math.max(shake, 0.15); origStatic(P.def.id === 'labiata' ? 'Labiata_skill1_hit' : hitFx, PX + 1.4, 0.3, kOf() * (P.def.id === 'labiata' ? 0.35 : 0.8)); t.forEach((f) => kill(f, 'melee')); }
@@ -1643,21 +1661,22 @@
   const hitOf = () => { const o = origFor(P.def.id); return o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT; };
   // passives that act on their own between skills
   function passiveTick(dt) {
-    const ps = pas();
+    const ps = pas(), trig = P.trigNow;
+    P.trigNow = false;
     if (P.trCd > 0) P.trCd -= dt;
     P.inT = (P.inT || 0) + dt;
     if (P.inT > 1.5) return; // no input, no help: the passives answer the player's moves
-    if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0) { P.haloT = 10; if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
-    if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; ring(f.x, foeMid(f), 0x6fe3ff, 1.8, 0.5); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
-    if (ps.trait === 'snipe' && (P.snT = (P.snT == null ? 7 : P.snT) - dt) <= 0) { const t = foes.filter((f) => !f.dead && !f.frozen && f.x > PX + 4 && f.x < VW + 0.5); const f = t[t.length - 1]; if (f) { P.snT = 7; const [mx, my] = muzzle(); beamFx(mx, f.x, my, 0xfff2b0, 0.12, 0.08); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); AUDIO.play('handgun', 0.5); } else P.snT = 0.4; }
-    if (ps.trait === 'strafe' && (P.stT = (P.stT == null ? 6 : P.stT) - dt) <= 0) { const f = foes.find((g) => !g.dead && g.kind === 'air' && g.x > PX + 1.5 && g.x < PX + 10); if (f) { P.stT = 6; f.targeted = true; fireAt(f, shotLanded); } else P.stT = 0.4; }
+    if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0 && trig) { P.haloT = 10; if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
+    if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; ring(f.x, foeMid(f), 0x6fe3ff, 1.8, 0.5); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
+    if (ps.trait === 'snipe' && (P.snT = (P.snT == null ? 7 : P.snT) - dt) <= 0 && trig) { const t = foes.filter((f) => !f.dead && !f.frozen && f.x > PX + 4 && f.x < VW + 0.5); const f = t[t.length - 1]; if (f) { P.snT = 7; const [mx, my] = muzzle(); beamFx(mx, f.x, my, 0xfff2b0, 0.12, 0.08); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); AUDIO.play('handgun', 0.5); } else P.snT = 0.4; }
+    if (ps.trait === 'strafe' && (P.stT = (P.stT == null ? 6 : P.stT) - dt) <= 0 && trig) { const f = foes.find((g) => !g.dead && g.kind === 'air' && g.x > PX + 1.5 && g.x < PX + 10); if (f) { P.stT = 6; f.targeted = true; fireAt(f, shotLanded); } else P.stT = 0.4; }
     if (ps.trait === 'regen' && P.onGround) P.hp = Math.min(P.maxHp, P.hp + 0.6 * dt);
-    if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; freeze(f, 3); } else P.frT = 0.5; }
+    if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; freeze(f, 3); } else P.frT = 0.5; }
     if (ps.autoGun && (P.pasT = (P.pasT || 0) - dt) <= 0) {
       const t = foes.find((f) => !f.dead && !f.targeted && f.x > PX + 1 && f.x < PX + 8);
       if (t) { P.pasT = ps.autoGun; t.targeted = true; fireAt(t, shotLanded); } else P.pasT = 0.2;
     }
-    if (ps.smite && (P.smT = (P.smT == null ? ps.smite : P.smT) - dt) <= 0) {
+    if (ps.smite && (P.smT = (P.smT == null ? ps.smite : P.smT) - dt) <= 0 && trig) {
       const t = aliveAhead(PX + 10).find((f) => f.x > PX + 1.5);
       if (t) { P.smT = ps.smite; bolt(t.x, foeMid(t), 0xffe9a0); origStatic('Saraqael_skill1_elec_hit', t.x, foeMid(t) - 0.4, kOf()); breakFoe(t, 'shot'); AUDIO.play('elec', 0.4); } else P.smT = 0.3;
     }
@@ -1764,9 +1783,9 @@
       run.maxCombo = Math.max(run.maxCombo, run.combo);
       if (run.combo % 50 === 0) { popup(PX, P.y + 2.6, run.combo + ' COMBO!', 'combo'); AUDIO.play('genA', 0.5); if (run.combo % 100 === 0) ann(['Combo-1', 'Great-1', 'Nice-1', 'Combo-2', 'Perfect-1', 'Combo-3'][Math.min(5, run.combo / 100 - 1)]); }
     }
-    if (k === 'jelly') { addScore(10 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1)); run.jelly++; sparkle(it.x, it.y, 0x9ff3ff); AUDIO.play('coin', 0.16, 1.6, 0.05); }
+    if (k === 'jelly') { addScore(10 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1) * ((run.mod && run.mod.jelly) || 1)); run.jelly++; sparkle(it.x, it.y, 0x9ff3ff); AUDIO.play('coin', 0.16, 1.6, 0.05); }
     else if (k === 'bear') { addScore(50 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1)); run.jelly++; AUDIO.play('coin', 0.24, 1.3, 0.05); burst(it.x, it.y, 0xff7ab8, 3, 0.4, 2); }
-    else if (k === 'coin') { run.coins += (P.def.coinK || 1) * (P.buff.coin2 > 0 ? 2 : 1); run.coinsPicked++; addScore(3); sparkle(it.x, it.y, 0xffd84a); AUDIO.play('coin', 0.3, 1, 0.05); }
+    else if (k === 'coin') { run.coins += (P.def.coinK || 1) * (P.buff.coin2 > 0 ? 2 : 1) * ((run.mod && run.mod.coin) || 1); run.coinsPicked++; addScore(3); sparkle(it.x, it.y, 0xffd84a); AUDIO.play('coin', 0.3, 1, 0.05); }
     else if (k[0] === 'L') {
       run.letters++;
       AUDIO.play('genS', 0.7);
@@ -1807,7 +1826,7 @@
   function update(dt) {
     const playing = state === 'play';
     if (playing && !P.dead) {
-      baseSpd = 8.2 + 6.3 * (1 - Math.exp(-traveled / 2200)) + run.loop * 0.9; // each episode lap a little faster
+      baseSpd = (8.2 + 6.3 * (1 - Math.exp(-traveled / 2200)) + run.loop * 0.9) * ((run.mod && run.mod.spd) || 1); // each episode lap a little faster
       spd = baseSpd * (P.buff.dash > 0 ? 1.65 : P.buff.boost > 0 ? 1.5 : run.bonus > 0 ? 1.15 : 1);
     } else if (playing && P.dead) spd = Math.max(0, spd - 18 * dt);
     else if (state === 'result') spd = 0;
@@ -1857,7 +1876,7 @@
     updateFoes(dt, dx, playing);
     updateShots(dt, dx);
     updateRunners(dt, dx);
-    if (playing) { updateBoss(dt); updateSupport(dt); tutWatch(); }
+    if (playing) { updateBoss(dt); updateSupport(dt); updateEvent(); tutWatch(); }
     updateParticles(dt, dx);
     updateAmbient(dt, dx);
 
@@ -2055,7 +2074,7 @@
     // a close shave over (or under) an obstacle: PERFECT
     if (!f.near && !f.hit && !f.dead && (f.kind === 'low' || f.kind === 'tall' || f.kind === 'air') && px0 <= fx1 && px1 >= fx0) {
       const gap = f.kind === 'air' ? fy0 - py1 : py0 - fy1;
-      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; run.pStreak = (run.pStreak || 0) + 1; const pv = 80 * Math.min(5, run.pStreak); addScore(pv); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, (run.pStreak > 1 ? 'PERFECT ×' + run.pStreak : 'PERFECT!') + ' +' + pv, 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); if (P.skillOn <= 0) { P.skillT += 1.2; ring(PX, P.y + 1, P.def.color, 1.4, 0.3); } } // a PERFECT also charges the skill
+      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; P.inT = 0; trait('perfect'); run.pStreak = (run.pStreak || 0) + 1; const pv = 80 * Math.min(5, run.pStreak); addScore(pv); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, (run.pStreak > 1 ? 'PERFECT ×' + run.pStreak : 'PERFECT!') + ' +' + pv, 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); if (P.skillOn <= 0) { P.skillT += 1.2; ring(PX, P.y + 1, P.def.color, 1.4, 0.3); } } // a PERFECT also charges the skill
     }
     if (px1 < fx0 || px0 > fx1 || py1 < fy0 || py0 > fy1) return;
     if (f.frozen || (f.kind === 'bomb' && !f.armed)) return;
@@ -2385,6 +2404,14 @@
     if (P.shadow) { P.shadow.visible = true; P.shadow.position.set(x, 0.04, 0); P.shadow.scale.set(1.3 * s, 0.32 * s, 1); P.shadow.material.opacity = 1; }
   }
 
+  // today's operation: a modifier for every run of the day
+  const DAILY = [
+    { name: '코인 러시', t: '코인 1.5배', coin: 1.5 },
+    { name: '젤리 폭주', t: '젤리 점수 1.5배', jelly: 1.5 },
+    { name: '강행군', t: '속도 +8%, 점수 1.3배', spd: 1.08, score: 1.3 },
+    { name: '철충 습격', t: '적 증가, 격파 점수 1.5배', foes: 1.4, kill: 1.5 },
+  ];
+  const daily = () => DAILY[Math.floor(Date.now() / 86400000) % DAILY.length];
   // pre-run boosts: bought on the title screen, spent on the next run
   const BOOSTS = [{ id: 'dash', name: '출발 부스트', cost: 300 }, { id: 'revive', name: '부활권', cost: 500 }, { id: 'magnet', name: '자석 출발', cost: 200 }];
   const picked = new Set();
@@ -2424,6 +2451,7 @@
     startWorld(true);
     refreshTitle();
     renderBoosts();
+    { const d = daily(); const el = $('daily'); if (el) el.innerHTML = '오늘의 작전 <b>' + d.name + '</b> · ' + d.t; }
     show('title');
     AUDIO.music('ost/title');
   }
@@ -2513,6 +2541,8 @@
     hud();
     makeSupport();
     applyBoosts();
+    run.mod = daily();
+    setTimeout(() => state === 'play' && popup(VW / 2, 4.2, '오늘의 작전: ' + run.mod.name + ' (' + run.mod.t + ')', 'big'), 2200);
     $('supPortrait').style.display = save.sup && save.sup !== P.def.id && save.owned.includes(save.sup) ? '' : 'none';
     if (save.sup) $('supPortrait').src = portrait(save.sup);
   }
@@ -2708,10 +2738,16 @@
       clouds.push(c);
     }
     // the abyss seen through pits: dark below the ground line, behind the ground segments
-    const abyssTex = RUNTEX.canvasTex(4, 64, (g, w, h) => {
+    const abyssTex = RUNTEX.canvasTex(256, 256, (g, w, h) => {
       const r = g.createLinearGradient(0, 0, 0, h);
-      r.addColorStop(0, '#1a2236'); r.addColorStop(0.25, '#0b0f1c'); r.addColorStop(1, '#03050a');
+      r.addColorStop(0, '#2a3450'); r.addColorStop(0.3, '#121a2c'); r.addColorStop(1, '#03050a');
       g.fillStyle = r; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 26; i++) { // rubble and broken girders down the shaft
+        const x = (i * 97) % w, y = h * 0.62 + ((i * 53) % 90), s = 6 + (i * 7) % 18;
+        g.fillStyle = 'rgba(8,10,18,' + (0.5 + (i % 3) * 0.15) + ')'; g.beginPath(); g.moveTo(x, y); g.lineTo(x + s, y - s * 0.6); g.lineTo(x + s * 1.8, y + 2); g.closePath(); g.fill();
+      }
+      const m = g.createLinearGradient(0, h * 0.42, 0, h * 0.62); m.addColorStop(0, 'rgba(150,170,210,0)'); m.addColorStop(0.5, 'rgba(150,170,210,.22)'); m.addColorStop(1, 'rgba(150,170,210,0)');
+      g.fillStyle = m; g.fillRect(0, h * 0.42, w, h * 0.2); // mist
     });
     abyss = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: abyssTex, depthTest: false, depthWrite: false }));
     abyss.renderOrder = L.BACK + 1;

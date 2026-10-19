@@ -279,3 +279,5 @@ button { font: inherit; color: inherit; }
   text-shadow: 0 0 8px rgba(255, 60, 90, .9), 0 2px 0 #300; }
 .pop.bossSkill::before { content: '⚠ '; color: #ffcf3a; }
 .pop.perfect { font-family: 'Black Han Sans', sans-serif; font-size: 22px; color: #fff27a; text-shadow: 0 0 10px rgba(255, 230, 80, .9), 0 2px 0 #540; }
+.daily { font-size: 13px; color: #dfe9ff; background: rgba(10, 16, 34, .72); border: 1px solid var(--line); border-radius: 10px; padding: 4px 12px; }
+.daily b { color: var(--accent); }
