@@ -318,9 +318,9 @@ button { font: inherit; color: inherit; }
 /* original battle-atlas pieces (assets/ui/b_*, cut from Atlas/Battle.png by its sprite rects):
    the round control frame around the portrait, the gold skill-button octagon when the skill is ready,
    the orange caution bar and hazard stripes behind boss call-outs, the 9-slice bar frame on the HP bar */
-#skillRing::after { content: ''; position: absolute; inset: -7px; background: url(../assets/ui/b_ctrl_round.png) center / contain no-repeat; pointer-events: none; }
 #skillRing.ready::before { content: ''; position: absolute; inset: -16px; background: url(../assets/ui/b_skillsel2.png) center / contain no-repeat; pointer-events: none; animation: pulse .5s infinite alternate; }
 .pop.bossSkill { background: url(../assets/ui/b_caution_frame.png) left center / auto 100% no-repeat, url(../assets/ui/b_caution3.png) center / 100% 100% no-repeat, rgba(40, 8, 0, .85);
   border: none; color: #fff; padding: 6px 22px 6px 40px; box-shadow: 0 0 18px rgba(255, 140, 20, .55); text-shadow: 0 1px 2px #000, 0 0 8px rgba(255, 120, 0, .8); }
 .pop.bossSkill::before { content: ''; }
-.hpBar { border: 4px solid transparent; border-image: url(../assets/ui/b_barframe.png) 5 fill / 4px stretch; }
+.hpBar { border: 2px solid #b99c5c; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
+#skillRing.ready::before { inset: -5px; } /* the ready octagon stays inside the screen */
