@@ -790,7 +790,7 @@
     clearWorld();
     traveled = 0;
     stageIx = 0;
-    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: 0, bossBeat: 0, stomps: 0, skills: 0, ev: null, evQ: null, evN: 0, nextEvent: 700, pStreak: 0, perfect: 0,
+    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, ev: null, evQ: null, evN: 0, nextEvent: 700, pStreak: 0, perfect: 0,
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
     showSet(STAGES[0].id, true);
@@ -1665,17 +1665,17 @@
     P.trigNow = false;
     if (P.trCd > 0) P.trCd -= dt;
     P.inT = (P.inT || 0) + dt;
-    if (P.inT > 1.5) return; // no input, no help: the passives answer the player's moves
-    if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0 && trig) { P.haloT = 10; if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
-    if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; ring(f.x, foeMid(f), 0x6fe3ff, 1.8, 0.5); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
-    if (ps.trait === 'snipe' && (P.snT = (P.snT == null ? 7 : P.snT) - dt) <= 0 && trig) { const t = foes.filter((f) => !f.dead && !f.frozen && f.x > PX + 4 && f.x < VW + 0.5); const f = t[t.length - 1]; if (f) { P.snT = 7; const [mx, my] = muzzle(); beamFx(mx, f.x, my, 0xfff2b0, 0.12, 0.08); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); AUDIO.play('handgun', 0.5); } else P.snT = 0.4; }
-    if (ps.trait === 'strafe' && (P.stT = (P.stT == null ? 6 : P.stT) - dt) <= 0 && trig) { const f = foes.find((g) => !g.dead && g.kind === 'air' && g.x > PX + 1.5 && g.x < PX + 10); if (f) { P.stT = 6; f.targeted = true; fireAt(f, shotLanded); } else P.stT = 0.4; }
-    if (ps.trait === 'regen' && P.onGround) P.hp = Math.min(P.maxHp, P.hp + 0.6 * dt);
-    if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; freeze(f, 3); } else P.frT = 0.5; }
+    if (ps.trait === 'regen' && P.onGround) P.hp = Math.min(P.maxHp, P.hp + 0.6 * dt); // always on
     if (ps.autoGun && (P.pasT = (P.pasT || 0) - dt) <= 0) {
       const t = foes.find((f) => !f.dead && !f.targeted && f.x > PX + 1 && f.x < PX + 8);
       if (t) { P.pasT = ps.autoGun; t.targeted = true; fireAt(t, shotLanded); } else P.pasT = 0.2;
     }
+    if (P.inT > 1.5) return; // the triggered traits answer the player's moves
+    if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0 && trig) { P.haloT = 10; if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
+    if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; ring(f.x, foeMid(f), 0x6fe3ff, 1.8, 0.5); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
+    if (ps.trait === 'snipe' && (P.snT = (P.snT == null ? 7 : P.snT) - dt) <= 0 && trig) { const t = foes.filter((f) => !f.dead && !f.frozen && f.x > PX + 4 && f.x < VW + 0.5); const f = t[t.length - 1]; if (f) { P.snT = 7; const [mx, my] = muzzle(); beamFx(mx, f.x, my, 0xfff2b0, 0.12, 0.08); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); AUDIO.play('handgun', 0.5); } else P.snT = 0.4; }
+    if (ps.trait === 'strafe' && (P.stT = (P.stT == null ? 6 : P.stT) - dt) <= 0 && trig) { const f = foes.find((g) => !g.dead && g.kind === 'air' && g.x > PX + 1.5 && g.x < PX + 10); if (f) { P.stT = 6; f.targeted = true; fireAt(f, shotLanded); } else P.stT = 0.4; }
+    if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; freeze(f, 3); } else P.frT = 0.5; }
     if (ps.smite && (P.smT = (P.smT == null ? ps.smite : P.smT) - dt) <= 0 && trig) {
       const t = aliveAhead(PX + 10).find((f) => f.x > PX + 1.5);
       if (t) { P.smT = ps.smite; bolt(t.x, foeMid(t), 0xffe9a0); origStatic('Saraqael_skill1_elec_hit', t.x, foeMid(t) - 0.4, kOf()); breakFoe(t, 'shot'); AUDIO.play('elec', 0.4); } else P.smT = 0.3;
