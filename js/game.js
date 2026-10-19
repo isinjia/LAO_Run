@@ -356,6 +356,14 @@
     scene.add(mesh);
     return mesh;
   }
+  function addLip(x) { // broken road at the pit's edge (original rubble prop)
+    const t = TEX.props[2];
+    if (!t || !t.image) return;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, depthWrite: false, transparent: true }));
+    const h = 0.28, w = h * t.image.width / t.image.height;
+    s.scale.set(w * 0.7, h, 1); s.position.set(x, 0.08, 0); s.renderOrder = L.PROP;
+    scene.add(s); props.push({ s, x });
+  }
   function addEdge(x, side) { // side -1: the ground ends here, +1: it starts again
     if (!TEX.edge) TEX.edge = RUNTEX.canvasTex(32, 128, (g) => {
       const gr = g.createLinearGradient(0, 0, 32, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.55, 'rgba(10,8,14,.75)'); gr.addColorStop(1, 'rgba(0,0,0,.95)');
@@ -373,7 +381,7 @@
   }
   function addGround(x0, x1) {
     const prev = segs.length ? segs.reduce((a, b) => (b.x1 > a.x1 ? b : a)) : null;
-    if (prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); }
+    if (prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(prev.x1 - 0.35); addLip(x0 + 0.35); }
     segs.push({ x0, x1, mesh: slab(x0, x1, 0, 0 - (GB - 0.6)) });
     if (state === 'play' && run.bonus <= 0) {
       const kinds = { city: [3, 2, 3, 1], forest: [0, 0, 1, 2], lab: [2], snow: [2, 1], red: [2, 1, 2] }[STAGES[stageIx].id];
@@ -447,7 +455,7 @@
     scene.add(s);
     items.push({ kind, x, y, s, sz, pulled: false, t: Math.random() * 6 });
   }
-  function jellyLine(x0, x1, y, kind = 'jelly', step = 0.72) {
+  function jellyLine(x0, x1, y, kind = 'jelly', step = 0.82) {
     for (let x = x0; x <= x1 + 1e-6; x += step) addItem(kind, x, y);
   }
   // follows the jump curve: the ideal line over an obstacle
@@ -543,11 +551,12 @@
   let gs = 8;
   const CHUNKS = {
     risk(x0) {
-      const len = 12;
-      addGround(x0, x0 + len);
-      jellyLine(x0 + 0.6, x0 + len - 0.6, 0.55, 'jelly', 0.8);
+      const len = 12, v = (Math.random() * 3) | 0;
+      if (v === 1) { addGround(x0, x0 + 3.5); addGround(x0 + 3.5 + Math.min(3.4, gs * 0.3), x0 + len); } // a pit under the deck: the low road needs a jump too
+      else addGround(x0, x0 + len);
+      jellyLine(x0 + 0.6, x0 + 3, 0.55, 'jelly', 0.8); jellyLine(x0 + 7.5, x0 + len - 0.6, 0.55, 'jelly', 0.8);
       addPlat(x0 + 3, x0 + 10, 3.0);
-      addFoe('low', x0 + 6.2, 3.0);
+      if (v === 2) addFoe('low', x0 + 9.4, 3.0, { shooter: true }); else addFoe('low', x0 + 6.2, 3.0); // a gunner holds the far end of the deck
       for (let x = x0 + 3.5; x < x0 + 9.6; x += 1.1) if (Math.abs(x - (x0 + 6.2)) > 0.9) addItem('gjelly', x, 3.7);
       return len;
     },
@@ -765,7 +774,7 @@
     if (run.boss) { const r = Math.random(); return r < 0.35 ? 'flat' : r < 0.5 ? 'wave' : r < 0.65 ? 'low' : r < 0.78 ? 'pit' : r < 0.9 ? 'steps' : 'platFoe'; } // the boss's lanes plus terrain (no laser fences under its sweeps)
     const lv = Math.min(1, traveled / 1800);
     const w = {
-      flat: 2.0 - lv * 1.5, wave: 0.5 - lv * 0.2, low: 3, low2: 0.4 + lv * 1.6, tall: 0.6 + lv * 1.6, air: 2, airs: 0.4 + lv * 1.4,
+      flat: 1.8 - lv * 1.5, wave: 0.45 - lv * 0.25, low: 3, low2: 0.4 + lv * 1.6, tall: 0.6 + lv * 1.6, air: 2, airs: 0.4 + lv * 1.4,
       pit: 1.4, pitWide: lv * 1.4, lowAir: lv * 1.8, pitLow: lv * 1.5, steps: 0.5 + lv * 0.8, upper: 0.7, platFoe: 0.3 + lv * 0.8,
       risk: 0.25 + lv * 0.5, hang: 0.8 + lv * 0.6, bombs: 0.2 + lv * 1.0, shooter: 0.3 + lv * 0.9, movers: 0.3 + lv * 0.6,
     };
@@ -1165,8 +1174,8 @@
     e_Nidhogg_N: { lane: '파멸의 폭발', barrage: '파멸의 징조', sweep3: '깊은 어둠' },
     e_BlackKnight_N: { charge: '척살', double: '충격 흡입', lane: '조직 재생' },
     e_Goltarion_N: { track: '작열! 헬파이어 빔', bombs: '소환!! 데모닉 웨폰', sweep3: '불사의 장갑' },
-    // Doom Eater has no skill names in the original table (only the monster): named after its own effects
-    e_DoomEater_N: { double: '포식', lane: '대화염 방사', sweep3: '폭식', bombs: '산탄 투하' },
+    // Doom Eater has no skill names in the original table (only the monster): its call-outs are its own effect IDs (DoomEater_skill1_Eat / Big_fire / skill2_Hit)
+    e_DoomEater_N: { double: 'EAT', lane: 'BIG FIRE', sweep3: 'SKILL2 HIT', bombs: 'BIG FIRE' },
   };
   const lanes = []; // { y0, y1, warn, fire, s, high }
   function startBoss() {
@@ -1687,6 +1696,9 @@
     else if (ev === 'double' && tr === 'dashcut') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; P.buff.dash = Math.max(P.buff.dash || 0, 0.6); P.buff.bridge = Math.max(P.buff.bridge || 0, 0.6); puff(PX, P.y, 5, 0.8); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
     else if (ev === 'land' && tr === 'grenade' && drop > 1.4) { const f = near(5)[0]; if (f) { P.trCd = 3; origStatic(P.def.id === 'brownie' ? 'S_Brownie_ande_bling' : ORIG_BOOM, f.x, foeMid(f), kOf() * 0.7); kill(f, 'shot'); AUDIO.play('expS', 0.4); } }
     else if (ev === 'double' && tr === 'prism') { const [mx, my] = muzzle(); P.trCd = 3; beamFx(mx, PX + 8, my, P.def.color, 0.2, 0.18); items.forEach((it) => { if (it.kind === 'jelly' && Math.abs(it.y - my) < 0.9 && it.x > mx && it.x < PX + 8) { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); const f = aliveAhead(PX + 8).find((g) => Math.abs(foeMid(g) - my) < 1.4); if (f) { own(f); kill(f, 'shot'); } }
+    if (ev === 'double' && tr === 'homing') P.vy += 2.6; // she rides the launch higher
+    if (ev === 'double' && tr === 'eyebeam') P.vy += 1.8;
+    if (ev === 'land' && tr === 'flame' && drop > 1.2) { P.buff.dash = Math.max(P.buff.dash || 0, 0.4); P.buff.bridge = Math.max(P.buff.bridge || 0, 0.5); } // the flame carries her on (over a pit edge too)
     else if (ev === 'double' && tr === 'homing') { const t = aliveAhead(PX + 9).sort((a, b) => (b.kind === 'air') - (a.kind === 'air')).slice(0, 2); if (t.length) { P.trCd = 3; t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.05 + i * 0.12, i, f, name: o.atk.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); }); } }
     else if (ev === 'double' && tr === 'gust') { const t = aliveAhead(PX + 4.5).filter((f) => f.kind === 'air'); P.trCd = 2; for (let i = 0; i < 6; i++) streak(PX + 0.5 + i * 0.6, P.y + 0.6, P.def.color); t.forEach((f) => { own(f); kill(f, 'shot'); }); }
     else if (ev === 'land' && tr === 'bladearc' && drop > 1.4) { const t = aliveAhead(PX + 4).filter((f) => f.kind === 'shot' || f.x < PX + 3); P.trCd = 2.5; origStatic('Tiamat_skill2_Blade_rotate_line_F', PX + 1.5, P.y + 0.8, kOf() * 0.6); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
@@ -1702,6 +1714,7 @@
     else if (ev === 'land' && (tr === 'quake' || tr === 'slam') && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; ring(PX + 1, 0.2, P.def.color, 3, 0.35); shake = Math.max(shake, 0.15); origStatic(P.def.id === 'labiata' ? 'Labiata_skill1_hit' : hitFx, PX + 1.4, 0.3, kOf() * (P.def.id === 'labiata' ? 0.35 : 0.8)); t.forEach((f) => kill(f, 'melee')); }
     else if (ev === 'land' && tr === 'flame' && drop > 1.2) { const t = near(2.4); P.trCd = 2; origStatic(P.def.id === 'brunhild' ? 'Brunhild_N_Skill1_Hit' : hitFx, PX + 1.2, 0.3, kOf() * 0.6); t.forEach((f) => kill(f, 'shot')); }
   }
+  const castOwn = () => { const o = origFor(P.def.id); origStatic(o.skill.statics[0] || o.atk.statics[0] || hitOf(), PX + 0.6, P.y + 0.8, kOf() * 0.7); };
   const hitOf = () => { const o = origFor(P.def.id); return o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT; };
   // passives that act on their own between skills
   function passiveTick(dt) {
@@ -1715,14 +1728,14 @@
       if (t) { P.pasT = ps.autoGun; t.targeted = true; fireAt(t, shotLanded); } else P.pasT = 0.2;
     }
     if (P.inT > 1.5) return; // the triggered traits answer the player's moves
-    if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0 && trig) { P.haloT = 10; if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
-    if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; ring(f.x, foeMid(f), 0x6fe3ff, 1.8, 0.5); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
-    if (ps.trait === 'snipe' && (P.snT = (P.snT == null ? 7 : P.snT) - dt) <= 0 && trig) { const t = foes.filter((f) => !f.dead && !f.frozen && f.x > PX + 4 && f.x < VW + 0.5); const f = t[t.length - 1]; if (f) { P.snT = 7; const [mx, my] = muzzle(); beamFx(mx, f.x, my, 0xfff2b0, 0.12, 0.08); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); AUDIO.play('handgun', 0.5); } else P.snT = 0.4; }
-    if (ps.trait === 'strafe' && (P.stT = (P.stT == null ? 6 : P.stT) - dt) <= 0 && trig) { const f = foes.find((g) => !g.dead && g.kind === 'air' && g.x > PX + 1.5 && g.x < PX + 10); if (f) { P.stT = 6; f.targeted = true; fireAt(f, shotLanded); } else P.stT = 0.4; }
-    if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; freeze(f, 3); } else P.frT = 0.5; }
+    if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0 && trig) { P.haloT = 10; castOwn(); if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
+    if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; castOwn(); ring(f.x, foeMid(f), 0x6fe3ff, 1.8, 0.5); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
+    if (ps.trait === 'snipe' && (P.snT = (P.snT == null ? 7 : P.snT) - dt) <= 0 && trig) { const t = foes.filter((f) => !f.dead && !f.frozen && f.x > PX + 4 && f.x < VW + 0.5); const f = t[t.length - 1]; if (f) { P.snT = 7; castOwn(); const [mx, my] = muzzle(); beamFx(mx, f.x, my, 0xfff2b0, 0.12, 0.08); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); for (let x = PX + 1.5; x < f.x - 0.5; x += 0.8) addItem('coin', x, my); AUDIO.play('handgun', 0.5); } else P.snT = 0.4; }
+    if (ps.trait === 'strafe' && (P.stT = (P.stT == null ? 6 : P.stT) - dt) <= 0 && trig) { const f = foes.find((g) => !g.dead && g.kind === 'air' && g.x > PX + 1.5 && g.x < PX + 10); if (f) { P.stT = 6; castOwn(); f.targeted = true; fireAt(f, shotLanded); } else P.stT = 0.4; }
+    if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; castOwn(); freeze(f, 3); } else P.frT = 0.5; }
     if (ps.smite && (P.smT = (P.smT == null ? ps.smite : P.smT) - dt) <= 0 && trig) {
       const t = aliveAhead(PX + 10).find((f) => f.x > PX + 1.5);
-      if (t) { P.smT = ps.smite; bolt(t.x, foeMid(t), 0xffe9a0); origStatic('Saraqael_skill1_elec_hit', t.x, foeMid(t) - 0.4, kOf()); breakFoe(t, 'shot'); AUDIO.play('elec', 0.4); } else P.smT = 0.3;
+      if (t) { P.smT = ps.smite; castOwn(); bolt(t.x, foeMid(t), 0xffe9a0); origStatic('Saraqael_skill1_elec_hit', t.x, foeMid(t) - 0.4, kOf()); breakFoe(t, 'shot'); AUDIO.play('elec', 0.4); } else P.smT = 0.3;
     }
   }
   function uqStart(d) { P.uqT = 0; P.uqN = 0; P.uqTime = 0; const u = UQ[P.def.id]; if (u && u.start) u.start(d); }
@@ -1870,7 +1883,7 @@
   function update(dt) {
     const playing = state === 'play';
     if (playing && !P.dead) {
-      baseSpd = (8.2 + 6.3 * (1 - Math.exp(-traveled / 2200)) + run.loop * 0.9) * ((run.mod && run.mod.spd) || 1); // each episode lap a little faster
+      baseSpd = (8.2 + 6.3 * (1 - Math.exp(-traveled / 2200)) + run.loop * 0.9) * ((run.mod && run.mod.spd) || 1) * (traveled > 2000 ? 1.1 : traveled > 1000 ? 1.05 : 1); // a step up at each tier // each episode lap a little faster
       spd = baseSpd * (P.buff.dash > 0 ? 1.65 : P.buff.boost > 0 ? 1.5 : run.bonus > 0 ? 1.15 : 1);
     } else if (playing && P.dead) spd = Math.max(0, spd - 18 * dt);
     else if (state === 'result') spd = 0;

@@ -27,7 +27,7 @@ window.DATA = (function () {
     { id: 'lrl', ofx: { hit: 'LRL_skill2_glow', own: true }, pas: { jellyK: 1.25, trait: 'prism', t: '진조의 위엄: 젤리 점수 +25% · 2단 점프 때 빔이 앞의 젤리를 곰젤리로 바꾸고 적 하나 관통' }, color: 0xb46bff, sfx: 'energy', name: 'LRL', rank: 'LR', cost: 5000, h: 1.9, hp: 100,
       skill: { type: 'beam', name: '사이클롭스 이터널 빔', n1: '액스 오브 다크니스', cd: 13, dur: 6 },
       desc: '화면을 가로지르는 빔. 빔에 닿은 적은 사라지고 젤리는 곰젤리가 됩니다.' },
-    { id: 'harpy', pas: { killK: 2, trait: 'homing', t: '전탄 발사: 격파 점수 2배 · 2단 점프 때 공중 적 우선 유도 미사일 2발' }, color: 0xff8a3d, sfx: 'missile', name: '하르페이아', rank: 'SSS', cost: 7000, h: 1.95, hp: 105,
+    { id: 'harpy', pas: { killK: 2, trait: 'homing', t: '전탄 발사: 격파 점수 2배 · 2단 점프 때 미사일을 타고 더 높이, 공중 적 우선 유도 미사일 2발' }, color: 0xff8a3d, sfx: 'missile', name: '하르페이아', rank: 'SSS', cost: 7000, h: 1.95, hp: 105,
       skill: { type: 'missile', name: 'NARAAK 미사일', n1: '풀 버스트', cd: 9, dur: 0.6 },
       desc: '유도 미사일로 적 4기를 격파하고, 남은 탄이 코인으로 쏟아집니다.' },
     // ── more members (same rigs as the defence roster) ──
@@ -85,7 +85,7 @@ window.DATA = (function () {
     { id: 'khan', ofx: { bullet: 'Khan_NS2_skill1_bullet', own: true }, pas: { jumpK: 1.05, skillStart: 0.4, trait: 'dashcut', t: '신속: 게이지 40% 출발, 점프력 +5% · 2단 점프 때 창 돌격: 구덩이를 건너며 가까운 적 격파' }, color: 0xffcf7a, sfx: 'rifle', name: '신속의 칸', rank: 'LR', cost: 6500, h: 1.9, hp: 110,
       skill: { type: 'dash', name: '데저트 스톰', n1: '영거리 포격', cd: 10, dur: 4 },
       desc: '0.8초 질주 3연속, 매번 모래폭풍을 일으킵니다.' },
-    { id: 'brunhild', ofx: { bullet: 'Brunhild_N_Skill1_bullet', own: true }, pas: { drainK: 0.85, hitK: 0.85, trait: 'flame', t: '전장의 여신: 체력 감소·받는 피해 -15% · 착지하면 불꽃이 일어 앞의 지상 적 격파' }, color: 0xff5530, sfx: 'expM', name: '브륀힐드', rank: 'LR', cost: 8000, h: 1.9, hp: 125,
+    { id: 'brunhild', ofx: { bullet: 'Brunhild_N_Skill1_bullet', own: true }, pas: { drainK: 0.85, hitK: 0.85, trait: 'flame', t: '전장의 여신: 체력 감소·받는 피해 -15% · 착지하면 불꽃이 일어 앞으로 밀어주며 앞의 지상 적 격파' }, color: 0xff5530, sfx: 'expM', name: '브륀힐드', rank: 'LR', cost: 8000, h: 1.9, hp: 125,
       skill: { type: 'wolves', name: '핏빛 효후', n1: '불길', cd: 15, dur: 5 },
       desc: '핏빛 늑대들이 앞으로 달려나가 지상의 적을 물어뜯습니다.' },
     { id: 'titania', pas: { jellyK: 1.3, bonusK: 1.5, trait: 'frost', t: '요정 여왕: 젤리 +30%, 보너스 +1.5초 · 2단 점프 때 앞의 적 하나를 얼려 발판으로(8초 충전)' }, color: 0xaef4ff, sfx: 'ice', name: '티타니아 프로스트', rank: 'UR', cost: 10000, h: 1.9, hp: 120,
