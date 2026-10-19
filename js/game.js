@@ -296,7 +296,7 @@
   function resetPlayer() {
     const d = P.def, lv = lvOf(d.id);
     Object.assign(P, { y: 0, vy: 0, jumps: 0, onGround: true, floor: 0, coyote: 0, jumpBuf: 0, slide: false, slideK: 0, spin: 0,
-      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false, pasT: 0, smT: null, trCd: 0, haloT: null, frT: null,
+      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false, pasT: 0, smT: null, trCd: 0, haloT: null, frT: null, bbT: null,
       skillT: 0, skillOn: 0, skCd: d.skill.cd * (1 - (lv - 1) * 0.06), skDur: d.skill.dur * (1 + (lv - 1) * 0.08),
       scale: 1, buff: {}, gunT: 0, fell: false, lock: 0, rainT: 0 });
     P.mods = mergeMods(d);
@@ -721,6 +721,9 @@
       pit: 1.4, pitWide: lv * 1.4, lowAir: lv * 1.8, pitLow: lv * 1.5, steps: 0.5 + lv * 0.8, upper: 0.7, platFoe: 0.3 + lv * 0.8,
       hang: 0.8 + lv * 0.6, bombs: 0.2 + lv * 1.0, shooter: 0.3 + lv * 0.9, movers: 0.3 + lv * 0.6,
     };
+    // past the first lap the mix keeps hardening: more combined hazards, fewer breathers
+    const lv2 = Math.min(1.5, Math.max(0, (traveled - 2600) / 3000));
+    if (lv2 > 0) { w.flat *= 1 - lv2 * 0.4; w.wave *= 1 - lv2 * 0.3; for (const k of ['low2', 'airs', 'lowAir', 'pitLow', 'pitWide', 'bombs', 'shooter', 'movers', 'platFoe']) w[k] += lv2 * 0.8; }
     const mix = STAGES[stageIx].mix || {}; // each stage leans on its own obstacles
     for (const k in mix) if (w[k] != null) w[k] *= mix[k];
     let sum = 0;
@@ -934,8 +937,11 @@
     if (pas().lifeSteal && !P.dead) { P.hp = Math.min(P.maxHp, P.hp + pas().lifeSteal); burst(PX, P.y + 1, 0xc77dff, 3, 0.4, 1.5, 'spark'); }
     const cy = f.kind === 'air' ? f.y + 0.5 : f.y + Math.min(f.h, 3) / 2;
     const k = (P.rig ? P.rig.k : 0.14) * P.scale;
-    if (by !== 'shot' || !origStatic(ORIG_BOOM, f.x, cy, k * 0.9)) burst(f.x, cy, 0xffc070, 12, 0.7, 7);
-    ring(f.x, cy, 0xffe0a0, 3, 0.35);
+    // the member's own hit effect where it falls (the shared explosion only when that is missing)
+    const hfx = by === 'stomp' ? 'sniper_hit' : hitOf();
+    if (!origStatic(hfx, f.x, cy - 0.4, k * 1.1) && (by !== 'shot' || !origStatic(ORIG_BOOM, f.x, cy, k * 0.9))) burst(f.x, cy, 0xffc070, 12, 0.7, 7);
+    if (f.kind === 'tall' && P.skillOn > 0 && slowT <= 0) slowMo(0.06, 0.15); // a beat of hit-stop on the big ones
+    ring(f.x, cy, P.def.color, 2.4, 0.3);
     popup(f.x, cy + 1.1, '+' + Math.round(100 * (pas().killK || 1)) + ' ' + f.d.name, 'kill');
     AUDIO.play(by === 'shot' ? 'expM' : P.def.sfx === 'slash' ? 'slash' : 'expS', 0.7);
     if (by === 'melee') {
@@ -1072,14 +1078,18 @@
   // the boss's own effect at its body when it attacks, and its timing: Black Knight's 척살 strikes with a short warning, Goltarion's beam burns longer
   const BOSS_CAST = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_DoomEater_N: 'DoomEater_Big_fire_F', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A' };
   const BOSS_TUNE = { e_Nidhogg_N: { warn: 1.0, fire: 0.32, gap: 2.7 }, e_DoomEater_N: { warn: 0.95, fire: 0.36, gap: 2.3 }, e_BlackKnight_N: { warn: 0.72, fire: 0.26, gap: 2.6 }, e_Goltarion_N: { warn: 1.05, fire: 0.62, gap: 3.0 } };
-  const BOSS_X = { e_Nidhogg_N: -0.2, e_DoomEater_N: 0.9, e_BlackKnight_N: 0.9, e_Goltarion_N: 0.9 }; // rig origin -> whole silhouette in view
-  const BOSS_PATS = { e_Nidhogg_N: ['lane', 'bombs', 'lane'], e_DoomEater_N: ['lane', 'double'], e_BlackKnight_N: ['double', 'lane', 'double'], e_Goltarion_N: ['bombs', 'lane', 'double'] };
-  const PAT_NAME = { lane: '레이저 소인', double: '연속 소인', bombs: '집중 포격' };
+  const BOSS_X = { e_Nidhogg_N: 0.7, e_DoomEater_N: 0.9, e_BlackKnight_N: 0.9, e_Goltarion_N: 0.9 }; // rig origin -> whole silhouette in view
+  // Nidhogg: barrage and a three-sweep; Doom Eater: double sweeps; Black Knight: a charge through the squad (jump it);
+  // Goltarion: a hellfire beam aimed at the height the runner is at when it locks on
+  const BOSS_PATS = { e_Nidhogg_N: ['lane', 'barrage', 'sweep3'], e_DoomEater_N: ['double', 'lane', 'sweep3', 'bombs'], e_BlackKnight_N: ['charge', 'double', 'charge', 'lane'], e_Goltarion_N: ['track', 'bombs', 'track', 'sweep3'] };
+  const PAT_NAME = { lane: '레이저 소인', double: '연속 소인', bombs: '집중 포격', sweep3: '삼연 소인', barrage: '융단 폭격', charge: '돌진', track: '조준 빔' };
   // original boss skill names (Table_Localization_ko: SkillName_Skill_MP_Nidhogg_N_*, MP_BlackKnight_N_*, AGS_Goltarion_N_*)
   const BOSS_SKILL = {
-    e_Nidhogg_N: { lane: '파멸의 폭발', bombs: '파멸의 징조', double: '깊은 어둠' },
-    e_BlackKnight_N: { double: '척살', lane: '충격 흡입' },
-    e_Goltarion_N: { lane: '작열! 헬파이어 빔', bombs: '소환!! 데모닉 웨폰', double: '불사의 장갑' },
+    e_Nidhogg_N: { lane: '파멸의 폭발', barrage: '파멸의 징조', sweep3: '깊은 어둠' },
+    e_BlackKnight_N: { charge: '척살', double: '충격 흡입', lane: '조직 재생' },
+    e_Goltarion_N: { track: '작열! 헬파이어 빔', bombs: '소환!! 데모닉 웨폰', sweep3: '불사의 장갑' },
+    // Doom Eater has no skill names in the original table (only the monster): named after its own effects
+    e_DoomEater_N: { double: '포식', lane: '대화염 방사', sweep3: '폭식', bombs: '산탄 투하' },
   };
   const lanes = []; // { y0, y1, warn, fire, s, high }
   function startBoss() {
@@ -1121,7 +1131,10 @@
     const tn = b.tune;
     if (p === 'lane') addLane(Math.random() < 0.5, tn.warn, tn.fire);
     else if (p === 'double') { const hi = Math.random() < 0.5; addLane(hi, tn.warn); b.queue.push({ t: tn.warn * 0.8, high: !hi }); }
-    else { for (let i = 0; i < 2; i++) addFoe('bomb', VW + 2 + i * Math.max(7, spd * 0.8)); AUDIO.play('missile', 0.5); }
+    else if (p === 'sweep3') { const hi = Math.random() < 0.5; addLane(hi, tn.warn); b.queue.push({ t: tn.warn * 0.85, high: !hi }, { t: tn.warn * 1.7, high: hi }); }
+    else if (p === 'charge') { addLane(false, 0.62, 0.34); b.charge2 = 0.62; } // the knight itself rushes through the low lane
+    else if (p === 'track') { addLane(P.y > 0.7 || P.slide === false && !P.onGround, tn.warn * 1.15, tn.fire); }
+    else { const n = p === 'barrage' ? 3 : 2; for (let i = 0; i < n; i++) addFoe('bomb', VW + 2 + i * Math.max(6.5, spd * 0.75)); AUDIO.play('missile', 0.5); }
     // no attack clip (its mechs' root motion crosses the screen): a short lunge, its own effect at its body, a roar
     // its own short skill clip where it has one (root travel pinned tight), the lunge otherwise
     const sc = b.rig.c.has('skill') && SD.template(b.d.id).data.clips.skill.dur < 3;
@@ -1164,7 +1177,9 @@
       const tx = b.leaving ? -9 : BOSS_X[b.d.id] || 0.6;
       b.x += (tx - b.x) * Math.min(1, dt * 1.5);
       if (b.lunge > 0) b.lunge -= dt;
-      const lx = b.lunge > 0 ? Math.sin((1 - b.lunge / 0.45) * Math.PI) * 0.6 : 0; // a lunge before each attack
+      let lx = b.lunge > 0 ? Math.sin((1 - b.lunge / 0.45) * Math.PI) * 0.6 : 0; // a lunge before each attack
+      if (b.charge2 > 0) { b.charge2 -= dt; if (b.charge2 <= 0) { b.dash = 0.7; AUDIO.play('slash', 0.7); shake = 0.3; } }
+      if (b.dash > 0) { b.dash -= dt; lx = Math.sin((1 - b.dash / 0.7) * Math.PI) * (VW * 0.75); if (Math.random() < 0.5) puff(b.x + lx + 1, 0, 2, 1); }
       b.rig.g.position.set(b.x + lx, 0, 0);
       b.rig.c.update(dt);
       if (b.flash > 0) { b.flash -= dt; b.rig.c.setTint(b.flash > 0 ? 2.2 : 1, b.flash > 0 ? 1.4 : 1, b.flash > 0 ? 1.4 : 1); }
@@ -1177,7 +1192,7 @@
       } else if (!b.leaving) {
         for (let i = b.queue.length - 1; i >= 0; i--) { if ((b.queue[i].t -= dt) <= 0) { addLane(b.queue[i].high, b.tune.warn * 0.8); b.queue.splice(i, 1); } }
         b.next -= dt;
-        if (b.next <= 0 && b.t < BOSS_TIME - 2) { b.next = b.tune.gap + rnd(0, 0.5); bossAttack(b); }
+        if (b.next <= 0 && b.t < BOSS_TIME - 1) { b.next = b.tune.gap + rnd(0, 0.5); bossAttack(b); }
         if (b.t >= BOSS_TIME) { // it got away
           b.leaving = true;
           addScore(200);
@@ -1345,7 +1360,7 @@
   }
 
   // ── member-specific skill mechanics (on top of the shared skill family in SKILL) ──
-  const aliveAhead = (x1 = VW + 1) => foes.filter((f) => !f.dead && !f.frozen && f.x > PX - 0.4 && f.x < x1);
+  const aliveAhead = (x1 = PX + 9.5) => foes.filter((f) => !f.dead && !f.frozen && f.x > PX - 0.4 && f.x < x1);
   const foeMid = (f) => (f.kind === 'air' ? f.y + 0.5 : f.y + Math.min(f.h, 2.6) * 0.5);
   const kOf = () => (P.rig ? P.rig.k : 0.14) * P.scale;
   function dropItems(x, y, kind, n) { for (let i = 0; i < n; i++) addItem(kind, x + (i % 3) * 0.45 - 0.45, y + Math.floor(i / 3) * 0.45); }
@@ -1562,17 +1577,25 @@
     if (!tr || P.dead || state !== 'play') return;
     if ((P.trCd || 0) > 0) return;
     const near = (r) => aliveAhead(PX + r).filter((f) => f.kind !== 'air' && f.x > PX + 0.3);
+    const o = origFor(P.def.id), hitFx = o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT, own = (f, k = 1) => origStatic(hitFx, f.x, foeMid(f) - 0.4, kOf() * k);
     if (ev === 'double' && tr === 'lance') { const f = aliveAhead(PX + 4)[0]; if (f) { P.trCd = 3; const [mx, my] = muzzle(); beamFx(mx, f.x, my, P.def.color, 0.15, 0.2); origStatic(origFor(P.def.id).atk.hit || ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); } }
     else if (ev === 'double' && tr === 'akimbo') { const t = aliveAhead(PX + 8).slice(0, 2); if (t.length) { P.trCd = 2.5; t.forEach((f) => { f.targeted = true; fireAt(f, shotLanded); }); } }
-    else if (ev === 'double' && tr === 'salvo') { const f = aliveAhead(PX + 9)[0]; if (f) { P.trCd = 3; f.targeted = true; salvo.push({ t: 0.05, i: 0, f, name: 'Thetis_skill2_Small_Missile', k: kOf() }); } }
-    else if (ev === 'land' && tr === 'quake' && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; ring(PX + 1, 0.2, P.def.color, 3, 0.35); shake = Math.max(shake, 0.15); origStatic('Labiata_skill1_hit', PX + 1.4, 0.3, kOf() * 0.35); t.forEach((f) => breakFoe(f, 'melee')); }
-    else if (ev === 'land' && tr === 'flame' && drop > 1.2) { const t = near(2.4); P.trCd = 2; origStatic('Brunhild_N_Skill1_Hit', PX + 1.2, 0.3, kOf() * 0.6); t.forEach((f) => breakFoe(f, 'shot')); }
+    else if (ev === 'double' && tr === 'salvo') { const f = aliveAhead(PX + 9)[0]; if (f) { P.trCd = 3; f.targeted = true; salvo.push({ t: 0.05, i: 0, f, name: P.def.id === 'thetis' ? 'Thetis_skill2_Small_Missile' : o.atk.bullet || o.skill.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); } }
+    else if (ev === 'double' && tr === 'blink') { const t = aliveAhead(PX + 3.2); if (t.length) { P.trCd = 2.5; origStatic('Kunoichi_skill2_Sword_first_line_F', PX + 1.6, P.y + 0.5, kOf() * 0.7); t.forEach((f) => { own(f); breakFoe(f, 'melee'); }); } }
+    else if (ev === 'double' && tr === 'dashcut') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; P.buff.dash = Math.max(P.buff.dash || 0, 0.25); puff(PX, P.y, 5, 0.8); t.forEach((f) => { own(f); breakFoe(f, 'melee'); }); }
+    else if (ev === 'land' && tr === 'grenade' && drop > 1.4) { const f = near(5)[0]; if (f) { P.trCd = 3; origStatic(P.def.id === 'brownie' ? 'S_Brownie_ande_bling' : ORIG_BOOM, f.x, foeMid(f), kOf() * 0.7); breakFoe(f, 'shot'); AUDIO.play('expS', 0.4); } }
+    else if (ev === 'slide' && tr === 'spray') { const f = aliveAhead(PX + 6)[0]; if (f) { P.trCd = 2.5; f.targeted = true; fireAt(f, shotLanded); } }
+    else if (ev === 'slide' && tr === 'pulse') { const t = aliveAhead(PX + 2.6); P.trCd = 2.5; ring(PX + 0.8, 0.6, P.def.color, 2.6, 0.3); t.forEach((f) => { own(f); breakFoe(f, 'shot'); }); }
+    else if (ev === 'land' && tr === 'quake' && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; ring(PX + 1, 0.2, P.def.color, 3, 0.35); shake = Math.max(shake, 0.15); origStatic(P.def.id === 'labiata' ? 'Labiata_skill1_hit' : hitFx, PX + 1.4, 0.3, kOf() * (P.def.id === 'labiata' ? 0.35 : 0.8)); t.forEach((f) => breakFoe(f, 'melee')); }
+    else if (ev === 'land' && tr === 'flame' && drop > 1.2) { const t = near(2.4); P.trCd = 2; origStatic(P.def.id === 'brunhild' ? 'Brunhild_N_Skill1_Hit' : hitFx, PX + 1.2, 0.3, kOf() * 0.6); t.forEach((f) => breakFoe(f, 'shot')); }
   }
+  const hitOf = () => { const o = origFor(P.def.id); return o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT; };
   // passives that act on their own between skills
   function passiveTick(dt) {
     const ps = pas();
     if (P.trCd > 0) P.trCd -= dt;
     if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0) { P.haloT = 10; if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
+    if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; ring(f.x, foeMid(f), 0x6fe3ff, 1.8, 0.5); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
     if (ps.trait === 'regen' && P.onGround) P.hp = Math.min(P.maxHp, P.hp + 0.6 * dt);
     if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; freeze(f, 3); } else P.frT = 0.5; }
     if (ps.autoGun && (P.pasT = (P.pasT || 0) - dt) <= 0) {
@@ -1975,7 +1998,7 @@
     // a close shave over (or under) an obstacle: PERFECT
     if (!f.near && !f.hit && !f.dead && (f.kind === 'low' || f.kind === 'tall' || f.kind === 'air') && px0 <= fx1 && px1 >= fx0) {
       const gap = f.kind === 'air' ? fy0 - py1 : py0 - fy1;
-      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; addScore(80); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, 'PERFECT! +80', 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); }
+      if (gap > 0 && gap < 0.45 && !smashing()) { f.near = true; addScore(80); run.perfect = (run.perfect || 0) + 1; popup(PX + 0.8, P.y + 2.2, 'PERFECT! +80', 'perfect'); sparkle(PX + 0.3, P.y + 1, 0xfff27a); AUDIO.play('coin', 0.35, 1.6); if (run.perfect % 5 === 0) voice(P.def.id, 'skill', 0.6); if (P.skillOn <= 0) { P.skillT += 1.2; ring(PX, P.y + 1, P.def.color, 1.4, 0.3); } } // a PERFECT also charges the skill
     }
     if (px1 < fx0 || px0 > fx1 || py1 < fy0 || py0 > fy1) return;
     if (f.frozen || (f.kind === 'bomb' && !f.armed)) return;
@@ -2094,7 +2117,7 @@
 
     // slide
     const wasSlide = P.slide;
-    P.slide = input.slide && P.onGround && !fly;
+    { const was = P.slide; P.slide = input.slide && P.onGround && !fly; if (P.slide && !was) trait('slide'); }
     if (P.slide && !wasSlide) { tally('mech:slide'); puff(PX + 0.4, P.floor, 3, 0.5); AUDIO.play('swing', 0.3, 0.8); }
     if (P.slide && Math.random() < 0.3) puff(PX + 0.3, P.floor, 1, 0.4);
     P.slideK += ((P.slide ? 1 : 0) - P.slideK) * Math.min(1, dt * 18);
@@ -2413,6 +2436,7 @@
     AUDIO.play('start', 0.6);
     state = 'play';
     paused = false;
+    $('attend').classList.remove('show'); // the attendance card never covers a run
     clearOverlays();
     resetPlayer();
     startWorld(false);
@@ -2668,7 +2692,7 @@
   // a little for debugging / the lab pages
   window.GAME = {
     P, run, foes, items, segs, plats, get scene() { return scene; }, get state() { return state; }, get genX() { return genX; }, get traveled() { return traveled; }, set traveled(v) { traveled = v; },
-    startRun, goTitle, setChar: setPlayerChar, jump, setSlide: (v) => { input.slide = v; }, startBonus, activateSkill,
+    startRun, goTitle, setChar: (id) => { if (save.owned.includes(id)) save.sel = id; return setPlayerChar(id); }, jump, setSlide: (v) => { input.slide = v; }, startBonus, activateSkill,
     runners, STAT, K: { G, JV, JV2, GB }, get spd() { return spd; }, get PX() { return PX; }, get VW() { return VW; }, get renderer() { return renderer; },
     smashing: () => smashing(), bridging: () => bridging(), origFor, save, lanes, changeStage: (i) => changeStage(i),
     // test hook: hold the clock and advance n fixed frames (the page's own loop stays paused meanwhile)
