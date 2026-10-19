@@ -516,7 +516,7 @@
     if (kind === 'air') {
       // laser fence from the drone to the top of the screen: slide under it
       const top = GB + VH + 1, y0 = opt.hang ? y + 1.15 : y + d.h * 0.8;
-      const b = new THREE.Sprite(new THREE.SpriteMaterial({ map: opt.hang ? TEX.cable : TEX.beam, opacity: opt.hang ? 1 : 0.72, depthTest: false, depthWrite: false, transparent: true, blending: opt.hang ? THREE.NormalBlending : THREE.AdditiveBlending }));
+      const b = new THREE.Sprite(new THREE.SpriteMaterial({ map: opt.hang ? TEX.cable : TEX.beam, color: opt.hang ? 0xffffff : 0xffd0d8, opacity: opt.hang ? 1 : 0.6, depthTest: false, depthWrite: false, transparent: true, blending: opt.hang ? THREE.NormalBlending : THREE.AdditiveBlending }));
       b.scale.set(opt.hang ? 0.16 : 0.4, top - y0, 1);
       b.position.set(x, (top + y0) / 2, 0);
       b.renderOrder = L.BEAM;
@@ -750,13 +750,13 @@
     },
     // platforms that rise and sink over a pit
     movers(x0) {
-      const a = 3.5, w1 = 3.4, gap = gs * 0.22 + 0.5;
+      const a = 3.5, w1 = 3.6, gap = gs * 0.19 + 0.4; // gentle: the decks move, the gaps forgive
       addGround(x0, x0 + a);
       let x = x0 + a + gap * 0.6;
       for (let i = 0; i < 2; i++) {
         addPlat(x, x + w1, 1.6);
         const pl = plats[plats.length - 1];
-        pl.osc = { y0: 1.6, amp: 0.7, w: 2.4, t: i * 1.6 };
+        pl.osc = { y0: 1.5, amp: 0.5, w: 1.8, t: i * 1.6 };
         jellyLine(x + 0.4, x + w1 - 0.4, 2.15, 'bear', 0.8);
         x += w1 + gap;
       }
@@ -1069,6 +1069,7 @@
     run.kills++;
     addScore(100 * (pas().killK || 1) * ((run.mod && run.mod.kill) || 1));
     if (pas().trait === 'drain' && f.kind !== 'shot' && f.kind !== 'bomb' && (P.soulCd || 0) < performance.now()) { P.soulCd = performance.now() + 1800; addPlat(f.x - 0.6, f.x + 0.6, 1.7); plats[plats.length - 1].mesh.material.color.setHex(0xc77dff); } // a soul platform where it fell
+    if (pas().trait === 'drain' && (P.drainAt || 0) < performance.now() && slowT <= 0) { P.drainAt = performance.now() + 2500; slowMo(0.55, 0.12); }
     if (pas().lifeSteal && !P.dead) { P.hp = Math.min(P.maxHp, P.hp + pas().lifeSteal); burst(PX, P.y + 1, 0xc77dff, 3, 0.4, 1.5, 'spark'); }
     const cy = f.kind === 'air' ? f.y + 0.5 : f.y + Math.min(f.h, 3) / 2;
     const k = (P.rig ? P.rig.k : 0.14) * P.scale;
@@ -1337,6 +1338,12 @@
     el.classList.add('on'); ann('LevelUp-1');
     run.pick = { t: 3, choose, key }; // the auto-choice runs in game time (paused = paused) and is dropped with the run
     run.evQ = ['flat', 'flat'].concat(run.evQ || []); // two clear chunks while the player decides
+    for (let i = foes.length - 1; i >= 0; i--) { const f = foes[i]; if (!f.dead && f.x > PX + 4) { freeFoe(f); foes.splice(i, 1); } } // and the ground already laid ahead is cleared of threats
+    bridgeAhead(PX + 4, VW + 10);
+  }
+  function bridgeAhead(x0, x1) { // fill any pit already laid in [x0, x1] so the quiet stretch is truly quiet
+    const ss = segs.slice().sort((a, b) => a.x0 - b.x0);
+    for (let i = 0; i < ss.length - 1; i++) { const a = ss[i], b = ss[i + 1]; if (b.x0 - a.x1 > 0.05 && a.x1 < x1 && b.x0 > x0) addGround(a.x1, b.x0); }
   }
   function tickPick(dt) {
     const pk = run.pick;
@@ -1790,9 +1797,9 @@
     if (ev === 'slide' && tr === 'pulse') P.buff.dash = Math.max(P.buff.dash || 0, 0.3); // the sonic blast pushes her forward
     if (ev === 'slide' && tr === 'spray') P.buff.bridge = Math.max(P.buff.bridge || 0, 0.45); // her slide skids over small gaps
     if (ev === 'slide' && tr === 'mark') P.buff.dash = Math.max(P.buff.dash || 0, 0.35); // a sprint after the shot
-    if (ev === 'double' && tr === 'akimbo') P.vy += 2.2; // the recoil hop
-    if (ev === 'double' && tr === 'snipe') P.vy += 1.6; // the rifle's kick lifts her
-    if (ev === 'double' && tr === 'homing') P.vy += 2.6; // she rides her missile's launch higher (a hover made landings unreadable over pits)
+    if (ev === 'double' && tr === 'akimbo') { P.vy += 2.2; liftFx(); } // the recoil hop
+    if (ev === 'double' && tr === 'snipe') { P.vy += 1.6; liftFx(); } // the rifle's kick lifts her
+    if (ev === 'double' && tr === 'homing') { P.vy += 2.6; liftFx(); } // she rides her missile's launch higher (a hover made landings unreadable over pits)
     if (ev === 'double' && tr === 'eyebeam') { P.buff.dash = Math.max(P.buff.dash || 0, 0.3); P.vy = Math.max(P.vy, 2); } // an air-dash behind the laser
     if (ev === 'land' && tr === 'flame' && drop > 1.2) { P.buff.dash = Math.max(P.buff.dash || 0, 0.4); P.buff.bridge = Math.max(P.buff.bridge || 0, 0.5); } // the flame carries her on (over a pit edge too)
     else if (ev === 'double' && tr === 'homing') { const t = aliveAhead(PX + 9).sort((a, b) => (b.kind === 'air') - (a.kind === 'air')).slice(0, 2); if (t.length) { P.trCd = 3; t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.05 + i * 0.12, i, f, name: o.atk.bullet || 'Thetis_skill2_Small_Missile', k: kOf() }); }); } }
@@ -1800,7 +1807,7 @@
     else if (ev === 'land' && tr === 'bladearc' && drop > 1.4) { const t = aliveAhead(PX + 4).filter((f) => f.kind === 'shot' || f.x < PX + 3); P.trCd = 2.5; origStatic('Tiamat_skill2_Blade_rotate_line_F', PX + 1.5, P.y + 0.8, kOf() * 0.6); t.forEach((f) => { own(f); kill(f, 'melee'); }); }
     else if (ev === 'slide' && tr === 'eyebeam') { const t = aliveAhead(PX + 7).filter((f) => f.kind === 'air'); if (t.length) { P.trCd = 2.5; const [mx, my] = muzzle(); t.forEach((f) => { tracer(mx, my, f.x, foeMid(f), P.def.color); own(f); kill(f, 'shot'); }); origStatic('valkyrie_eyes_lazer', mx, my, kOf()); } }
     else if (ev === 'slide' && tr === 'mark') { const f = aliveAhead(PX + 8)[0]; if (f) { P.trCd = 3; own(f); kill(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 4); } }
-    else if (ev === 'slide' && tr === 'torpedo') { P.trCd = 3; sendRunner(0x66ccff, 'glow', 0.6, 16, 0.7, false, hitFx); }
+    else if (ev === 'slide' && tr === 'torpedo') { P.trCd = 3; sendRunner(0x66ccff, 'glow', 0.6, 16, 0.7, false, hitFx); const tx = PX + 5; setTimeout(() => { if (state === 'play') { addPlat(tx - spd * 0.35 - 0.5, tx - spd * 0.35 + 0.5, 1.0); origStatic('Thetis_skill1_Ground_Hit', tx - spd * 0.35, 0.3, kOf() * 0.6); } }, 350); } // the blast throws up a rim
     else if (ev === 'slide' && (tr === 'wave' || tr === 'surf')) { P.trCd = 3.5; sendRunner(0x9feaff, 'glow', 1.2, 14, 0.9, false, 'Undine_skill2_Hit'); }
     else if (ev === 'slide' && tr === 'turret') { const t = aliveAhead(PX + 9).slice(0, 2); P.trCd = 4; origStatic('Gnome_skill2_ground_Hit', PX + 0.6, 0.05, kOf() * 0.6); t.forEach((f, i) => { f.targeted = true; salvo.push({ t: 0.15 + i * 0.2, i, f, name: 'Gnome_bullet', k: kOf() }); }); AUDIO.play('click', 0.5, 0.7); }
     else if (ev === 'slide' && tr === 'sled') { if (sendSummon(16, 1.1)) { P.trCd = 3.5; AUDIO.play('ice', 0.4, 1.3); } }
@@ -1811,6 +1818,7 @@
     else if (ev === 'land' && tr === 'flame' && drop > 1.2) { const t = near(2.4); P.trCd = 2; origStatic(P.def.id === 'brunhild' ? 'Brunhild_N_Skill1_Hit' : hitFx, PX + 1.2, 0.3, kOf() * 0.6); t.forEach((f) => kill(f, 'shot')); }
   }
   const traitCall = () => { const nm = String(pas().t || '').split(/[:·]/)[0].trim(); if (nm) popup(PX + 0.4, P.y + 2.3, nm, 'trait'); AUDIO.play(csfx(P.def.id, 's1') || P.def.sfx || 'swing', 0.4); };
+  const liftFx = () => { const o = origFor(P.def.id); origStatic(o.atk.statics[0] || o.atk.hit || hitOf(), PX - 0.2, P.y - 0.2, kOf() * 0.6, -1, -0.6); puff(PX, P.y, 3, 0.6); }; // the lift reads as her own shot / launch
   const castOwn = () => { const o = origFor(P.def.id); origStatic(o.skill.statics[0] || o.atk.statics[0] || hitOf(), PX + 0.6, P.y + 0.8, kOf() * 0.7); };
   const hitOf = () => { const o = origFor(P.def.id); return o.atk.hit || o.skill.hit || o.atk.statics[0] || ORIG_DEFAULT_HIT; };
   // passives that act on their own between skills
