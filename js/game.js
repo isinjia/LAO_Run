@@ -296,7 +296,7 @@
   function resetPlayer() {
     const d = P.def, lv = lvOf(d.id);
     Object.assign(P, { y: 0, vy: 0, jumps: 0, onGround: true, floor: 0, coyote: 0, jumpBuf: 0, slide: false, slideK: 0, spin: 0,
-      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false, pasT: 0, smT: null,
+      hp: d.hp + (lv - 1) * 10, maxHp: d.hp + (lv - 1) * 10, inv: 0, shield: 0, dead: false, deadT: 0, revived: false, ticket: false, pasT: 0, smT: null, trCd: 0, haloT: null, frT: null,
       skillT: 0, skillOn: 0, skCd: d.skill.cd * (1 - (lv - 1) * 0.06), skDur: d.skill.dur * (1 + (lv - 1) * 0.08),
       scale: 1, buff: {}, gunT: 0, fell: false, lock: 0, rainT: 0 });
     P.mods = mergeMods(d);
@@ -326,7 +326,7 @@
     sfxs.forEach((f) => f.dispose()); sfxs.length = 0;
     props.forEach((p) => scene.remove(p.s)); props.length = 0;
     salvo.length = 0;
-    runners.forEach((r) => { scene.remove(r.s); r.s.material.dispose(); if (r.inst) r.inst.dispose(); }); runners.length = 0;
+    runners.forEach((r) => { scene.remove(r.s); r.s.material.dispose(); if (r.inst) r.inst.dispose(); freeSummon(r); }); runners.length = 0;
   }
 
   function stageGroundTex() {
@@ -403,16 +403,22 @@
   }
 
   const HALO = {};
+  const JELLY_TINT = { city: 0xffffff, forest: 0xb8ffb0, lab: 0xd8e4ff, snow: 0xe8fbff, red: 0xffc49a };
+  function jellyMat() {
+    const id = run.bonus > 0 ? 'bonus' : STAGES[stageIx].id, key = 'jelly_' + id;
+    if (!sharedMat[key]) { sharedMat[key] = matFor('jelly').clone(); sharedMat[key].color.setHex(JELLY_TINT[id] || 0xffffff); }
+    return sharedMat[key];
+  }
   function addItem(kind, x, y) {
-    const sizes = { jelly: 0.5, bear: 0.85, coin: 0.5, heart: 1.0, magnet: 1.0, boost: 1.0, giant: 1.0, L0: 1.05, L1: 1.05, L2: 1.05, L3: 1.05, jbig: 1.45, potion: 0.85, star: 1.0 };
+    const sizes = { gjelly: 0.75, jelly: 0.5, bear: 0.85, coin: 0.5, heart: 1.0, magnet: 1.0, boost: 1.0, giant: 1.0, L0: 1.05, L1: 1.05, L2: 1.05, L3: 1.05, jbig: 1.45, potion: 0.85, star: 1.0 };
     if (kind === 'jelly' && P.buff.bear > 0) kind = 'bear';
     if ((kind === 'jelly' || kind === 'bear') && P.buff.coinrain > 0) kind = 'coin';
-    const s = new THREE.Sprite(matFor(kind));
+    const s = new THREE.Sprite(kind === 'jelly' ? jellyMat() : matFor(kind));
     const sz = sizes[kind];
     s.scale.set(sz, sz, 1);
     s.renderOrder = L.ITEM;
     s.position.set(x, y, 0);
-    const halo = HALO[kind] || (HALO[kind] = new THREE.SpriteMaterial({ map: TEX.glow, color: { jelly: 0x6fe3ff, bear: 0xffa8d8, coin: 0xffd84a, jbig: 0xfff27a }[kind] || 0xffffff, opacity: 0.55, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
+    const halo = HALO[kind] || (HALO[kind] = new THREE.SpriteMaterial({ map: TEX.glow, color: { jelly: 0x6fe3ff, bear: 0xffa8d8, coin: 0xffd84a, jbig: 0xfff27a, gjelly: 0xffc23a }[kind] || 0xffffff, opacity: 0.55, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
     const g = new THREE.Sprite(halo); g.scale.set(1.9, 1.9, 1); g.renderOrder = L.ITEM - 0.05; s.add(g);
     scene.add(s);
     items.push({ kind, x, y, s, sz, pulled: false, t: Math.random() * 6 });
@@ -516,13 +522,16 @@
       const len = 7 + Math.random() * 4, a = x0 + 0.8, b = x0 + len - 0.8;
       addGround(x0, x0 + len);
       // authored jelly shapes: a jelly line is a route to follow, not just a carpet
-      const pat = traveled < 150 ? 0 : (Math.random() * 6) | 0;
+      const pat = traveled < 150 ? 0 : (Math.random() * 9) | 0;
       if (pat === 0) jellyLine(a, b, 0.55, Math.random() < 0.45 ? 'coin' : 'jelly', 0.62);
       else if (pat === 1) for (let x = a; x <= b; x += 0.55) addItem('jelly', x, 0.55 + (1 - Math.cos((x - a) * 1.1)) * 0.75); // a wave: hop along it
       else if (pat === 2) { const h = gs * 0.25; jellyArc(a + h, 2.4, h); jellyArc(b - h, 2.4, h, 'jelly'); addItem('bear', a + h, 2.95); addItem('bear', b - h, 2.95); } // two hops, a bear at each peak
-      else if (pat === 3) { jellyLine(a, b, 0.55, 'jelly', 0.7); jellyLine(a + 1.5, b - 1.5, 4.3, 'bear', 0.7); } // a high route for a double jump
+      else if (pat === 3) { jellyLine(a, b, 0.55, 'jelly', 0.7); jellyLine(a + 1.5, b - 1.5, 4.3, 'bear', 0.7); addItem('gjelly', (a + b) / 2, 5.0); } // a high route for a double jump, a gold bar on top
       else if (pat === 4) { jellyLine(a, b, 0.55, 'coin', 0.62); const c = (a + b) / 2; [[0, 1.5], [-0.5, 2], [0.5, 2], [-1, 2.5], [1, 2.5], [0, 3]].forEach(([dx, y]) => addItem(dx === 0 && y === 3 ? 'jbig' : 'bear', c + dx, y)); }
-      else { for (let x = a, i = 0; x <= b; x += 0.62, i++) addItem(i % 4 === 3 ? 'bear' : 'jelly', x, i % 8 < 4 ? 0.55 : 1.3); } // steps up and down
+      else if (pat === 5) { for (let x = a, i = 0; x <= b; x += 0.62, i++) addItem(i % 4 === 3 ? 'bear' : 'jelly', x, i % 8 < 4 ? 0.55 : 1.3); } // steps up and down
+      else if (pat === 6) { for (let x = a, i = 0; x <= b; x += 0.5, i++) addItem(i % 2 ? 'coin' : 'jelly', x, 0.55 + Math.abs(Math.sin((x - a) * 0.7)) * 2.2); } // a bouncing line, coin and jelly in turn
+      else if (pat === 7) { const c = (a + b) / 2; for (let i = 0; i < 12; i++) { const t = i / 12 * Math.PI * 2; addItem(i % 3 ? 'jelly' : 'bear', c + Math.cos(t) * 1.4, 2.4 + Math.sin(t) * 1.4); } addItem('gjelly', c, 2.4); } // a ring with gold inside: jump through it
+      else { jellyLine(a, b, 0.55, 'jelly', 0.62); for (let x = a + 1, i = 0; x < b - 0.5; x += 1.2, i++) addItem('coin', x, 1.5 + (i % 2) * 0.6); } // jelly floor, coins to hop for
       maybeItem(x0 + len / 2, 1.9);
       return len;
     },
@@ -884,6 +893,7 @@
       P.spin = 1;
       AUDIO.play('swing', 0.5, 1.55);
       ring(PX, P.y + 0.3, P.def.color, 1.6, 0.3);
+      trait('double');
     } else {
       P.jumpBuf = 0.14;
     }
@@ -1062,6 +1072,7 @@
   // the boss's own effect at its body when it attacks, and its timing: Black Knight's 척살 strikes with a short warning, Goltarion's beam burns longer
   const BOSS_CAST = { e_Nidhogg_N: 'nidhogg_skill1_hit', e_DoomEater_N: 'DoomEater_Big_fire_F', e_BlackKnight_N: 'BlackKnight_N_Skill1_A', e_Goltarion_N: 'Goltarion_N_Skill1_A' };
   const BOSS_TUNE = { e_Nidhogg_N: { warn: 1.0, fire: 0.32, gap: 2.7 }, e_DoomEater_N: { warn: 0.95, fire: 0.36, gap: 2.3 }, e_BlackKnight_N: { warn: 0.72, fire: 0.26, gap: 2.6 }, e_Goltarion_N: { warn: 1.05, fire: 0.62, gap: 3.0 } };
+  const BOSS_X = { e_Nidhogg_N: -0.2, e_DoomEater_N: 0.9, e_BlackKnight_N: 0.9, e_Goltarion_N: 0.9 }; // rig origin -> whole silhouette in view
   const BOSS_PATS = { e_Nidhogg_N: ['lane', 'bombs', 'lane'], e_DoomEater_N: ['lane', 'double'], e_BlackKnight_N: ['double', 'lane', 'double'], e_Goltarion_N: ['bombs', 'lane', 'double'] };
   const PAT_NAME = { lane: '레이저 소인', double: '연속 소인', bombs: '집중 포격' };
   // original boss skill names (Table_Localization_ko: SkillName_Skill_MP_Nidhogg_N_*, MP_BlackKnight_N_*, AGS_Goltarion_N_*)
@@ -1112,7 +1123,9 @@
     else if (p === 'double') { const hi = Math.random() < 0.5; addLane(hi, tn.warn); b.queue.push({ t: tn.warn * 0.8, high: !hi }); }
     else { for (let i = 0; i < 2; i++) addFoe('bomb', VW + 2 + i * Math.max(7, spd * 0.8)); AUDIO.play('missile', 0.5); }
     // no attack clip (its mechs' root motion crosses the screen): a short lunge, its own effect at its body, a roar
-    b.lunge = 0.45;
+    // its own short skill clip where it has one (root travel pinned tight), the lunge otherwise
+    const sc = b.rig.c.has('skill') && SD.template(b.d.id).data.clips.skill.dur < 3;
+    if (sc) { b.rig.c.play('skill', () => { if (run.boss === b && !b.dying) { b.rig.c.play('move', null, true); b.rig.c.speed = 1; } }); b.rig.c.speed = SD.template(b.d.id).data.clips.skill.dur / 1.3; } else b.lunge = 0.45;
     origStatic(BOSS_CAST[b.d.id], b.x + 1.4, 1.6, b.rig.k * 0.8);
     shake = Math.max(shake, 0.25); b.flash = 0.25; AUDIO.play('quake', 0.5);
   }
@@ -1148,7 +1161,7 @@
     if (b) {
       b.t += dt;
       // stays well behind the squad (the runner is never hidden)
-      const tx = b.leaving ? -9 : -0.2;
+      const tx = b.leaving ? -9 : BOSS_X[b.d.id] || 0.6;
       b.x += (tx - b.x) * Math.min(1, dt * 1.5);
       if (b.lunge > 0) b.lunge -= dt;
       const lx = b.lunge > 0 ? Math.sin((1 - b.lunge / 0.45) * Math.PI) * 0.6 : 0; // a lunge before each attack
@@ -1382,15 +1395,32 @@
     if (body && FXB.ready(body)) { inst = FXB.create(body); inst.root.scale.set(kOf() * 0.8, kOf() * 0.8, 1); inst.setOrder(L.FX); scene.add(inst.root); s.visible = false; }
     runners.push({ s, x: PX + 0.6, y: P.floor + size * 0.45, vx: speed, t: 0, life, color, air, fx: fxName, inst });
   }
+  const SUMMON = { brunhild: { t: 7.0, cut: 1.2, off: 2.05, k: 0.62, up: 0.8 }, empress: { t: 2.5, cut: 1.2, off: 2.4, k: 1, up: 0 } }; // off / up in rig heights
+  function sendSummon(speed = 17, life = 1.5) {
+    const sm = SUMMON[P.def.id];
+    if (!sm || !P.rig || !SD.ready(P.def.id)) return false;
+    const h = P.rig.h * sm.k, rig = rigFrom(P.def.id, h, FACE_PLAYER);
+    rig.c.clip = null; rig.c.play('skill', null, true); rig.c.speed = 0; rig.c.time = sm.t; rig.c.update(0.0001); // no crossfade from idle: the frame itself
+    rig.c.setOrder(L.PLAYER - 0.1);
+    const plane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
+    for (const m of rig.c.mats) m.clippingPlanes = [plane];
+    scene.add(rig.g);
+    sendRunner(P.def.color, 'glow', 1.2, speed, life, false, P.def.id === 'brunhild' ? 'Brunhild_N_Skill1_Hit' : 'Empress_skill1_ice_Hit');
+    const r = runners[runners.length - 1];
+    r.s.visible = false; r.sum = { rig, plane, h, sm };
+    return true;
+  }
+  function freeSummon(r) { if (!r.sum) return; for (const m of r.sum.rig.c.mats) m.clippingPlanes = null; freeRig(r.sum.rig); r.sum = null; }
   function updateRunners(dt, dx) {
     for (let i = runners.length - 1; i >= 0; i--) {
       const r = runners[i];
       r.t += dt; r.x += (r.vx - 0) * dt - dx * 0;
       r.s.position.set(r.x, r.y + Math.abs(Math.sin(r.t * 18)) * 0.15, 0);
+      if (r.sum) { const { rig, plane, h, sm } = r.sum, gx = r.x - sm.off * h; rig.g.position.set(gx, P.floor + sm.up * h + Math.abs(Math.sin(r.t * 14)) * 0.08, 0); plane.constant = -(gx + sm.cut * h); }
       if (r.inst) { r.inst.root.position.set(r.x, r.y + 0.3, 0); r.inst.update(dt); if (r.inst.done) { r.inst.reset(); r.inst.root.scale.set(kOf() * 0.8, kOf() * 0.8, 1); r.inst.root.position.set(r.x, r.y + 0.3, 0); } } // reset() also resets the scale
       if (Math.random() < 0.7) burst(r.x - 0.4, r.y, r.color, 1, 0.5, 1.5);
       for (const f of foes) if (!f.dead && !f.frozen && (r.air || f.kind !== 'air') && Math.abs(f.x - r.x) < f.w * 0.6 + 0.4) { if (r.fx) origStatic(r.fx, f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'coin', 2); }
-      if (r.t > r.life || r.x > VW + 2) { scene.remove(r.s); r.s.material.dispose(); if (r.inst) r.inst.dispose(); runners.splice(i, 1); }
+      if (r.t > r.life || r.x > VW + 2) { scene.remove(r.s); r.s.material.dispose(); if (r.inst) r.inst.dispose(); freeSummon(r); runners.splice(i, 1); }
     }
   }
   // a visible plank under the runner while a pit is bridged
@@ -1516,19 +1546,35 @@
     },
     brunhild: { // 핏빛 효후: blood wolves race ahead through the enemies, opened by her fireball
       start() { origStatic('Brunhild_N_Skill1_A', PX + 0.6, P.y + 0.8, kOf()); origStatic('Brunhild_N_Skill2_A', PX + 2.5, 0.1, kOf()); const f = aliveAhead()[0]; if (f) { f.targeted = true; origShot('Brunhild_N_Skill1_bullet', ...muzzle(), f, kOf(), shotLanded, f.x, foeMid(f)); } },
-      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.7; sendRunner(0xff5530, 'glow', 1.2, 20, 1.3, false, 'Brunhild_N_Skill1_Hit'); AUDIO.play('expS', 0.35, 0.8); },
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.7; if (!sendSummon(18, 1.4)) sendRunner(0xff5530, 'glow', 1.2, 20, 1.3, false, 'Brunhild_N_Skill1_Hit'); AUDIO.play('expS', 0.35, 0.8); },
     },
     titania: { // 서리 폭풍: everything freezes into ice blocks to stand on, then shatters into bears
       start(d) { origStatic('Titania_skill2_All_ice', PX + 5, 0.3, kOf()); origStatic('Titania_skill2_Ice_Road_Fx', PX + 5, 0.1, kOf() * 0.45); aliveAhead(PX + 12).forEach((f) => freeze(f, Math.min(3, d))); for (let i = 0; i < 30; i++) burst(rnd(0, VW), rnd(0, GB + VH), 0xdff8ff, 1, 0.3, 1, 'snow', false); AUDIO.play('ice', 0.8); },
     },
     empress: { // 펭귄 서프라이즈!: a penguin squad slides along the ground, enemies freeze where they are hit
-      start() { origStatic('Empris_skill2_ground_Ice_road', PX + 4, 0.05, kOf()); origStatic('Empress_skill2_ice_first_Hit', PX + 2, 0.6, kOf()); },
-      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.35; sendRunner(0x9fe6ff, 'glow', 0.8, 15, 1.5, false, 'Empress_skill1_ice_Hit', 'Empris_skill2_bomb_particle'); },
+      start() { sendSummon(15, 1.6); origStatic('Empris_skill2_ground_Ice_road', PX + 4.5, 0.08, kOf() * 0.5); origStatic('Empress_skill2_ice_first_Hit', PX + 2, 0.6, kOf()); },
+      tick(dt) { if ((P.uqT -= dt) > 0) return; P.uqT = 0.6; if (!sendSummon(15, 1.6)) sendRunner(0x9fe6ff, 'glow', 0.8, 15, 1.5, false, 'Empress_skill1_ice_Hit', 'Empris_skill2_bomb_particle'); },
     },
   };
+  // traits: what a member's passive does on a double jump / a landing / over time (data.js pas.trait)
+  function trait(ev, drop = 0) {
+    const tr = pas().trait;
+    if (!tr || P.dead || state !== 'play') return;
+    if ((P.trCd || 0) > 0) return;
+    const near = (r) => aliveAhead(PX + r).filter((f) => f.kind !== 'air' && f.x > PX + 0.3);
+    if (ev === 'double' && tr === 'lance') { const f = aliveAhead(PX + 4)[0]; if (f) { P.trCd = 3; const [mx, my] = muzzle(); beamFx(mx, f.x, my, P.def.color, 0.15, 0.2); origStatic(origFor(P.def.id).atk.hit || ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); } }
+    else if (ev === 'double' && tr === 'akimbo') { const t = aliveAhead(PX + 8).slice(0, 2); if (t.length) { P.trCd = 2.5; t.forEach((f) => { f.targeted = true; fireAt(f, shotLanded); }); } }
+    else if (ev === 'double' && tr === 'salvo') { const f = aliveAhead(PX + 9)[0]; if (f) { P.trCd = 3; f.targeted = true; salvo.push({ t: 0.05, i: 0, f, name: 'Thetis_skill2_Small_Missile', k: kOf() }); } }
+    else if (ev === 'land' && tr === 'quake' && drop > 1.6) { const t = near(2.8); P.trCd = 1.5; ring(PX + 1, 0.2, P.def.color, 3, 0.35); shake = Math.max(shake, 0.15); origStatic('Labiata_skill1_hit', PX + 1.4, 0.3, kOf() * 0.35); t.forEach((f) => breakFoe(f, 'melee')); }
+    else if (ev === 'land' && tr === 'flame' && drop > 1.2) { const t = near(2.4); P.trCd = 2; origStatic('Brunhild_N_Skill1_Hit', PX + 1.2, 0.3, kOf() * 0.6); t.forEach((f) => breakFoe(f, 'shot')); }
+  }
   // passives that act on their own between skills
   function passiveTick(dt) {
     const ps = pas();
+    if (P.trCd > 0) P.trCd -= dt;
+    if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0) { P.haloT = 10; if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
+    if (ps.trait === 'regen' && P.onGround) P.hp = Math.min(P.maxHp, P.hp + 0.6 * dt);
+    if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; freeze(f, 3); } else P.frT = 0.5; }
     if (ps.autoGun && (P.pasT = (P.pasT || 0) - dt) <= 0) {
       const t = foes.find((f) => !f.dead && !f.targeted && f.x > PX + 1 && f.x < PX + 8);
       if (t) { P.pasT = ps.autoGun; t.targeted = true; fireAt(t, shotLanded); } else P.pasT = 0.2;
@@ -1630,8 +1676,9 @@
     const k = it.kind;
     tally('item:' + k);
     if ((k === 'jelly' || k === 'bear') && P.def.id === 'daphne' && P.skillOn > 0) P.hp = Math.min(P.maxHp, P.hp + 0.6);
-    if ((k === 'jelly' || k === 'bear' || k === 'coin') && run.boss && !run.boss.leaving && !run.boss.dying && ++run.boss.charge >= COUNTER_EVERY) { run.boss.charge = 0; hitBoss(6); }
-    if (k === 'jelly' || k === 'bear' || k === 'coin') {
+    if (k === 'gjelly') { addScore(300 * (pas().jellyK || 1)); run.jelly += 3; burst(it.x, it.y, 0xffc23a, 10, 0.6, 4, 'spark'); popup(it.x, it.y + 0.8, '골드 +300', 'perfect'); AUDIO.play('genA', 0.4, 1.4); }
+    if ((k === 'jelly' || k === 'bear' || k === 'coin' || k === 'gjelly') && run.boss && !run.boss.leaving && !run.boss.dying && ++run.boss.charge >= COUNTER_EVERY) { run.boss.charge = 0; hitBoss(6); }
+    if (k === 'jelly' || k === 'bear' || k === 'coin' || k === 'gjelly') {
       run.combo++;
       run.comboT = 2.0;
       if (run.combo % 150 === 0) startFever();
@@ -2029,6 +2076,7 @@
           P.y = s; P.vy = 0; P.floor = s; P.onGround = true; P.jumps = 0; P.spin = 0; P.sq = 0.82;
           tally(s > 0 ? 'mech:platform' : 'mech:land');
           if (P.buff.giant > 0) { shake = 0.25; ring(PX, s + 0.1, 0xd0c0ff, 4, 0.35); puff(PX, s, 6, 1.1); } else puff(PX, s, 3, 0.55);
+          trait('land', prevY - s);
           if (P.jumpBuf > 0) { P.jumpBuf = 0; jump(); }
         }
       }
@@ -2546,6 +2594,7 @@
 
   async function boot() {
     renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.localClippingEnabled = true; // summons cut out of a member's own skill clip
     renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
     SD.gpuSkin = renderer.capabilities.floatVertexTextures;
     SD.renderer = renderer;
@@ -2554,6 +2603,7 @@
     SD.texScale = MOBILE ? 0.35 : 0.5;
     SD.pinRoot = true; // attack / skill clips keep their root near the spot (the boss never lunges over the squad)
     SD.pinRange = 1.5;
+    SD.pinRanges = { e_DoomEater_N: 0.3, e_BlackKnight_N: 0.3, e_Goltarion_N: 0.3 }; // chase bosses attack on the spot
     SD.hidePath = /(^|\/)(bone_|parts_)?shadow/i; // rig shadows ride along with jumps / slides: drawn on the ground instead
     FXB.renderer = renderer;
     FXB.texScale = MOBILE ? 0.5 : 1;
@@ -2597,7 +2647,7 @@
       // original resource icons for the collectibles: power cell = jelly, nutrient = bear jelly, gold coin, parts crate = giant jelly
       ...['prop_fence', 'prop_stone1', 'prop_stone2', 'prop_fence2'].map((n, i) => loadTex('assets/img/' + n + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX.props[i] = t; } })),
       loadTex('assets/bg2/sky_bonus.webp').then((t) => { if (t) { t.minFilter = THREE.LinearMipmapLinearFilter; IMG.sky_bonus = t; } }),
-      ...[['jelly', 'power'], ['bear', 'nutrient'], ['coin', 'goldcoin'], ['jbig', 'parts']].map(([k, f]) => loadTex('assets/img/res_' + f + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX[k] = t; } })),
+      ...[['jelly', 'power'], ['bear', 'nutrient'], ['coin', 'goldcoin'], ['jbig', 'parts'], ['gjelly', 'goldbar']].map(([k, f]) => loadTex('assets/img/res_' + f + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX[k] = t; } })),
     ];
     let done = 0;
     jobs.forEach((p) => p.then(() => {
@@ -2619,7 +2669,7 @@
   window.GAME = {
     P, run, foes, items, segs, plats, get scene() { return scene; }, get state() { return state; }, get genX() { return genX; }, get traveled() { return traveled; }, set traveled(v) { traveled = v; },
     startRun, goTitle, setChar: setPlayerChar, jump, setSlide: (v) => { input.slide = v; }, startBonus, activateSkill,
-    STAT, K: { G, JV, JV2, GB }, get spd() { return spd; }, get PX() { return PX; }, get VW() { return VW; }, get renderer() { return renderer; },
+    runners, STAT, K: { G, JV, JV2, GB }, get spd() { return spd; }, get PX() { return PX; }, get VW() { return VW; }, get renderer() { return renderer; },
     smashing: () => smashing(), bridging: () => bridging(), origFor, save, lanes, changeStage: (i) => changeStage(i),
     // test hook: hold the clock and advance n fixed frames (the page's own loop stays paused meanwhile)
     hold(v) { held = v; },
