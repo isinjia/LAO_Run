@@ -285,3 +285,20 @@ button { font: inherit; color: inherit; }
 #cutin .band::after { content: ''; position: absolute; inset: -10px 0; background: url(../assets/img/cutin_linefx.png) repeat-x center / auto 140%; mix-blend-mode: screen; opacity: .85; animation: cutLines .5s linear infinite; }
 @keyframes cutLines { from { background-position-x: 0; } to { background-position-x: -512px; } }
 .pop.trait { font-size: 14px; color: #fff; background: rgba(10, 16, 34, .7); border-radius: 8px; padding: 2px 8px; }
+
+/* original Last Origin UI: the squad screen's hex-grid panel ground, the dialog frame's gold trim and cut corner,
+   and the result screen's rank hexagons (assets/ui, from AssetBundleResource UI/CreateResult and Texture) */
+.resCard, .panelScreen .panel, .titleSel, #pause .resCard, .missions {
+  background: linear-gradient(180deg, rgba(14, 18, 30, .82), rgba(8, 10, 18, .9)), url(../assets/ui/panel_bg.webp) center / 360px;
+  border: 1px solid #b99c5c; border-radius: 4px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 220, 140, .08), inset 0 -18px 30px rgba(185, 156, 92, .08);
+}
+.grade { width: 92px; height: 102px; display: flex; align-items: center; justify-content: center; background: url(../assets/ui/rank_c.webp) center / contain no-repeat; font-size: 46px; }
+.grade.gS { background-image: url(../assets/ui/rank_s.webp); animation: none; }
+.grade.gA { background-image: url(../assets/ui/rank_a.webp); color: #ffd36e; }
+.grade.gB { background-image: url(../assets/ui/rank_b.webp); color: #7fdcff; }
+.grade.gC { background-image: url(../assets/ui/rank_c.webp); color: #8dff9a; }
+.hpBar { border: 1px solid #b99c5c; border-radius: 3px; }
+.btn { border-radius: 4px; }
+.btn.primary { box-shadow: inset 0 0 0 1px rgba(255, 240, 200, .6), 0 3px 0 #8a5a00; }

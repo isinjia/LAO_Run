@@ -329,6 +329,7 @@
     props.forEach((p) => scene.remove(p.s)); props.length = 0;
     salvo.length = 0;
     runners.forEach((r) => { scene.remove(r.s); r.s.material.dispose(); if (r.inst) r.inst.dispose(); freeSummon(r); }); runners.length = 0;
+    rescues.forEach((r) => { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); }); rescues.length = 0;
   }
 
   function stageGroundTex() {
@@ -550,7 +551,27 @@
   // chunk generator: each places its content from x0 and returns its length
   // gaps and arcs are sized for the base speed (a boost ending mid-chunk must not leave an uncrossable gap)
   let gs = 8;
+  const rescues = [];
   const CHUNKS = {
+    rescue(x0) {
+      const len = 13;
+      addGround(x0, x0 + len);
+      addPlat(x0 + 4, x0 + 9, 2.4);
+      addFoe('low', x0 + 6.5, 0);
+      jellyArc(x0 + 6.5, 3.6, gs * 0.27, 'coin');
+      const pool = save.owned.filter((id) => id !== P.def.id && SD.ready(id));
+      const id = pool.length ? pool[(Math.random() * pool.length) | 0] : null;
+      if (id) {
+        const rig = rigFrom(id, 1.25, FACE_ENEMY);
+        rig.c.setOrder(L.ENEMY - 0.2); rig.c.play('idle', null, true); rig.c.setTint(0.7, 0.75, 0.9);
+        rig.g.position.set(x0 + 7.6, 2.4, 0); scene.add(rig.g);
+        const sos = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.reticle, color: 0x7dff8a, depthTest: false, depthWrite: false, transparent: true }));
+        sos.scale.set(1.4, 0.5, 1); sos.position.set(x0 + 7.6, 2.45, 0); sos.renderOrder = L.PROP + 0.3; scene.add(sos);
+        rescues.push({ id, rig, sos, x: x0 + 7.6, y: 2.4, done: false });
+        popup(VW / 2, 4.0, '구조 요청: ' + charDef(id).name + ' — 발판 위로!', 'bossSkill');
+      }
+      return len;
+    },
     risk(x0) {
       const len = 12, v = (Math.random() * 3) | 0;
       if (v === 1) { addGround(x0, x0 + 3.5); addGround(x0 + 3.5 + Math.min(3.4, gs * 0.3), x0 + len); } // a pit under the deck: the low road needs a jump too
@@ -558,7 +579,9 @@
       jellyLine(x0 + 0.6, x0 + 3, 0.55, 'jelly', 0.8); jellyLine(x0 + 7.5, x0 + len - 0.6, 0.55, 'jelly', 0.8);
       addPlat(x0 + 3, x0 + 10, 3.0);
       if (v === 2) addFoe('low', x0 + 9.4, 3.0, { shooter: true }); else addFoe('low', x0 + 6.2, 3.0); // a gunner holds the far end of the deck
-      for (let x = x0 + 3.5; x < x0 + 9.6; x += 1.1) if (Math.abs(x - (x0 + 6.2)) > 0.9) addItem('gjelly', x, 3.7);
+      const extra = run.letters < 4 && Math.random() < 0.35 ? 'L' + run.letters : Math.random() < 0.3 ? 'heart' : 'gjelly';
+      for (let x = x0 + 3.5, n = 0; x < x0 + 9.6; x += 1.1) if (Math.abs(x - (x0 + 6.2)) > 0.9) addItem(n++ === 2 ? extra : 'gjelly', x, 3.7);
+      if (extra[0] === 'L') { run.nextLetter = traveled + x0 + 80; }
       return len;
     },
     flat(x0) {
@@ -763,6 +786,7 @@
   ];
   function pickChunk() {
     if (run.tutQ && run.tutQ.length) return run.tutQ.shift();
+    if (!run.boss && run.bonus <= 0 && traveled > (run.nextRescue || 1100) && (!run.evQ || !run.evQ.length)) { run.nextRescue = traveled + rnd(800, 1000); return 'rescue'; }
     if (run.evQ && run.evQ.length) { const k = run.evQ.shift(); if (!run.evQ.length && run.ev) run.ev.endG = true; return k; }
     if (!run.boss && run.bonus <= 0 && traveled > (run.nextEvent || 700) && traveled < run.nextBoss - 250) {
       const ev = EVENTS[(run.evN = (run.evN || 0) + 1) % EVENTS.length];
@@ -809,7 +833,7 @@
     clearWorld();
     traveled = 0;
     stageIx = 0;
-    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, ev: null, evQ: null, evN: 0, nextEvent: 700, pStreak: 0, perfect: 0,
+    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, ev: null, evQ: null, evN: 0, nextEvent: 700, nextRescue: 1100, rescued: 0, pStreak: 0, perfect: 0,
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
     showSet(STAGES[0].id, true);
@@ -1730,14 +1754,14 @@
       if (t) { P.pasT = ps.autoGun; t.targeted = true; fireAt(t, shotLanded); } else P.pasT = 0.2;
     }
     if (P.inT > 1.5) return; // the triggered traits answer the player's moves
-    if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0 && trig) { P.haloT = 10; castOwn(); traitCall(); if (P.shield <= 0) { P.shield = 4; ring(PX, P.y + 1, 0xffe9a0, 2.2, 0.5); popup(PX, P.y + 2.4, '수호 천사', 'kill'); } }
-    if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; castOwn(); traitCall(); ring(f.x, foeMid(f), 0x6fe3ff, 1.8, 0.5); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
+    if (ps.trait === 'halo' && (P.haloT = (P.haloT == null ? 10 : P.haloT) - dt) <= 0 && trig) { P.haloT = 10; castOwn(); traitCall(); if (P.shield <= 0) { P.shield = 4; origStatic('Azazel_skill1_Hit_m', PX, P.y + 0.4, kOf() * 0.6); } }
+    if (ps.trait === 'bubble' && (P.bbT = (P.bbT == null ? 9 : P.bbT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 8).find((g) => g.x > PX + 2); if (f) { P.bbT = 9; castOwn(); traitCall(); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); dropItems(f.x, foeMid(f), 'bear', 2); } else P.bbT = 0.5; }
     if (ps.trait === 'snipe' && (P.snT = (P.snT == null ? 7 : P.snT) - dt) <= 0 && trig) { const t = foes.filter((f) => !f.dead && !f.frozen && f.x > PX + 4 && f.x < VW + 0.5); const f = t[t.length - 1]; if (f) { P.snT = 7; castOwn(); traitCall(); const [mx, my] = muzzle(); beamFx(mx, f.x, my, 0xfff2b0, 0.12, 0.08); origStatic(hitOf(), f.x, foeMid(f) - 0.4, kOf()); breakFoe(f, 'shot'); for (let x = PX + 1.5; x < f.x - 0.5; x += 0.8) addItem('coin', x, my); AUDIO.play('handgun', 0.5); } else P.snT = 0.4; }
     if (ps.trait === 'strafe' && (P.stT = (P.stT == null ? 6 : P.stT) - dt) <= 0 && trig) { const f = foes.find((g) => !g.dead && g.kind === 'air' && g.x > PX + 1.5 && g.x < PX + 10); if (f) { P.stT = 6; castOwn(); traitCall(); f.targeted = true; fireAt(f, shotLanded); } else P.stT = 0.4; }
     if (ps.trait === 'frost' && (P.frT = (P.frT == null ? 8 : P.frT) - dt) <= 0 && trig) { const f = aliveAhead(PX + 9).find((g) => g.kind !== 'air' && g.x > PX + 2.5); if (f) { P.frT = 8; castOwn(); traitCall(); freeze(f, 3); } else P.frT = 0.5; }
     if (ps.smite && (P.smT = (P.smT == null ? ps.smite : P.smT) - dt) <= 0 && trig) {
       const t = aliveAhead(PX + 10).find((f) => f.x > PX + 1.5);
-      if (t) { P.smT = ps.smite; castOwn(); traitCall(); bolt(t.x, foeMid(t), 0xffe9a0); origStatic('Saraqael_skill1_elec_hit', t.x, foeMid(t) - 0.4, kOf()); breakFoe(t, 'shot'); AUDIO.play('elec', 0.4); } else P.smT = 0.3;
+      if (t) { P.smT = ps.smite; castOwn(); traitCall(); origStatic('Saraqael_skill2_Fire_lighting', t.x, 0.2, kOf() * 0.8); origStatic('Saraqael_skill1_elec_hit', t.x, foeMid(t) - 0.4, kOf()); breakFoe(t, 'shot'); AUDIO.play('elec', 0.4); } else P.smT = 0.3;
     }
   }
   function uqStart(d) { P.uqT = 0; P.uqN = 0; P.uqTime = 0; const u = UQ[P.def.id]; if (u && u.start) u.start(d); }
@@ -1914,6 +1938,19 @@
         }
         if (s.x1 < -3) { disposeMesh(s.mesh); arr.splice(i, 1); }
       }
+    }
+    for (let i = rescues.length - 1; i >= 0; i--) {
+      const r = rescues[i];
+      r.x -= dx; r.rig.g.position.x = r.x + (r.done ? (r.t = (r.t || 0) + dt) * 6 : 0); r.sos.position.x = r.x; r.rig.c.update(dt);
+      r.sos.material.opacity = r.done ? 0 : 0.5 + Math.sin(performance.now() / 120) * 0.4;
+      if (!r.done && !P.dead && Math.abs(r.x - PX) < 0.8 && Math.abs(P.y - r.y) < 0.9) { // reached
+        r.done = true; r.rig.c.setTint(1, 1, 1); r.rig.c.play('move', null, true); r.rig.g.scale.x = -1;
+        addScore(800); run.coins += 20; run.rescued = (run.rescued || 0) + 1;
+        P.shield = Math.max(P.shield, 3); P.skillT += 2;
+        popup(PX, P.y + 2.6, '구조 성공! ' + charDef(r.id).name + ' +800', 'perfect'); ann('Success-1'); voice(r.id, 'mvp', 0.8, true);
+        origStatic(ORIG_DEFAULT_HIT, r.x, r.y + 0.8, kOf());
+      }
+      if (r.x < -3 || (r.done && r.t > 1.2)) { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); rescues.splice(i, 1); }
     }
     for (let i = props.length - 1; i >= 0; i--) {
       const p = props[i];
@@ -2599,6 +2636,7 @@
     Object.keys(hudCache).forEach((k) => delete hudCache[k]);
     hud();
     makeSupport();
+    save.owned.filter((id) => id !== P.def.id).sort(() => Math.random() - 0.5).slice(0, 3).forEach((id) => SD.prepare(id)); // members who may need a rescue
     applyBoosts();
     run.mod = daily();
     setTimeout(() => state === 'play' && popup(VW / 2, 4.2, '오늘의 작전: ' + run.mod.name + ' (' + run.mod.t + ')', 'big'), 2200);
@@ -2799,8 +2837,12 @@
     // the abyss seen through pits: dark below the ground line, behind the ground segments
     const abyssTex = RUNTEX.canvasTex(256, 256, (g, w, h) => {
       const r = g.createLinearGradient(0, 0, 0, h);
-      r.addColorStop(0, '#2a3450'); r.addColorStop(0.3, '#121a2c'); r.addColorStop(1, '#03050a');
+      r.addColorStop(0, '#4a4440'); r.addColorStop(0.18, '#2c2a30'); r.addColorStop(0.5, '#141620'); r.addColorStop(1, '#03050a');
       g.fillStyle = r; g.fillRect(0, 0, w, h);
+      for (let y = 6, i = 0; y < h * 0.6; y += 9 + (i % 4) * 3, i++) { // rock strata
+        g.fillStyle = 'rgba(' + (90 + (i % 3) * 14) + ',' + (80 + (i % 3) * 10) + ',' + (72 + (i % 2) * 8) + ',' + (0.35 - y / h * 0.45) + ')';
+        g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= w; x += 16) g.lineTo(x, y + Math.sin(x * 0.07 + i) * 2.5); g.lineTo(w, y + 3); g.lineTo(0, y + 3); g.fill();
+      }
       for (let i = 0; i < 26; i++) { // rubble and broken girders down the shaft
         const x = (i * 97) % w, y = h * 0.62 + ((i * 53) % 90), s = 6 + (i * 7) % 18;
         g.fillStyle = 'rgba(8,10,18,' + (0.5 + (i % 3) * 0.15) + ')'; g.beginPath(); g.moveTo(x, y); g.lineTo(x + s, y - s * 0.6); g.lineTo(x + s * 1.8, y + 2); g.closePath(); g.fill();
