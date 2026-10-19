@@ -387,11 +387,11 @@
     scene.add(s);
     props.push({ s, x: x - side * 0.2, pit: true });
   }
-  function addGround(x0, x1) {
+  function addGround(x0, x1, noArt = false) {
     const prev = segs.length ? segs.reduce((a, b) => (b.x1 > a.x1 ? b : a)) : null;
-    if (prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(prev.x1 - 0.35); addLip(x0 + 0.35); }
+    if (!noArt && prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(prev.x1 - 0.35); addLip(x0 + 0.35); }
     segs.push({ x0, x1, mesh: slab(x0, x1, 0, 0 - (GB - 0.6)) });
-    if (state === 'play' && run.bonus <= 0) {
+    if (!noArt && state === 'play' && run.bonus <= 0) {
       const kinds = { city: [3, 2, 3, 1], forest: [0, 0, 1, 2], lab: [2], snow: [2, 1], red: [2, 1, 2] }[STAGES[stageIx].id];
       const gap = STAGES[stageIx].id === 'snow' ? [1.6, 3.6] : [3, 7]; // the bare snowfield gets more rock and drift
       for (let x = x0 + rnd(0.5, 3); x < x1 - 0.5; x += rnd(gap[0], gap[1])) addProp(kinds[(Math.random() * kinds.length) | 0], x);
@@ -1360,7 +1360,7 @@
       const a = ss[i], b = ss[i + 1];
       if (!(b.x0 - a.x1 > 0.05 && a.x1 < x1 && b.x0 > x0)) continue;
       for (let k = props.length - 1; k >= 0; k--) { const q = props[k]; if (q.pit && q.x > a.x1 - 0.8 && q.x < b.x0 + 0.8) { scene.remove(q.s); q.s.material.dispose(); props.splice(k, 1); } }
-      const filling = state; state = 'fill'; addGround(a.x1, b.x0); state = filling; // (no new pit art for the patch)
+      addGround(a.x1, b.x0, true); // (no new pit art for the patch)
     }
   }
   function tickPick(dt) {
@@ -2738,6 +2738,7 @@
     paused = false;
     $('attend').classList.remove('show'); // the attendance card never covers a run
     document.body.classList.add('running'); // (the rotate hint hides during runs)
+    setTimeout(portraitCheck, 0);
     clearOverlays();
     resetPlayer();
     startWorld(false);
@@ -2831,6 +2832,13 @@
     setTimeout(() => voice(P.def.id, 'mvp', 0.95, true), 600);
   }
 
+  let portraitHold = false;
+  function portraitCheck() {
+    const upright = H > W * 1.1;
+    $('turn').classList.toggle('on', upright && state === 'play' && !P.dead);
+    if (upright && state === 'play' && !P.dead && !paused) { portraitHold = true; paused = true; }
+    else if (!upright && portraitHold) { portraitHold = false; if (state === 'play') paused = false; }
+  }
   function setPause(v) {
     if (state !== 'play' || P.dead) return;
     paused = v;
@@ -2896,6 +2904,7 @@
     abyss.position.set(VW / 2, (0.15 + GB) / 2 - 0.1, 0);
     if (abyssArt) { abyssArt.scale.copy(abyss.scale); abyssArt.position.copy(abyss.position); }
     $('rotate').classList.toggle('can', MOBILE);
+    portraitCheck();
     if (state === 'result') placeRunner(Math.max(VW * 0.26, 3), 1.7);
   }
 

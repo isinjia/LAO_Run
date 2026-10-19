@@ -346,3 +346,14 @@ button { font: inherit; color: inherit; }
 }
 body.running #rotate { display: none !important; }
 #pick { top: 15%; }
+/* upright phone during a run: a pause card asking to turn the phone (the run resumes when it is turned) */
+#turn { display: none; position: fixed; inset: 0; z-index: 40; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px;
+  background: linear-gradient(180deg, rgba(8, 10, 18, .9), rgba(4, 6, 12, .95)), url(../assets/ui/panel_bg.webp) center / 300px; color: #fff; }
+#turn.on { display: flex; }
+#turn b { font-family: 'Black Han Sans', sans-serif; font-weight: 400; font-size: 28px; color: #ffd36e; }
+#turn span { font-size: 13px; color: #c8d4ee; }
+#turn .phone { width: 46px; height: 78px; border: 3px solid #b99c5c; border-radius: 9px; animation: turnPhone 1.6s ease-in-out infinite; }
+@keyframes turnPhone { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+/* touch buttons sit low and translucent so they never hide the runner or what is coming */
+.ctl span { opacity: .45; }
+@media (max-height: 480px) { .ctl { bottom: 4px !important; } .ctl span { width: 64px !important; height: 64px !important; } }
