@@ -67,7 +67,7 @@ window.DATA = (function () {
     { id: 'hraesvelgr', ofx: { bullet: 'Hraesvelgr_skill1_Lazer_bullet', own: true }, pas: { gravK: 0.9, jumpK: 0.949, runK: 0.96, itemK: 1.3, trait: 'strafe', t: '폭풍 비행단: 아이템 지속 +30% · 슬라이드 때 공중의 적을 레이저로 사격(6초 충전)' }, color: 0x9ab8ff, sfx: 'laserBig', name: '흐레스벨그', rank: 'S', cost: 2200, h: 1.9, hp: 100,
       skill: { type: 'fly', name: '대공 무력화', n1: '확산 빔 포트', cd: 15, dur: 5 },
       desc: '비행하며 레이저 드론(대공)을 우선 무력화하고 아래의 적을 연사합니다.' },
-    { id: 'hela', pas: { gravK: 0.9, jumpK: 0.949, runK: 0.96, lifeSteal: 2, trait: 'drain · 쓰러뜨린 자리에 영혼 발판', t: '죽음의 여왕: 적을 쓰러뜨릴 때마다 HP +2' }, color: 0xc77dff, sfx: 'elec', name: '헬라', rank: 'SS', cost: 2800, h: 1.9, hp: 100,
+    { id: 'hela', pas: { gravK: 0.9, jumpK: 0.949, runK: 0.96, lifeSteal: 2, trait: 'drain', t: '죽음의 여왕: 적을 쓰러뜨릴 때마다 HP +2 · 쓰러뜨린 자리에 영혼 발판' }, color: 0xc77dff, sfx: 'elec', name: '헬라', rank: 'SS', cost: 2800, h: 1.9, hp: 100,
       skill: { type: 'coinrain', name: '나노 입자 증폭', n1: '강령', cd: 12, dur: 6 },
       desc: '연쇄 번개가 화면의 적을 차례로 꿰뚫어 코인으로 바꿉니다.' },
     { id: 'azazel', pas: { gravK: 0.9, jumpK: 0.949, runK: 0.96, hitK: 0.8, jellyK: 1.1, trait: 'halo', t: '타천사: 받는 피해 -20%, 젤리 +10% · PERFECT 때 수호 천사 실드(10초 충전)' }, color: 0xffe9a0, sfx: 'energy', name: '아자젤', rank: 'SS', cost: 3000, h: 1.9, hp: 105,

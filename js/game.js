@@ -407,7 +407,7 @@
   }
   function addGround(x0, x1, noArt = false) {
     const prev = segs.length ? segs.reduce((a, b) => (b.x1 > a.x1 ? b : a)) : null;
-    if (!noArt && prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(prev.x1 - 0.35); addLip(x0 + 0.35); addRim(prev.x1 - 0.45); addRim(x0 + 0.45); addChevrons(prev.x1 - Math.max(4, gs * 0.9), prev.x1 - 0.8); }
+    if (!noArt && prev && x0 - prev.x1 > 0.3 && state === 'play') { addEdge(prev.x1, -1); addEdge(x0, 1); addLip(prev.x1 - 0.35); addLip(x0 + 0.35); addRim(prev.x1 - 0.45); addRim(x0 + 0.45); addChevrons(prev.x1 - 3.2, prev.x1 - 0.8); } // just the last few metres before the gap
     segs.push({ x0, x1, mesh: slab(x0, x1, 0, 0 - (GB - 0.6)) });
     if (!noArt && state === 'play' && run.bonus <= 0) {
       const kinds = { city: [3, 2, 3, 1], forest: [0, 0, 1, 2], lab: [2], snow: [2, 1], red: [2, 1, 2] }[STAGES[stageIx].id];
