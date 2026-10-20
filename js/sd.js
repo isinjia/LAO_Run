@@ -1173,11 +1173,32 @@
       if (this.stDirty) { at.st.needsUpdate = true; at.trect.needsUpdate = true; this.stDirty = false; }
     }
 
-    setOrder(base) { this.mesh.renderOrder = base; }
+    setOrder(base) { this.mesh.renderOrder = base; if (this.ol) for (const m of this.ol) m.renderOrder = base - 0.001; }
 
     setTint(r, g, b) { for (const m of this.mats) m.color.setRGB(r, g, b); }
 
-    setOpacity(a) { for (const m of this.mats) m.opacity = a; }
+    setOpacity(a) { for (const m of this.mats) m.opacity = a; if (this.olMats) for (const m of this.olMats) m.opacity = a; }
+
+    // a coloured outline: the silhouette in one flat colour, drawn behind the body nudged in OL_DIRS directions
+    // (d = rig-local thickness; hex 0 turns it off). Additive glows are left out of the silhouette.
+    setOutline(hex, d) {
+      if (!hex) { if (this.ol) for (const m of this.ol) m.visible = false; return; }
+      if (!this.ol) {
+        const mk = (add, side) => {
+          const m = new THREE.MeshBasicMaterial({ map: this.tpl.atlas.tex, vertexColors: true, transparent: true, depthTest: false, depthWrite: false, alphaTest: 0.02, side });
+          m.visible = !add;
+          const flat = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <alphatest_fragment>', 'diffuseColor.rgb = diffuse; diffuseColor.a = min(1.0, diffuseColor.a * 1.8);\n#include <alphatest_fragment>'); };
+          if (this.gpu) { m.userData.sd = this.sdU; m.onBeforeCompile = (sh) => { sdShader(sh, m); flat(sh); }; m.customProgramCacheKey = () => 'sdgpuOL'; }
+          else { m.onBeforeCompile = (sh) => { stShader(sh); flat(sh); }; m.customProgramCacheKey = () => 'sdcpuOL'; }
+          return m;
+        };
+        this.olMats = [THREE.DoubleSide, THREE.BackSide, THREE.FrontSide].flatMap((side) => [mk(false, side), mk(true, side)]);
+        this.ol = OL_DIRS.map(() => { const m = new THREE.Mesh(this.geo, this.olMats); m.frustumCulled = false; if (this.gpu) m.onBeforeRender = baFlush; this.root.add(m); return m; });
+        this.setOrder(this.mesh.renderOrder);
+      }
+      for (const m of this.olMats) { m.color.setHex(hex); m.opacity = this.mats[0].opacity; }
+      this.ol.forEach((m, i) => { m.visible = true; m.position.set(OL_DIRS[i][0] * d, OL_DIRS[i][1] * d, 0); });
+    }
 
     dispose() {
       this.root.parent && this.root.parent.remove(this.root);
@@ -1185,8 +1206,10 @@
       if (this.gpu) { ['position', 'sdI', 'sdW'].forEach((a) => this.geo.deleteAttribute(a)); baFree(this.boneRow, this.boneRows); } // static attributes are shared
       this.geo.dispose();
       for (const m of this.mats) m.dispose();
+      if (this.olMats) for (const m of this.olMats) m.dispose();
     }
   }
+  const OL_DIRS = [0, 1, 2, 3, 4, 5].map((i) => [Math.cos(i * Math.PI / 3 + 0.5), Math.sin(i * Math.PI / 3 + 0.5)]);
 
   // bounds of the idle pose (sprites only, additive glows excluded) used to normalise size
   function measure(tpl) {
@@ -1259,7 +1282,7 @@
       if (p && p.length) {
         const c = p.pop();
         c.speed = 1; c.onEnd = null; c.loop = false;
-        c.setTint(1, 1, 1); c.setOpacity(1);
+        c.setTint(1, 1, 1); c.setOpacity(1); c.setOutline(0);
         c.root.position.set(0, 0, 0); c.root.scale.set(1, 1, 1); c.root.visible = true;
         c.clip = null; // a reused instance starts clean (no crossfade from its previous life)
         c.play('idle');

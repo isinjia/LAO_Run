@@ -443,3 +443,10 @@ html.calm #skillRing.ready, html.calm #skillRing.pick, html.calm .pad.skill.read
 html.calm .hpBar.low i { animation-duration: 1.2s !important; }
 html.calm #feverFx.on, html.calm #bonusFx.on { animation: none !important; }
 html.calm #skillRing.ready::before { animation: none !important; }
+/* in-run pop-ups are see-through so the field stays readable behind them */
+.pop.bossSkill, .pop.warn, .pop.trait, #tutHint.on { opacity: .78; }
+.pop.bossSkill { background: url(../assets/ui/b_caution_frame.png) left center / auto 100% no-repeat, url(../assets/ui/b_caution3.png) center / 100% 100% no-repeat, rgba(40, 8, 0, .45); }
+.pop.warn { background: linear-gradient(180deg, rgba(60, 0, 14, .55), rgba(24, 0, 6, .55)); }
+#pick { background: linear-gradient(180deg, rgba(14, 18, 30, .58), rgba(8, 10, 18, .64)); }
+#pick .pickHead::after { content: ' · 일시정지 중'; color: #cfe0ff; font-weight: 700; }
+.pickCard { background: linear-gradient(180deg, rgba(40, 52, 80, .72), rgba(16, 20, 34, .72)); }

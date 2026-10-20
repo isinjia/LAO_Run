@@ -169,6 +169,9 @@
     g.add(pivot);
     return { g, pivot, c, h: height, baseY: height / 2, k };
   }
+  // outlines that lift a rig off the busy backdrop: red for enemies, green for friends (squadmates, the support member)
+  const OL_FOE = 0xff2238, OL_ALLY = 0x34ff6a;
+  const outline = (r, hex, w = 0.05) => { if (r) r.c.setOutline(hex, w / r.k); };
   async function makeRig(id, height, face) {
     const t = await SD.prepare(id);
     return t ? rigFrom(id, height, face) : null;
@@ -502,6 +505,7 @@
     const all = ENEMIES[opt.hang ? 'low' : kind === 'bomb' || kind === 'shot' ? 'low' : kind], list = all.filter((e) => SD.ready(e.id));
     const d = list.length ? list[(Math.random() * list.length) | 0] : all[0];
     const rig = kind === 'bomb' || kind === 'shot' ? null : SD.ready(d.id) ? rigFrom(d.id, opt.hang ? 1.2 : d.h, FACE_ENEMY) : null;
+    outline(rig, OL_FOE);
     const y = opt.hang ? base + 1.15 : kind === 'air' ? base + 1.05 : base;
     const walk = kind === 'low' && base === 0 && !opt.shooter && Math.random() < 0.35 && traveled > 300;
     const f = { kind, d, x, y, base, w: d.w, h: d.h, rig, beam: null, dead: false, t: 0, vx: 0, vy: 0, rot: 0, hit: false, walk, shadow: makeShadow(), hang: !!opt.hang, shooter: !!opt.shooter };
@@ -602,6 +606,7 @@
       const id = pool.length ? pool[(Math.random() * pool.length) | 0] : null;
       if (id) {
         const rig = rigFrom(id, 1.25, FACE_ENEMY);
+        outline(rig, OL_ALLY);
         rig.c.setOrder(L.ENEMY - 0.2); rig.c.play('idle', null, true); rig.c.setTint(0.7, 0.75, 0.9);
         rig.g.position.set(x0 + 7.6, 2.4, 0); scene.add(rig.g);
         const sos = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.reticle, color: 0x7dff8a, depthTest: false, depthWrite: false, transparent: true }));
@@ -1046,7 +1051,7 @@
 
   const voicePitch = () => { const g = pas().gravK || 1; return g > 1.05 ? 0.8 : g < 0.95 ? 1.25 : (pas().runK || 1) > 1.03 ? 1.1 : 1; }; // heavy thud, light flick
   function jump() {
-    if (state !== 'play' || P.dead || paused) return;
+    if (state !== 'play' || P.dead || paused || run.pick) return;
     P.inT = 0;
     if (P.buff.fly > 0) return;
     const boostJ = run.bonus > 0 ? 1.3 : 1;
@@ -1273,6 +1278,7 @@
     const d = all[run.bossCount % all.length];
     const rig = rigFrom(d.id, d.id === 'e_Nidhogg_N' ? 2.8 : 4.0, FACE_PLAYER); // the dragon is wide: a little smaller so it stays behind the squad
     rig.c.setOrder(L.PLAYER - 0.5);
+    outline(rig, OL_FOE, 0.08);
     rig.c.play(rig.c.has('move') ? 'move' : 'idle', null, true);
     rig.g.position.set(-4, 0, 0);
     scene.add(rig.g);
@@ -1389,7 +1395,7 @@
     window.addEventListener('keydown', key);
     el.classList.add('on'); ann('LevelUp-1');
     $('tutHint').classList.remove('on'); [...$('popups').children].forEach((c) => c.remove()); $('stageName').classList.remove('show', 'on'); // the pick has the screen to itself
-    run.pick = { t: 3.5, choose, key }; // the auto-choice runs in game time (paused = paused) and is dropped with the run
+    run.pick = { t: 3.5, choose, key }; // the run holds still until the player picks (frame), so the timer never runs out mid-run
     run.evQ = ['flat', 'flat'].concat(run.evQ || []); // two clear chunks while the player decides
     for (let i = foes.length - 1; i >= 0; i--) { const f = foes[i]; if (!f.dead && f.x > PX + 4) { if (f.x < VW + 0.5) { origStatic(ORIG_DEFAULT_HIT, f.x, foeMid(f) - 0.4, kOf() * 0.8); burst(f.x, foeMid(f), 0x9fe6ff, 10, 0.5, 4, 'spark'); } freeFoe(f); foes.splice(i, 1); } } // the ground already laid ahead is cleared: on-screen threats warp out
     bridgeAhead(PX + 4, VW + 10);
@@ -1501,6 +1507,7 @@
     const rig = await makeRig(id, 1.15, FACE_PLAYER);
     if (!rig || state !== 'play') { if (rig) freeRig(rig); return; }
     rig.c.setOrder(L.PLAYER - 0.2);
+    outline(rig, OL_ALLY);
     rig.c.play('move', null, true);
     scene.add(rig.g);
     sup = { def: charDef(id), rig, y: 0, t: SUP_EVERY * 0.6 };
@@ -3024,7 +3031,8 @@
     fpsN++; if (t - fpsT0 >= 1000) { fps = Math.round(fpsN * 1000 / (t - fpsT0)); fpsN = 0; fpsT0 = t; } // measured display rate (no cap: requestAnimationFrame follows the screen, 60 / 120 / 144 Hz)
     if (state === 'loading') return;
     if (slowT > 0) { slowT -= dt; if (slowT <= 0) timeScale = 1; }
-    if (!paused) {
+    const hold = state === 'play' && run.pick; // a choice on screen: the run waits for the player
+    if (!paused && !hold) {
       if (state === 'result') { if (P.rig) P.rig.c.update(dt); updateAmbient(dt, 0); }
       else while (dt > 0) { const s = Math.min(0.025, dt); update(s * timeScale); dt -= s; }
     }

@@ -9,6 +9,7 @@
   out.trace = [];
 
   function planAndAct() {
+    if (GAME.run.pick) dispatchEvent(new KeyboardEvent('keydown', { key: '1' })); // a supply pick holds the run: the bot takes the first card
     if (GAME.run.skillReady) dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', key: 'e' })); // skills wait for a press now: the bot presses E as soon as one is ready
     const P = GAME.P;
     if (GAME.state !== 'play' || P.dead) return;
