@@ -531,8 +531,18 @@
     }
     if (kind === 'shot') { // an enemy round flying at the squad
       f.w = 0.55; f.h = 0.42; f.speed = 7;
-      f.mark = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xff4050, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
-      f.mark.scale.set(1.1, 0.5, 1); f.mark.renderOrder = L.FX; scene.add(f.mark);
+      // a real round: an outlined hot slug with a tracer tail behind it (readable over bright sky and city), a soft glow around it
+      if (!TEX.bullet) TEX.bullet = RUNTEX.canvasTex(160, 40, (g) => {
+        const tr = g.createLinearGradient(30, 0, 160, 0); tr.addColorStop(0, 'rgba(255,190,80,.95)'); tr.addColorStop(0.4, 'rgba(255,110,40,.55)'); tr.addColorStop(1, 'rgba(255,60,30,0)');
+        g.fillStyle = tr; g.beginPath(); g.moveTo(30, 13); g.lineTo(160, 18); g.lineTo(160, 22); g.lineTo(30, 27); g.closePath(); g.fill(); // tracer tail
+        g.lineWidth = 3; g.strokeStyle = '#2a0800'; g.fillStyle = '#ff8a2a';
+        g.beginPath(); g.moveTo(4, 20); g.quadraticCurveTo(8, 9, 20, 9); g.lineTo(44, 9); g.lineTo(44, 31); g.lineTo(20, 31); g.quadraticCurveTo(8, 31, 4, 20); g.closePath(); g.stroke(); g.fill(); // slug with a dark outline
+        g.fillStyle = '#fff6c8'; g.beginPath(); g.moveTo(9, 20); g.quadraticCurveTo(12, 13, 20, 13); g.lineTo(38, 13); g.lineTo(38, 19); g.lineTo(14, 21); g.closePath(); g.fill(); // white-hot core
+      });
+      f.mark = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.bullet, depthTest: false, depthWrite: false, transparent: true }));
+      f.mark.scale.set(2.0, 0.5, 1); f.mark.renderOrder = L.FX + 0.5; f.mark.center.set(0.12, 0.5); scene.add(f.mark);
+      f.glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xff5030, opacity: 0.55, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
+      f.glow.scale.set(1.1, 0.75, 1); f.glow.renderOrder = L.FX + 0.4; scene.add(f.glow);
       f.shadow.material.opacity = 0.4;
     }
     if (kind === 'air') {
@@ -2184,7 +2194,7 @@
           }
           if (f.armed && (f.armed -= dt) <= 0) { f.dead = true; f.t = 0.9; }
         }
-        if (f.kind === 'shot') { f.x -= f.speed * dt; f.mark.position.set(f.x, f.y + 0.2, 0); if (Math.random() < 0.5) burst(f.x + 0.3, f.y + 0.2, 0xff6070, 1, 0.3, 0.5); }
+        if (f.kind === 'shot') { f.x -= f.speed * dt; f.mark.position.set(f.x - 0.2, f.y + 0.2, 0); if (f.glow) f.glow.position.set(f.x - 0.1, f.y + 0.2, 0); if (Math.random() < 0.4) burst(f.x + 0.4, f.y + 0.2, 0xffb060, 1, 0.25, 0.5, 'spark'); }
         if (f.shooter && !f.fired && f.x < PX + 11 && f.x > PX + 3) { // telegraph, then a round at jump or slide height
           f.aim = (f.aim || 0) + dt;
           if (f.aim > 0.15 && f.aim < 0.2) { ring(f.x - 0.4, f.y + 0.9, 0xff4050, 1.4, 0.6); AUDIO.play('charge', 0.35, 1.8); }
