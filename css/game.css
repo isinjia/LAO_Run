@@ -1,3 +1,4 @@
+:root { --vw: 1vw; --vh: 1vh; } /* set from the game viewport by resize() */
 :root {
   --bg: #0b1020;
   --panel: rgba(12, 18, 36, 0.86);
@@ -25,15 +26,15 @@ button { font: inherit; color: inherit; }
 .logo { font-family: 'Black Han Sans', 'Noto Sans KR', sans-serif; font-size: 44px; letter-spacing: 2px; line-height: 1;
   color: #fff; text-shadow: 0 4px 0 #1b2a55, 0 0 24px rgba(95, 225, 255, 0.6); }
 .logo span { color: var(--accent); }
-.logo.big { font-size: clamp(52px, 11vw, 104px); transform: rotate(-3deg); }
+.logo.big { font-size: clamp(52px, calc(var(--vw) * 11), 104px); transform: rotate(-3deg); }
 .sub { color: #dfe9ff; font-weight: 700; text-shadow: 0 2px 4px #000; margin-top: -4px; }
 
 #loading { background: radial-gradient(circle at 50% 40%, #1a2850, #070b16 70%); }
-.bar { width: min(360px, 80vw); height: 12px; border-radius: 8px; background: #1a2440; overflow: hidden; border: 1px solid var(--line); }
+.bar { width: min(360px, calc(var(--vw) * 80)); height: 12px; border-radius: 8px; background: #1a2440; overflow: hidden; border: 1px solid var(--line); }
 .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--accent)); transition: width .2s; }
 #loadTxt { color: var(--dim); font-size: 14px; }
 
-#title { background: linear-gradient(180deg, rgba(5, 10, 25, 0.15), rgba(5, 10, 25, 0.55)); justify-content: flex-start; padding-top: 7vh; }
+#title { background: linear-gradient(180deg, rgba(5, 10, 25, 0.15), rgba(5, 10, 25, 0.55)); justify-content: flex-start; padding-top: calc(var(--vh) * 7); }
 .titleSel { display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--line);
   border-radius: 14px; padding: 8px 16px 8px 8px; text-align: left; margin-top: auto; }
 .titleSel img { width: 56px; height: 56px; border-radius: 10px; background: #223; }
@@ -43,7 +44,7 @@ button { font: inherit; color: inherit; }
 .col { display: flex; flex-direction: column; gap: 10px; min-width: 220px; }
 .wallet { font-size: 14px; color: #dfe9ff; text-shadow: 0 1px 3px #000; }
 .wallet b { color: var(--accent); }
-.help { font-size: 12.5px; color: #cdd8ef; background: rgba(0, 0, 0, 0.45); padding: 8px 14px; border-radius: 10px; line-height: 1.7; margin-bottom: 4vh; }
+.help { font-size: 12.5px; color: #cdd8ef; background: rgba(0, 0, 0, 0.45); padding: 8px 14px; border-radius: 10px; line-height: 1.7; margin-bottom: calc(var(--vh) * 4); }
 .help b { color: var(--cyan); }
 
 .btn { border: 0; cursor: pointer; padding: 12px 26px; border-radius: 14px; font-weight: 900; font-size: 18px;
@@ -85,11 +86,11 @@ button { font: inherit; color: inherit; }
 #skillRing.ready { animation: pulse .5s infinite alternate; }
 #skillRing.active { background: conic-gradient(#ff7bd0 calc(var(--p) * 1%), rgba(255, 255, 255, .15) 0); }
 #skillRing img { width: 100%; height: 100%; border-radius: 50%; background: #1a2340; display: block; }
-#skillName { position: absolute; left: 0; bottom: -16px; white-space: nowrap; font-size: 11px; font-weight: 900; max-width: 46vw; overflow: hidden; text-overflow: ellipsis;
+#skillName { position: absolute; left: 0; bottom: -16px; white-space: nowrap; font-size: 11px; font-weight: 900; max-width: calc(var(--vw) * 46); overflow: hidden; text-overflow: ellipsis;
   background: rgba(0, 0, 0, .65); padding: 1px 6px; border-radius: 6px; }
 @keyframes pulse { to { filter: brightness(1.35); } }
 .hpBox { padding-top: 8px; }
-.hpBar { position: relative; width: min(300px, 38vw); height: 22px; border-radius: 12px; background: rgba(0, 0, 0, .55);
+.hpBar { position: relative; width: min(300px, calc(var(--vw) * 38)); height: 22px; border-radius: 12px; background: rgba(0, 0, 0, .55);
   border: 2px solid rgba(255, 255, 255, .7); overflow: hidden; }
 .hpBar i { position: absolute; inset: 0; width: 100%; background: linear-gradient(180deg, #ff8fa3, var(--hp) 55%, #c9183b); transition: width .15s; }
 .hpBar.low i { animation: blink .4s infinite alternate; }
@@ -121,7 +122,7 @@ button { font: inherit; color: inherit; }
 
 #pause h2, #result h2 { font-family: 'Black Han Sans', sans-serif; font-weight: 400; font-size: 40px; margin: 0; text-shadow: 0 3px 0 #1b2a55; }
 #result { align-items: flex-end; justify-content: center; background: linear-gradient(90deg, rgba(4,8,18,0) 0%, rgba(4,8,18,.25) 38%, rgba(4,8,18,.82) 60%); }
-.resPanel { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-right: max(4vw, env(safe-area-inset-right)); }
+.resPanel { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-right: max(calc(var(--vw) * 4), env(safe-area-inset-right)); }
 .resCard { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 22px; min-width: 300px; text-align: left; }
 .resHead { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
 #resName { font-weight: 900; font-size: 18px; }
@@ -135,19 +136,17 @@ button { font: inherit; color: inherit; }
 .newRec { display: none; color: var(--accent2); font-weight: 900; animation: pulse .5s infinite alternate; }
 .newRec.on { display: block; }
 
-@media (orientation: portrait) { .ctl span { width: 78px; height: 78px; } }
-@media (max-width: 640px), (orientation: portrait) {
-  #result { align-items: center; justify-content: flex-end; background: linear-gradient(180deg, rgba(4,8,18,0) 30%, rgba(4,8,18,.85) 55%); }
-  .resPanel { margin: 0 0 10px; }
-  .resCard { min-width: 0; width: min(360px, 92vw); padding: 10px 16px; }
-  #score { font-size: 28px; }
-  .logo { font-size: 34px; }
-}
-@media (max-height: 460px) {
-  #title { padding-top: 3vh; gap: 8px; }
-  .help { margin-bottom: 1vh; }
-  .btn { padding: 9px 20px; font-size: 16px; }
-}
+
+/* was @media (max-width: 640px), (orientation: portrait) */
+html.w640 #result { align-items: center; justify-content: flex-end; background: linear-gradient(180deg, rgba(4,8,18,0) 30%, rgba(4,8,18,.85) 55%); }
+html.w640 .resPanel { margin: 0 0 10px; }
+html.w640 .resCard { min-width: 0; width: min(360px, calc(var(--vw) * 92)); padding: 10px 16px; }
+html.w640 #score { font-size: 28px; }
+html.w640 .logo { font-size: 34px; }
+/* was @media (max-height: 460px) */
+html.h460 #title { padding-top: calc(var(--vh) * 3); gap: 8px; }
+html.h460 .help { margin-bottom: calc(var(--vh) * 1); }
+html.h460 .btn { padding: 9px 20px; font-size: 16px; }
 
 /* combo / letters */
 #combo { margin-top: 2px; font-family: 'Black Han Sans', sans-serif; font-size: 18px; color: #ffe14d; text-shadow: 0 2px 0 #7a4a00, 0 0 10px rgba(255, 200, 40, .6); min-height: 22px; }
@@ -181,7 +180,10 @@ button { font: inherit; color: inherit; }
 #cutSub { font-weight: 900; font-size: 15px; color: rgba(255, 255, 255, .9); text-shadow: 0 1px 2px #000; }
 #cutin.on { animation: cutA 1.15s cubic-bezier(.2, .9, .2, 1) forwards; }
 @keyframes cutA { 0% { opacity: 0; transform: translateX(-60%); } 14% { opacity: 1; transform: translateX(0); } 75% { opacity: 1; transform: translateX(3%); } 100% { opacity: 0; transform: translateX(40%); } }
-@media (max-width: 640px) { #cutName { font-size: 28px; } #cutin img { width: 84px; height: 84px; left: 4%; top: 12px; } #cutin .txt { left: calc(4% + 96px); } }
+/* was @media (max-width: 640px) */
+html.w640 #cutName { font-size: 28px; }
+html.w640 #cutin img { width: 84px; height: 84px; left: 4%; top: 12px; }
+html.w640 #cutin .txt { left: calc(4% + 96px); }
 
 /* cards: member colour + level / upgrade */
 .card { border-left: 4px solid var(--c, var(--line)); }
@@ -201,7 +203,8 @@ button { font: inherit; color: inherit; }
 .mis.ok b { color: #7dff8a; }
 .card .pas { font-size: 12px; color: #ffd98a; font-weight: 700; }
 .pop.mission { font-size: 17px; color: #7dff8a; }
-@media (max-height: 460px) { #titleMissions { display: none; } }
+/* was @media (max-height: 460px) */
+html.h460 #titleMissions { display: none; }
 
 /* card footer never wraps into the buttons */
 .card .ft { flex-wrap: wrap; gap: 6px; }
@@ -223,7 +226,7 @@ button { font: inherit; color: inherit; }
   background: rgba(10, 16, 34, .88); border: 2px solid var(--accent); color: #fff; font-weight: 900; font-size: 20px; padding: 10px 18px; border-radius: 14px; white-space: nowrap; }
 #tutHint.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 /* panels (gear / achievements / attendance) */
-.panelScreen .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 18px; width: min(560px, 94vw); max-height: 86vh; overflow-y: auto; text-align: left; touch-action: pan-y; }
+.panelScreen .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 18px; width: min(560px, calc(var(--vw) * 94)); max-height: calc(var(--vh) * 86); overflow-y: auto; text-align: left; touch-action: pan-y; }
 .panelScreen .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .panelScreen h2 { flex: 1; margin: 0; font-family: 'Black Han Sans', sans-serif; font-weight: 400; font-size: 26px; }
 .gearRow, .achRow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .04); margin-bottom: 6px; }
@@ -253,10 +256,13 @@ button { font: inherit; color: inherit; }
 #cutin img { left: 8%; top: 0; width: 230px; height: 150px; object-fit: cover; object-position: 50% 20%; border-radius: 0; border: 0;
   clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%); box-shadow: none; background: rgba(0, 0, 0, .25); filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .5)); }
 #cutin .txt { left: calc(8% + 236px); top: 40px; }
-@media (max-width: 640px) { #cutin { height: 120px; } #cutin img { width: 170px; height: 120px; left: 2%; top: 0; } #cutin .txt { left: calc(2% + 172px); top: 28px; } }
+/* was @media (max-width: 640px) */
+html.w640 #cutin { height: 120px; }
+html.w640 #cutin img { width: 170px; height: 120px; left: 2%; top: 0; }
+html.w640 #cutin .txt { left: calc(2% + 172px); top: 28px; }
 /* the result panel always fits the screen */
-.resPanel { max-height: calc(100vh - 16px); }
-.resCard { max-height: calc(100vh - 130px); overflow-y: auto; touch-action: pan-y; }
+.resPanel { max-height: calc(calc(var(--vh) * 100) - 16px); }
+.resCard { max-height: calc(calc(var(--vh) * 100) - 130px); overflow-y: auto; touch-action: pan-y; }
 
 /* FEVER and the skill-ready ring */
 #feverFx { position: absolute; inset: 0; pointer-events: none; z-index: 9; opacity: 0; transition: opacity .3s; box-shadow: inset 0 0 70px 14px rgba(255, 225, 77, .55); }
@@ -301,7 +307,7 @@ button { font: inherit; color: inherit; }
 .btn { border-radius: 4px; }
 .btn.primary { box-shadow: inset 0 0 0 1px rgba(255, 240, 200, .6), 0 3px 0 #8a5a00; }
 /* result card fits the screen: it scrolls inside, and the mission rows keep clear of the cut corner */
-.resCard { max-height: calc(100vh - 150px); overflow-y: auto; }
+.resCard { max-height: calc(calc(var(--vh) * 100) - 150px); overflow-y: auto; }
 #resMissions.missions { clip-path: none; background: none; border: none; box-shadow: none; padding: 6px 4px 0 0; }
 .missions { padding-right: 20px; }
 /* in-run HUD in the original's look: hex ORCA slots (CreateResult hex motif), coin and pause on the hex-grid panel with gold trim */
@@ -335,13 +341,12 @@ button { font: inherit; color: inherit; }
 #pick .pickHead { font-weight: 900; color: #ffd36e; font-size: 14px; }
 #pick .btn { min-width: 180px; }
 /* narrow phones: score and combo drop below the HP row, ORCA slots tuck under the coin pill, call-outs wrap inside the screen */
-@media (max-width: 520px) {
-  .scoreBox { top: 92px !important; }
-  #letters { top: 56px !important; right: 12px !important; left: auto !important; transform: none !important; }
-  #letters i { width: 24px; height: 24px; font-size: 12px; }
-  .hpBar { width: min(170px, 44vw); }
-  .pop.bossSkill, .pop.warn { white-space: normal; max-width: 86vw; font-size: 17px; text-align: center; }
-}
+/* was @media (max-width: 520px) */
+html.w520 .scoreBox { top: 92px !important; }
+html.w520 #letters { top: 56px !important; right: 12px !important; left: auto !important; transform: none !important; }
+html.w520 #letters i { width: 24px; height: 24px; font-size: 12px; }
+html.w520 .hpBar { width: min(170px, calc(var(--vw) * 44)); }
+html.w520 .pop.bossSkill, html.w520 .pop.warn { white-space: normal; max-width: calc(var(--vw) * 86); font-size: 17px; text-align: center; }
 #pick { top: 15%; }
 /* upright phone during a run: a pause card asking to turn the phone (the run resumes when it is turned) */
 #turn { display: none; position: fixed; inset: 0; z-index: 40; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px;
@@ -353,39 +358,40 @@ button { font: inherit; color: inherit; }
 @keyframes turnPhone { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
 /* touch buttons sit low and translucent so they never hide the runner or what is coming */
 .ctl span { opacity: .45; }
-@media (max-height: 480px) { .ctl { bottom: 4px !important; } .ctl span { width: 64px !important; height: 64px !important; } }
+/* was @media (max-height: 480px) */
+html.h480 .ctl { bottom: 4px !important; }
+html.h480 .ctl span { width: 64px !important; height: 64px !important; }
 /* landscape phones (short screens): a compact HUD that never collides */
 .ctl span { white-space: nowrap; }
-@media (max-height: 480px) {
-  .hpWrap { left: max(14px, env(safe-area-inset-left)); top: 10px; gap: 8px; }
-  #skillRing { width: 48px; height: 48px; padding: 3px; }
-  #skillRing.ready::before { inset: -3px; }
-  #skillName { font-size: 10px; }
-  .hpBar { width: min(220px, 30vw); height: 18px; }
-  #buffs { margin-top: 5px; }
-  .buff { font-size: 10px; padding: 1px 6px; }
-  .scoreBox { top: 6px !important; left: 52% !important; }
-  #score { font-size: 22px !important; }
-  #dist { font-size: 10px; }
-  #combo { font-size: 12px; }
-  #letters { top: 50px !important; }
-  #letters i { width: 24px; height: 22px; font-size: 11px; }
-  .ctl span { width: 58px !important; height: 58px !important; font-size: 12px; }
-  #tutHint { font-size: 13px !important; padding: 6px 10px !important; max-width: 46vw; top: 26% !important; }
-  #bossBar { top: 66px; } #bossBar .bb { width: 120px; }
-}
+/* was @media (max-height: 480px) */
+html.h480 .hpWrap { left: max(14px, env(safe-area-inset-left)); top: 10px; gap: 8px; }
+html.h480 #skillRing { width: 48px; height: 48px; padding: 3px; }
+html.h480 #skillRing.ready::before { inset: -3px; }
+html.h480 #skillName { font-size: 10px; }
+html.h480 .hpBar { width: min(220px, calc(var(--vw) * 30)); height: 18px; }
+html.h480 #buffs { margin-top: 5px; }
+html.h480 .buff { font-size: 10px; padding: 1px 6px; }
+html.h480 .scoreBox { top: 6px !important; left: 52% !important; }
+html.h480 #score { font-size: 22px !important; }
+html.h480 #dist { font-size: 10px; }
+html.h480 #combo { font-size: 12px; }
+html.h480 #letters { top: 50px !important; }
+html.h480 #letters i { width: 24px; height: 22px; font-size: 11px; }
+html.h480 .ctl span { width: 58px !important; height: 58px !important; font-size: 12px; }
+html.h480 #tutHint { font-size: 13px !important; padding: 6px 10px !important; max-width: calc(var(--vw) * 46); top: 26% !important; }
+html.h480 #bossBar { top: 66px; }
+html.h480 #bossBar .bb { width: 120px; }
 /* the skill-ready key hint sits under the portrait's name tag, never under the HP bar */
 #skillRing.pick::after { left: 50%; top: calc(100% + 22px); transform: translateX(-50%); z-index: 3; }
 /* short landscape screens: the title scrolls and compacts so every button is reachable */
-@media (max-height: 480px) {
-  #title { overflow-y: auto; justify-content: flex-start; padding: 8px 0 16px; gap: 6px; }
-  #title .logo.big { font-size: 40px; }
-  #title .sub { display: none; }
-  .titleSel { padding: 6px 10px; }
-  #titleSkill { font-size: 11px; max-width: 420px; }
-  .boost { padding: 3px 10px; font-size: 12px; }
-  #title .help { display: none; }
-}
+/* was @media (max-height: 480px) */
+html.h480 #title { overflow-y: auto; justify-content: flex-start; padding: 8px 0 16px; gap: 6px; }
+html.h480 #title .logo.big { font-size: 40px; }
+html.h480 #title .sub { display: none; }
+html.h480 .titleSel { padding: 6px 10px; }
+html.h480 #titleSkill { font-size: 11px; max-width: 420px; }
+html.h480 .boost { padding: 3px 10px; font-size: 12px; }
+html.h480 #title .help { display: none; }
 /* tutorial cards ride high, clear of the running lane */
 #tutHint { top: 22% !important; }
 /* supply cards: original resource icons on gold-trimmed cards */
@@ -395,13 +401,40 @@ button { font: inherit; color: inherit; }
 .pickCard:hover { box-shadow: inset 0 0 0 2px #ffd36e; }
 .pickCard img { width: 46px; height: 46px; object-fit: contain; filter: drop-shadow(0 0 6px rgba(255, 220, 140, .5)); }
 .pickCard b { font-size: 13px; } .pickCard small { color: #ffd36e; font-size: 11px; }
-@media (max-height: 480px) {
-  .pickCard { width: 92px; padding: 5px 4px; } .pickCard img { width: 34px; height: 34px; }
-  .hpWrap { transform: scale(.82); transform-origin: top left; }
-  .rightBox { transform: scale(.82); transform-origin: top right; }
-  #titleMissions { display: none; }
-}
-@media (max-height: 480px) { #tutHint { top: 14% !important; font-size: 12px !important; max-width: 40vw; } }
+/* was @media (max-height: 480px) */
+html.h480 .pickCard { width: 92px; padding: 5px 4px; }
+html.h480 .pickCard img { width: 34px; height: 34px; }
+html.h480 .hpWrap { transform: scale(.82); transform-origin: top left; }
+html.h480 .rightBox { transform: scale(.82); transform-origin: top right; }
+html.h480 #titleMissions { display: none; }
+/* was @media (max-height: 480px) */
+html.h480 #tutHint { top: 14% !important; font-size: 12px !important; max-width: calc(var(--vw) * 40); }
 /* title: coins sit top-right like the run HUD */
 .titleTop { position: absolute; top: 12px; right: max(14px, env(safe-area-inset-right)); display: flex; gap: 8px; z-index: 2; }
 .titleTop .coinTag { font-size: 16px; }
+/* upright phone: the whole page turned 90° so the game is played sideways (real viewport units on purpose) */
+html.rot { width: 100vw; height: 100vh; overflow: hidden; }
+html.rot body { position: absolute; top: 0; left: 100vw; width: 100vh; height: 100vw; transform-origin: 0 0; transform: rotate(90deg); overflow: hidden; }
+/* on-screen buttons: their own touch targets, placed and sized by the player (the half-screen zones still work under them) */
+#pads { position: absolute; inset: 0; pointer-events: none; }
+.pad { position: absolute; width: 92px; height: 92px; border-radius: 50%; pointer-events: auto; display: flex; align-items: center; justify-content: center; padding: 0;
+  font: inherit; font-weight: 900; font-size: 15px; color: #fff; text-shadow: 0 1px 3px #000; white-space: nowrap; cursor: pointer; touch-action: none;
+  background: rgba(255, 255, 255, .14); border: 3px solid rgba(255, 255, 255, .5); transition: background .06s; }
+.pad.on { background: rgba(255, 207, 58, .45); }
+.pad.skill { --p: 0; --sc: #5fe1ff; width: 82px; height: 82px; border: none; overflow: hidden;
+  background: conic-gradient(var(--sc) calc(var(--p) * 1%), rgba(255, 255, 255, .15) 0); }
+.pad.skill img { position: absolute; inset: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border-radius: 50%; object-fit: cover; opacity: .55; filter: grayscale(.6); }
+.pad.skill span { position: relative; font-size: 13px; }
+.pad.skill.ready { box-shadow: 0 0 0 3px #fff, 0 0 20px 6px var(--sc); animation: pulse .3s infinite alternate; }
+.pad.skill.ready img, .pad.skill.active img { opacity: 1; filter: none; }
+@media (hover: hover) and (pointer: fine) { .pad { opacity: .6; } }
+/* layout editor: only the bar and the buttons take input; the buttons show a dashed frame */
+#layout { background: rgba(4, 8, 18, .45); justify-content: flex-start; pointer-events: none; z-index: 30; }
+#layout .layBar { pointer-events: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 10px; padding: 8px 14px;
+  background: linear-gradient(180deg, rgba(14, 18, 30, .9), rgba(8, 10, 18, .95)); border: 1px solid #b99c5c; }
+#layout .layBar span { color: #c8d4ee; font-size: 13px; } #layout label { display: flex; align-items: center; gap: 6px; font-size: 13px; } #layout input { width: 140px; }
+body.editPads #hud { z-index: 31; } body.editPads #hud.hidden { display: block !important; }
+body.editPads #hud > *:not(#pads) { visibility: hidden; }
+body.editPads .pad { outline: 2px dashed #ffd36e; outline-offset: 4px; opacity: 1; }
+html.h480 .pad { width: 70px; height: 70px; font-size: 12px; } html.h480 .pad.skill { width: 64px; height: 64px; }
+.fpsTxt { font-size: 12px; color: #9fb0cc; }

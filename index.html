@@ -40,6 +40,7 @@
     <div class="row">
       <button id="btnGear" class="btn small">장비</button>
       <button id="btnAch" class="btn small">업적</button>
+      <button id="btnLayoutT" class="btn small">버튼 설정</button>
     </div>
     <div id="titleMissions" class="missions"></div>
     <div class="wallet">최고 기록 <b id="walletBest">0</b></div>
@@ -83,8 +84,13 @@
     <div id="pick"></div>
     <div id="bossBar"><span id="bossName"></span><div class="bb"><i id="bossFill"></i></div></div>
     <div id="tutHint"></div>
-    <div id="ctlJump" class="ctl left"><span>점프</span></div>
-    <div id="ctlSlide" class="ctl right"><span>슬라이드</span></div>
+    <div id="ctlJump" class="ctl left"></div>
+    <div id="ctlSlide" class="ctl right"></div>
+    <div id="pads">
+      <button id="padJump" class="pad" data-k="jump"><span>점프</span></button>
+      <button id="padSlide" class="pad" data-k="slide"><span>슬라이드</span></button>
+      <button id="padSkill" class="pad skill" data-k="skill"><img id="padSkillImg" alt=""><span>스킬</span></button>
+    </div>
     <div id="popups"></div>
   </div>
   <div id="bonusFx"></div>
@@ -100,6 +106,18 @@
       <button id="btnResume" class="btn primary">계속하기</button>
       <button id="btnRetire" class="btn">그만하기</button>
       <button id="btnSound" class="btn">사운드: 켬</button>
+      <button id="btnLayout" class="btn">버튼 설정</button>
+    </div>
+    <div id="fpsTxt" class="fpsTxt"></div>
+  </div>
+
+  <!-- button layout editor -->
+  <div id="layout" class="screen">
+    <div class="layBar">
+      <b>버튼 설정</b><span>버튼을 끌어서 옮기세요</span>
+      <label>크기 <input id="layScale" type="range" min="60" max="160" step="5"><i id="layScaleTxt">100%</i></label>
+      <button id="layReset" class="btn small">기본값</button>
+      <button id="layDone" class="btn small primary">완료</button>
     </div>
   </div>
 
@@ -152,7 +170,6 @@
     </div>
   </div>
 
-  <div id="turn"><div class="phone"></div><b>가로로 돌려 주세요</b><span>ORCA RUN은 가로 화면 전용입니다 · 돌리면 바로 이어집니다</span></div>
 </div>
 
 <script src="js/vendor/three.min.js"></script>

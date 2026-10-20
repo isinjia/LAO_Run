@@ -2607,7 +2607,9 @@
     const cls = P.skillOn > 0 ? 'active' : p > 85 ? 'ready' : '';
     if (hudCache.ringCls !== cls) { hudCache.ringCls = cls; ringEl.className = cls; }
     const ps = p.toFixed(0);
-    if (hudCache.ringP !== ps) { hudCache.ringP = ps; ringEl.style.setProperty('--p', ps); }
+    if (hudCache.ringP !== ps) { hudCache.ringP = ps; ringEl.style.setProperty('--p', ps); $('padSkill').style.setProperty('--p', ps); }
+    const sk = run.skillReady ? 'pad skill ready' : P.skillOn > 0 ? 'pad skill active' : 'pad skill';
+    if (hudCache.padCls !== sk) { hudCache.padCls = sk; $('padSkill').className = sk; }
     const b = [];
     if (run.bonus > 0) b.push('보너스 ' + run.bonus.toFixed(0));
     if (P.buff.magnet > 0) b.push('자석 ' + P.buff.magnet.toFixed(0));
@@ -2710,8 +2712,9 @@
   function buildCharGrid() {
     const grid = $('charGrid');
     grid.innerHTML = '';
+    const byCost = CHARS.slice().sort((a, b) => a.cost - b.cost); // cheapest first
     $('charCoins').textContent = save.coins.toLocaleString();
-    CHARS.forEach((d) => {
+    byCost.forEach((d) => {
       const owned = save.owned.includes(d.id), lv = lvOf(d.id);
       const el = document.createElement('div');
       el.className = 'card' + (save.sel === d.id ? ' sel' : '') + (owned ? '' : ' locked');
@@ -2786,6 +2789,7 @@
     $('hudPortrait').src = portrait(P.def.id);
     $('skillName').textContent = P.def.skill.name;
     $('skillRing').style.setProperty('--sc', hex(P.def.color));
+    $('padSkill').style.setProperty('--sc', hex(P.def.color)); $('padSkillImg').src = portrait(P.def.id);
     show(null);
     AUDIO.music(STAGES[0].bgm);
     ann('GameStart-1');
@@ -2876,16 +2880,12 @@
   let portraitHold = false;
   function lockLandscape() { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* not allowed here */ } }
   addEventListener('pointerdown', lockLandscape, { once: true });
-  function portraitCheck() {
-    const upright = H > W * 1.1;
-    $('turn').classList.toggle('on', upright && state !== 'loading'); // landscape only: every screen asks to turn the phone
-    if (upright && state === 'play' && !P.dead && !paused) { portraitHold = true; paused = true; }
-    else if (!upright && portraitHold) { portraitHold = false; if (state === 'play') paused = false; }
-  }
+  function portraitCheck() { /* an upright phone now shows the game rotated (resize), so nothing to ask */ }
   function setPause(v) {
     if (state !== 'play' || P.dead) return;
     paused = v;
     $('pause').classList.toggle('show', v);
+    $('fpsTxt').textContent = '현재 화면 주사율: ' + fps + ' fps (게임은 화면 주사율을 그대로 따릅니다)';
     $('btnSound').textContent = '사운드: ' + (AUDIO.on ? '켬' : '끔');
   }
 
@@ -2900,6 +2900,12 @@
     };
     press($('ctlJump'), jump);
     press($('ctlSlide'), () => { input.slide = true; }, () => { input.slide = false; });
+    const padPress = (el, down, up) => press(el, () => { if (!layoutEdit) down(); }, up && (() => { if (!layoutEdit) up(); }));
+    padPress($('padJump'), jump);
+    padPress($('padSlide'), () => { input.slide = true; }, () => { input.slide = false; });
+    padPress($('padSkill'), () => { if (run.skillReady) input.skill = true; });
+    applyPads();
+    bindLayoutEditor();
     addEventListener('keydown', (e) => {
       if (e.repeat) { if (['ArrowDown', 'KeyS', 'ShiftLeft', 'Space', 'ArrowUp'].includes(e.code)) e.preventDefault(); return; }
       AUDIO.unlock();
@@ -2931,9 +2937,50 @@
     $('btnHome').onclick = () => { goTitle(); buildCharGrid(); show('chars'); };
   }
 
+  // ── on-screen buttons: positions (percent of the game view) and size are the player's, saved with the game ──
+  const PAD_DEF = { scale: 1, jump: { x: 9, y: 84 }, slide: { x: 91, y: 84 }, skill: { x: 91, y: 58 } };
+  let layoutEdit = false;
+  const padCfg = () => { const u = save.ui || {}; return { scale: u.scale || PAD_DEF.scale, jump: u.jump || PAD_DEF.jump, slide: u.slide || PAD_DEF.slide, skill: u.skill || PAD_DEF.skill }; };
+  function applyPads() {
+    const c = padCfg();
+    for (const k of ['jump', 'slide', 'skill']) {
+      const el = $('pad' + k[0].toUpperCase() + k.slice(1));
+      el.style.left = c[k].x + '%'; el.style.top = c[k].y + '%';
+      el.style.transform = 'translate(-50%, -50%) scale(' + c.scale + ')';
+    }
+  }
+  // a pointer on the physical screen -> percent of the game view (the page may be turned 90° on an upright phone)
+  function toView(e) {
+    const rot = document.documentElement.classList.contains('rot');
+    const gx = rot ? e.clientY : e.clientX, gy = rot ? innerWidth - e.clientX : e.clientY;
+    return { x: Math.max(4, Math.min(96, gx / W * 100)), y: Math.max(6, Math.min(94, gy / H * 100)) };
+  }
+  function bindLayoutEditor() {
+    const open = () => {
+      layoutEdit = true; save.ui = save.ui || {}; $('layScale').value = Math.round(padCfg().scale * 100); $('layScaleTxt').textContent = $('layScale').value + '%';
+      $('pause').classList.remove('show'); // the pause menu steps aside while the buttons are edited
+      $('layout').classList.add('show'); document.body.classList.add('editPads'); AUDIO.play('click', 0.5);
+    };
+    const close = () => { layoutEdit = false; $('layout').classList.remove('show'); document.body.classList.remove('editPads'); if (paused) $('pause').classList.add('show'); persist(); AUDIO.play('click', 0.5); };
+    $('btnLayout').onclick = open; $('btnLayoutT').onclick = open; $('layDone').onclick = close;
+    $('layReset').onclick = () => { save.ui = {}; $('layScale').value = 100; $('layScaleTxt').textContent = '100%'; applyPads(); };
+    $('layScale').oninput = (e) => { save.ui.scale = +e.target.value / 100; $('layScaleTxt').textContent = e.target.value + '%'; applyPads(); };
+    document.querySelectorAll('.pad').forEach((el) => {
+      let drag = false;
+      el.addEventListener('pointerdown', (e) => { if (!layoutEdit) return; drag = true; el.setPointerCapture(e.pointerId); e.stopPropagation(); });
+      el.addEventListener('pointermove', (e) => { if (!drag) return; save.ui[el.dataset.k] = toView(e); applyPads(); });
+      el.addEventListener('pointerup', () => { drag = false; });
+    });
+  }
+
   // ── layout ──
   function resize() {
-    W = innerWidth; H = innerHeight;
+    const rot = (MOBILE || 'ontouchstart' in window) && innerHeight > innerWidth * 1.05; // upright phone: the page is drawn rotated 90°
+    W = rot ? innerHeight : innerWidth; H = rot ? innerWidth : innerHeight;
+    const de = document.documentElement;
+    de.classList.toggle('rot', rot);
+    de.style.setProperty('--vw', W / 100 + 'px'); de.style.setProperty('--vh', H / 100 + 'px'); // css sizes follow the game view, not the device
+    for (const [c, on] of [['h460', H <= 460], ['h480', H <= 480], ['w520', W <= 520], ['w640', W <= 640]]) de.classList.toggle(c, on);
     renderer.setSize(W, H);
     const asp = W / H;
     VH = 9.6;
@@ -2951,13 +2998,14 @@
   }
 
   // ── boot ──
-  let lastT = 0, held = false;
+  let lastT = 0, held = false, fps = 0, fpsN = 0, fpsT0 = 0;
   function frame(t) {
     requestAnimationFrame(frame);
     if (held) { lastT = t; return; }
     // slow frames run in sub-steps so the run keeps real-time speed (up to 0.1 s per frame)
     let dt = Math.min(0.1, (t - lastT) / 1000 || 0);
     lastT = t;
+    fpsN++; if (t - fpsT0 >= 1000) { fps = Math.round(fpsN * 1000 / (t - fpsT0)); fpsN = 0; fpsT0 = t; } // measured display rate (no cap: requestAnimationFrame follows the screen, 60 / 120 / 144 Hz)
     if (state === 'loading') return;
     if (slowT > 0) { slowT -= dt; if (slowT <= 0) timeScale = 1; }
     if (!paused) {
