@@ -2645,7 +2645,7 @@
 
   function placeRunner(x, s) {
     if (!P.rig) return;
-    P.rig.g.position.set(x, 0, 0);
+    P.rig.g.position.set(x, -0.25 * s, 0); // the rig's feet sit a little above its box bottom: scaled up, that gap shows, so she is set down onto the road
     P.rig.g.scale.set(s, s, 1);
     P.rig.pivot.rotation.z = 0;
     P.rig.pivot.position.y = P.rig.baseY;
