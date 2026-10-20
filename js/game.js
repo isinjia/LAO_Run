@@ -2899,7 +2899,31 @@
 
   let portraitHold = false;
   function lockLandscape() { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* not allowed here */ } }
-  addEventListener('pointerdown', lockLandscape, { once: true });
+  // play options: how jump / slide are touched, and full screen (kept with the save; full screen comes back on the first tap)
+  const CTL_NAMES = { both: '화면 좌우 + 버튼', zone: '화면 좌우 터치', pad: '버튼만' }, CTL_NEXT = { both: 'zone', zone: 'pad', pad: 'both' };
+  const ctlMode = () => CTL_NAMES[save.ctl] ? save.ctl : 'both';
+  const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+  const fsOK = () => { const d = document.documentElement; return !!(d.requestFullscreen || d.webkitRequestFullscreen); };
+  function setFull(v) {
+    const d = document.documentElement;
+    try {
+      if (v && !fsEl()) { const r = (d.requestFullscreen || d.webkitRequestFullscreen).call(d, { navigationUI: 'hide' }); if (r && r.then) r.then(lockLandscape, () => {}); }
+      else if (!v && fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } catch (e) { /* the browser said no */ }
+  }
+  function applyOpts() {
+    const de = document.documentElement, m = ctlMode();
+    de.classList.toggle('ctlZone', m === 'zone'); de.classList.toggle('ctlPad', m === 'pad');
+    document.querySelectorAll('.optCtl').forEach((b) => { b.textContent = '조작: ' + CTL_NAMES[m]; });
+    document.querySelectorAll('.optFull').forEach((b) => { b.textContent = '전체 화면: ' + (!fsOK() ? '지원 안 됨' : fsEl() ? '켬' : '끔'); b.disabled = !fsOK(); });
+  }
+  function bindOpts() {
+    document.querySelectorAll('.optCtl').forEach((b) => { b.onclick = () => { save.ctl = CTL_NEXT[ctlMode()]; persist(); applyOpts(); AUDIO.play('click', 0.5); }; });
+    document.querySelectorAll('.optFull').forEach((b) => { b.onclick = () => { save.full = !fsEl(); persist(); setFull(save.full); AUDIO.play('click', 0.5); setTimeout(applyOpts, 300); }; });
+    document.addEventListener('fullscreenchange', applyOpts); document.addEventListener('webkitfullscreenchange', applyOpts);
+    applyOpts();
+  }
+  addEventListener('pointerdown', () => { if (save.full) setFull(true); lockLandscape(); }, { once: true });
   function portraitCheck() { /* an upright phone now shows the game rotated (resize), so nothing to ask */ }
   function setPause(v) {
     if (state !== 'play' || P.dead) return;
@@ -2927,6 +2951,7 @@
     applyPads();
     bindLayoutEditor();
     bindRotScroll();
+    bindOpts();
     addEventListener('keydown', (e) => {
       if (e.repeat) { if (['ArrowDown', 'KeyS', 'ShiftLeft', 'Space', 'ArrowUp'].includes(e.code)) e.preventDefault(); return; }
       AUDIO.unlock();
