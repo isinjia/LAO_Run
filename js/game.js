@@ -2380,8 +2380,8 @@
       P.skillT += dt;
       passiveTick(dt);
       if (P.skillT >= P.skCd) {
-        if (!run.skillReady) { run.skillReady = 2.5; AUDIO.play('genB', 0.5); $('skillRing').classList.add('pick'); }
-        else if ((run.skillReady -= dt) <= 0 || input.skill) { run.skillReady = 0; input.skill = false; $('skillRing').classList.remove('pick'); activateSkill(); }
+        if (!run.skillReady) { run.skillReady = 1; AUDIO.play('genB', 0.5); $('skillRing').classList.add('pick'); } // ready: it waits for the player (E / K / tap), never fires on its own
+        else if (input.skill) { run.skillReady = 0; input.skill = false; $('skillRing').classList.remove('pick'); activateSkill(); }
       }
     }
     if (P.buff.coinrain > 0) {

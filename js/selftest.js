@@ -9,6 +9,7 @@
   out.trace = [];
 
   function planAndAct() {
+    if (GAME.run.skillReady) dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', key: 'e' })); // skills wait for a press now: the bot presses E as soon as one is ready
     const P = GAME.P;
     if (GAME.state !== 'play' || P.dead) return;
     const px = GAME.PX, spd = GAME.spd, VW = GAME.VW, K = GAME.K, sc = P.scale;
