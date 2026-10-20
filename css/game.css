@@ -413,8 +413,8 @@ html.h480 #tutHint { top: 14% !important; font-size: 12px !important; max-width:
 .titleTop { position: absolute; top: 12px; right: max(14px, env(safe-area-inset-right)); display: flex; gap: 8px; z-index: 2; }
 .titleTop .coinTag { font-size: 16px; }
 /* upright phone: the whole page turned 90° so the game is played sideways (real viewport units on purpose) */
-html.rot { width: 100vw; height: 100vh; overflow: hidden; }
-html.rot body { position: absolute; top: 0; left: 100vw; width: 100vh; height: 100vw; transform-origin: 0 0; transform: rotate(90deg); overflow: hidden; }
+html.rot { width: var(--rw, 100vw); height: var(--rh, 100vh); overflow: hidden; } /* the visible size (innerWidth / innerHeight): 100vh on phone Chrome counts the space under the address bar */
+html.rot body { position: absolute; top: 0; left: var(--rw, 100vw); width: var(--rh, 100vh); height: var(--rw, 100vw); transform-origin: 0 0; transform: rotate(90deg); overflow: hidden; }
 /* on-screen buttons: their own touch targets, placed and sized by the player (the half-screen zones still work under them) */
 #pads { position: absolute; inset: 0; pointer-events: none; }
 .pad { position: absolute; width: 92px; height: 92px; border-radius: 50%; pointer-events: auto; display: flex; align-items: center; justify-content: center; padding: 0;

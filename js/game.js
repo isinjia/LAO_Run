@@ -3002,6 +3002,7 @@
     W = rot ? innerHeight : innerWidth; H = rot ? innerWidth : innerHeight;
     const de = document.documentElement;
     de.classList.toggle('rot', rot);
+    de.style.setProperty('--rw', innerWidth + 'px'); de.style.setProperty('--rh', innerHeight + 'px');
     de.style.setProperty('--vw', W / 100 + 'px'); de.style.setProperty('--vh', H / 100 + 'px'); // css sizes follow the game view, not the device
     for (const [c, on] of [['h460', H <= 460], ['h480', H <= 480], ['w520', W <= 520], ['w640', W <= 640]]) de.classList.toggle(c, on);
     renderer.setSize(W, H);
@@ -3099,6 +3100,7 @@
     scene.add(abyssArt);
     resize();
     addEventListener('resize', resize);
+    if (window.visualViewport) visualViewport.addEventListener('resize', resize); // phone address bar showing / hiding
 
     if (!save.owned.includes(save.sel)) save.sel = 'brownie';
     // a few obstacle rigs up front; the rest stream in while the player is on the title screen
