@@ -2701,6 +2701,7 @@
     startWorld(true);
     refreshTitle();
     renderBoosts();
+    portraitCheck();
     { const d = daily(); const el = $('daily'); if (el) el.innerHTML = '오늘의 작전 <b>' + d.name + '</b> · ' + d.t; }
     show('title');
     AUDIO.music('ost/title');
@@ -2777,7 +2778,7 @@
     state = 'play';
     paused = false;
     $('attend').classList.remove('show'); // the attendance card never covers a run
-    document.body.classList.add('running'); // (the rotate hint hides during runs)
+    document.body.classList.add('running');
     setTimeout(portraitCheck, 0);
     clearOverlays();
     resetPlayer();
@@ -2873,9 +2874,11 @@
   }
 
   let portraitHold = false;
+  function lockLandscape() { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* not allowed here */ } }
+  addEventListener('pointerdown', lockLandscape, { once: true });
   function portraitCheck() {
     const upright = H > W * 1.1;
-    $('turn').classList.toggle('on', upright && state === 'play' && !P.dead);
+    $('turn').classList.toggle('on', upright && state !== 'loading'); // landscape only: every screen asks to turn the phone
     if (upright && state === 'play' && !P.dead && !paused) { portraitHold = true; paused = true; }
     else if (!upright && portraitHold) { portraitHold = false; if (state === 'play') paused = false; }
   }
@@ -2943,7 +2946,6 @@
     abyss.scale.set(VW + 2, 0.15 - GB, 1);
     abyss.position.set(VW / 2, (0.15 + GB) / 2 - 0.1, 0);
     if (abyssArt) { abyssArt.scale.copy(abyss.scale); abyssArt.position.copy(abyss.position); }
-    $('rotate').classList.toggle('can', MOBILE);
     portraitCheck();
     if (state === 'result') placeRunner(Math.max(VW * 0.26, 3), 1.7);
   }
