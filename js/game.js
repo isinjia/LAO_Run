@@ -3044,7 +3044,7 @@
       const s = rnd(3, 6);
       c.scale.set(s, s * 0.375, 1);
       c.position.set(rnd(0, 20), rnd(5.5, 7.3), 0);
-      c.renderOrder = L.CLOUD;
+      c.renderOrder = L.BACK + 0.02; // between the sky and the building layers: clouds pass behind the buildings, never as a haze over them
       c.userData.k = rnd(0.05, 0.1);
       scene.add(c);
       clouds.push(c);
