@@ -1002,7 +1002,9 @@
     fx.push({ s: sp, vx: 0, vy: 2.2, life: 0.85, t: 0, size: 0, grow: 0, keepScale: true, scroll: true, g: 2, ownTex: true });
     return true;
   }
+  const calm = () => save.calm !== false; // 편안한 화면: calmer shake, flashes, blinking (default on)
   function flash(color = '#fff', strength = 0.7) {
+    if (calm()) strength *= 0.45;
     tally('fx:flash');
     const el = $('flash');
     el.style.background = color;
@@ -1355,7 +1357,7 @@
     if (!next || next.x0 < lx) return;
     const canFix = P.jumps < (pas().jumps || 2) + (P.buff.wind > 0 ? 1 : 0);
     lipWarn.visible = true; lipWarn.material.color.setHex(canFix ? 0xffd040 : 0xff3040); // yellow: jump again now; red: lost
-    lipWarn.position.set(next.x0 + 0.1, 0.15, 0); lipWarn.material.opacity = 0.5 + Math.sin(performance.now() / (canFix ? 110 : 70)) * 0.4;
+    lipWarn.position.set(next.x0 + 0.1, 0.15, 0); lipWarn.material.opacity = calm() ? 0.6 + Math.sin(performance.now() / 260) * 0.2 : 0.5 + Math.sin(performance.now() / (canFix ? 110 : 70)) * 0.4;
   }
   const PICKS = [
     { name: '자석 12초', ico: 'res_metal', f: () => { P.buff.magnet = Math.max(P.buff.magnet || 0, 12); } },
@@ -2124,8 +2126,8 @@
     updateAmbient(dt, dx);
 
     shake = Math.max(0, shake - dt);
-    camera.position.x = shake ? (Math.random() - 0.5) * shake * 0.6 : 0;
-    camera.position.y = shake ? (Math.random() - 0.5) * shake * 0.6 : 0;
+    if (calm()) { const a = shake * 0.18, t = performance.now() / 1000; camera.position.x = a * Math.sin(t * 23); camera.position.y = a * Math.sin(t * 29 + 1); } // a gentle sway, not a jolt
+    else { camera.position.x = shake ? (Math.random() - 0.5) * shake * 0.6 : 0; camera.position.y = shake ? (Math.random() - 0.5) * shake * 0.6 : 0; }
 
     if (P.rig) P.rig.c.update(dt);
   }
@@ -2192,9 +2194,10 @@
           f.beam.position.x = f.x;
           if (!f.hang) {
             // current running through the fence: a flickering core, a pulsing glow and sparks along it
-            f.beam.material.opacity = 0.7 + Math.random() * 0.3;
-            f.beam.scale.x = 0.45 + Math.random() * 0.2;
-            if (f.glow) { f.glow.position.x = f.x; f.glow.material.opacity = 0.35 + Math.sin(f.t * 18) * 0.15; }
+            const cm = calm();
+            f.beam.material.opacity = cm ? 0.75 : 0.7 + Math.random() * 0.3;
+            f.beam.scale.x = cm ? 0.5 : 0.45 + Math.random() * 0.2;
+            if (f.glow) { f.glow.position.x = f.x; f.glow.material.opacity = 0.35 + Math.sin(f.t * (cm ? 4 : 18)) * (cm ? 0.06 : 0.15); }
             if (Math.random() < 0.25 && f.x < VW + 1) burst(f.x, rnd(f.y + 1, GB + VH), 0xff8090, 1, 0.3, 2, 'spark');
           }
         }
@@ -2459,7 +2462,7 @@
     if (P.inv > 0) {
       P.inv -= dt;
       if (r) {
-        r.c.setOpacity(P.skillOn > 0 || smashing() ? 1 : Math.sin(P.inv * 40) > 0 ? 0.35 : 1);
+        r.c.setOpacity(P.skillOn > 0 || smashing() ? 1 : calm() ? 0.6 + 0.15 * Math.sin(P.inv * 6) : Math.sin(P.inv * 40) > 0 ? 0.35 : 1);
         if (P.inv <= 0) { r.c.setOpacity(1); r.c.setTint(1, 1, 1); }
         else if (P.inv < 1.0) r.c.setTint(1, 1, 1);
       }
@@ -2932,6 +2935,9 @@
     $('skillRing').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (run.skillReady) input.skill = true; });
     $('btnResume').onclick = () => setPause(false);
     $('btnRetire').onclick = () => { setPause(false); P.hp = 0; P.revived = true; die(); P.deadT = 2; };
+    const calmLabel = () => { $('btnCalm').textContent = '화면 효과: ' + (calm() ? '편안하게' : '기본'); document.documentElement.classList.toggle('calm', calm()); };
+    calmLabel();
+    $('btnCalm').onclick = () => { save.calm = !calm(); persist(); calmLabel(); AUDIO.play('click', 0.5); };
     $('btnSound').onclick = () => { AUDIO.setOn(!AUDIO.on); $('btnSound').textContent = '사운드: ' + (AUDIO.on ? '켬' : '끔'); };
     $('btnRetry').onclick = startRun;
     $('btnHome').onclick = () => { goTitle(); buildCharGrid(); show('chars'); };

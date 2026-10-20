@@ -438,3 +438,8 @@ body.editPads #hud > *:not(#pads) { visibility: hidden; }
 body.editPads .pad { outline: 2px dashed #ffd36e; outline-offset: 4px; opacity: 1; }
 html.h480 .pad { width: 70px; height: 70px; font-size: 12px; } html.h480 .pad.skill { width: 64px; height: 64px; }
 .fpsTxt { font-size: 12px; color: #9fb0cc; }
+/* 편안한 화면: no fast pulsing / blinking (slow, soft breathing instead); the fever and bonus frames hold still */
+html.calm #skillRing.ready, html.calm #skillRing.pick, html.calm .pad.skill.ready, html.calm .grade.gS, html.calm .newRec, html.calm .att.now { animation-duration: 1.4s !important; }
+html.calm .hpBar.low i { animation-duration: 1.2s !important; }
+html.calm #feverFx.on, html.calm #bonusFx.on { animation: none !important; }
+html.calm #skillRing.ready::before { animation: none !important; }
