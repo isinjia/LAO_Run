@@ -2926,6 +2926,7 @@
     padPress($('padSkill'), () => { if (run.skillReady) input.skill = true; });
     applyPads();
     bindLayoutEditor();
+    bindRotScroll();
     addEventListener('keydown', (e) => {
       if (e.repeat) { if (['ArrowDown', 'KeyS', 'ShiftLeft', 'Space', 'ArrowUp'].includes(e.code)) e.preventDefault(); return; }
       AUDIO.unlock();
@@ -2977,6 +2978,35 @@
     const rot = document.documentElement.classList.contains('rot');
     const gx = rot ? e.clientY : e.clientX, gy = rot ? innerWidth - e.clientX : e.clientY;
     return { x: Math.max(4, Math.min(96, gx / W * 100)), y: Math.max(6, Math.min(94, gy / H * 100)) };
+  }
+  // upright phone (page turned 90°): the browser's own touch scrolling works in screen axes, so lists are dragged here
+  // (the game view's top is the right edge of the glass: a finger moving right drags the list up). A drag also eats the tap that would follow it.
+  function bindRotScroll() {
+    let sc = null, x0 = 0, y0 = 0, top0 = 0, moved = false, lastX = 0, lastT = 0, v = 0, eatUntil = 0;
+    addEventListener('click', (e) => { if (performance.now() < eatUntil) { e.stopPropagation(); e.preventDefault(); } }, true); // the drag is not a tap
+    const scroller = (el) => { for (; el && el !== document.body; el = el.parentElement) { const o = getComputedStyle(el).overflowY; if ((o === 'auto' || o === 'scroll') && el.scrollHeight > el.clientHeight + 2) return el; } return null; };
+    addEventListener('touchstart', (e) => {
+      if (!document.documentElement.classList.contains('rot') || e.touches.length !== 1) { sc = null; return; }
+      const t = e.touches[0]; sc = scroller(e.target); moved = false; v = 0;
+      if (sc) { x0 = lastX = t.clientX; y0 = t.clientY; top0 = sc.scrollTop; lastT = performance.now(); }
+    }, { passive: true });
+    addEventListener('touchmove', (e) => {
+      if (!sc) return;
+      const t = e.touches[0], d = t.clientX - x0;
+      if (!moved && Math.hypot(d, t.clientY - y0) < 8) return;
+      moved = true; e.preventDefault();
+      sc.scrollTop = top0 + d;
+      const now = performance.now(); v = (t.clientX - lastX) / Math.max(1, now - lastT); lastX = t.clientX; lastT = now;
+    }, { passive: false });
+    addEventListener('touchend', () => {
+      if (!sc) return;
+      const el = sc; sc = null;
+      if (!moved) return;
+      eatUntil = performance.now() + 350;
+      let vel = v * 16; // a little glide after the finger lifts
+      const glide = () => { if (Math.abs(vel) < 0.5) return; el.scrollTop += vel; vel *= 0.92; requestAnimationFrame(glide); };
+      requestAnimationFrame(glide);
+    }, { passive: true });
   }
   function bindLayoutEditor() {
     const open = () => {

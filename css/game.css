@@ -450,3 +450,5 @@ html.calm #skillRing.ready::before { animation: none !important; }
 #pick { background: linear-gradient(180deg, rgba(14, 18, 30, .58), rgba(8, 10, 18, .64)); }
 #pick .pickHead::after { content: ' · 일시정지 중'; color: #cfe0ff; font-weight: 700; }
 .pickCard { background: linear-gradient(180deg, rgba(40, 52, 80, .72), rgba(16, 20, 34, .72)); }
+/* upright phone: lists are dragged by the game (bindRotScroll), the browser's screen-axis panning stays out of it */
+html.rot #charGrid, html.rot .panelScreen .panel, html.rot .resCard, html.rot #title { touch-action: none; }
