@@ -10,7 +10,7 @@
   try { on = localStorage.getItem('laorun.sound') !== '0'; } catch (e) { /* storage unavailable */ }
 
   function unlock() {
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    if (ctx) { if (ctx.state === 'suspended' && !away) ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     ctx = new AC();
@@ -41,22 +41,37 @@
   }
 
   function music(name) {
-    if (bgmName === name) { if (bgm && on && bgm.paused) bgm.play().catch(() => {}); return; }
+    if (bgmName === name) { if (bgm && on && !away && bgm.paused) bgm.play().catch(() => {}); return; }
     if (bgm) { bgm.pause(); bgm = null; }
     bgmName = name;
     if (!name) return;
     bgm = new Audio((name.includes('/') ? 'assets/' : 'assets/bgm/') + name + '.mp3'); // ost/<name> = original soundtrack
     bgm.loop = true;
     bgm.volume = 0.38;
-    if (on) bgm.play().catch(() => {});
+    if (on && !away) bgm.play().catch(() => {});
   }
 
   function setOn(v) {
     on = v;
     try { localStorage.setItem('laorun.sound', v ? '1' : '0'); } catch (e) { /* storage unavailable */ }
     if (master) master.gain.value = v ? 0.55 : 0;
-    if (bgm) { if (v) bgm.play().catch(() => {}); else bgm.pause(); }
+    if (bgm) { if (v && !away) bgm.play().catch(() => {}); else bgm.pause(); }
   }
 
-  window.AUDIO = { unlock, play, load, music, setOn, get on() { return on; } };
+  // the page out of sight / out of focus: everything goes quiet, and comes back when the player returns
+  let away = false;
+  function setAway(v) {
+    if (away === v) return;
+    away = v;
+    if (ctx) { if (v) ctx.suspend().catch(() => {}); else ctx.resume().catch(() => {}); }
+    if (bgm) { if (v) bgm.pause(); else if (on) bgm.play().catch(() => {}); }
+  }
+  const check = () => setAway(document.hidden || !document.hasFocus());
+  document.addEventListener('visibilitychange', check);
+  addEventListener('blur', check);
+  addEventListener('focus', check);
+  addEventListener('pagehide', () => setAway(true));
+  addEventListener('pageshow', check);
+
+  window.AUDIO = { unlock, play, load, music, setOn, setAway, get on() { return on; }, get away() { return away; }, get ctxState() { return ctx ? ctx.state : 'none'; }, get bgmPaused() { return !bgm || bgm.paused; } };
 })();
