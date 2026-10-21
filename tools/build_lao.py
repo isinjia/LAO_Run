@@ -128,7 +128,8 @@ def sfx():
 
 
 ANN_PICK = ['GameStart-1', 'GameStart-2', 'StageStart-1', 'Combo-1', 'Combo-2', 'Combo-3', 'Good-1', 'Great-1', 'Nice-1', 'Perfect-1', 'Aamazing-1',
-            'BossAlert-1', 'Danger-1', 'Becareful-1', 'HP_Low-1', 'StageClear-1', 'Clear-1', 'GameOver-1', 'LevelUp-1', 'Success-1', 'Hit-1', 'Miss-1']
+            'BossAlert-1', 'Danger-1', 'Becareful-1', 'HP_Low-1', 'StageClear-1', 'Clear-1', 'GameOver-1', 'LevelUp-1', 'Success-1', 'Hit-1', 'Miss-1',
+            'Fail-1', 'NotReady-1', 'Like-1', '3-1', '2-1', '1-1']
 
 
 def ann():

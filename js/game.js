@@ -1112,7 +1112,7 @@
     }
     P.hp -= HIT_DMG * (pas().hitK || 1);
     voice(P.def.id, 'hurt', 0.7);
-    if (P.hp < P.maxHp * 0.3 && !run.dangerSaid) { run.dangerSaid = true; setTimeout(() => ann('Danger-1'), 700); }
+    if (P.hp < P.maxHp * 0.3 && !run.dangerSaid) { run.dangerSaid = true; setTimeout(() => ann('HP_Low-1'), 700); }
     P.inv = 1.3;
     shake = 0.35;
     run.combo = 0;
@@ -1170,6 +1170,7 @@
       ring(PX, P.y + 1, 0xffb070, 5, 0.6);
       flash('#ffb070', 0.5);
       popup(PX, P.y + 2.6, '부활!', 'big');
+      ann('Like-1');
       return;
     }
     P.dead = true;
@@ -1366,7 +1367,7 @@
     for (let i = 0; i < 4; i++) setTimeout(() => { if (run.boss === b) { origStatic(ORIG_BOOM, b.x + rnd(0, 2.4), rnd(0.8, 3.6), b.rig.k * 1.6); shake = 0.3; AUDIO.play('expM', 0.6); } }, i * 220);
     cutin(b.d.name + ' 격퇴!', '+1,500 · 코인 +80', 'assets/cut/' + P.def.id + '.webp', '#ffcf3a');
     voice(P.def.id, 'mvp', 0.9, true);
-    ann('StageClear-1');
+    ann('Clear-1');
     flash('#fff6b0', 0.6);
     $('bossBar').classList.remove('on');
   }
@@ -1444,7 +1445,7 @@
     const pay = e.hits === 0 ? 1500 : e.hits === 1 ? 600 : 200;
     addScore(pay); run.coins += e.hits === 0 ? 40 : 10;
     popup(PX, P.y + 2.6, e.name.replace('경보: ', '') + (e.hits === 0 ? ' 완벽 돌파! +' : ' 돌파 +') + pay.toLocaleString(), e.hits === 0 ? 'perfect' : 'big');
-    ann(e.hits === 0 ? 'Perfect-1' : 'Good-1');
+    ann(e.hits === 0 ? 'Perfect-1' : e.hits === 1 ? 'Nice-1' : 'Good-1');
   }
   function updateBoss(dt) {
     const b = run.boss;
@@ -1481,7 +1482,7 @@
         if (b.t >= BOSS_TIME) { // it got away
           b.leaving = true;
           addScore(200);
-          popup(PX, 3.2, b.d.name + ' 도주… +200', 'big');
+          popup(PX, 3.2, b.d.name + ' 도주… +200', 'big'); ann('Fail-1');
           $('bossBar').classList.remove('on');
           AUDIO.music(STAGES[stageIx].bgm);
         }
@@ -1963,6 +1964,12 @@
     if (st && origStatic(st, PX + 1.6 * P.scale, P.y + 0.2, k)) run.fxUsed = (run.fxUsed || 0) + 1;
   }
 
+  function skillPress() {
+    if (run.skillReady) { input.skill = true; return; }
+    const now = performance.now();
+    if (state === 'play' && !paused && !P.dead && !(P.skillOn > 0) && !(now < run.notReadyT)) { run.notReadyT = now + 2500; ann('NotReady-1', 0.7); } // not charged yet
+  }
+
   function activateSkill() {
     tally('skill:' + P.def.skill.type);
     const sk = P.def.skill;
@@ -2408,7 +2415,7 @@
     }
 
     // bonus time / combo clocks
-    if (run.bonus > 0) { run.bonus -= dt; if (run.bonus <= 0) endBonus(); }
+    if (run.bonus > 0) { const was = Math.ceil(run.bonus); run.bonus -= dt; if (run.bonus <= 0) endBonus(); else if (Math.ceil(run.bonus) < was && was <= 4) ann((was - 1) + '-1', 0.7); }
     if (run.fever > 0 && (run.fever -= dt) <= 0) $('feverFx').classList.remove('on');
     if (run.comboT > 0) { run.comboT -= dt; if (run.comboT <= 0) run.combo = 0; }
 
@@ -2607,6 +2614,7 @@
     el.textContent = 'STAGE ' + (Math.floor(traveled / STAGE_LEN) + 1) + ' · ' + st.name;
     el.classList.add('on');
     setTimeout(() => el.classList.remove('on'), 2200);
+    if (si !== 0) ann('StageStart-1');
   }
 
   // ── missions ──
@@ -3100,7 +3108,7 @@
     const padPress = (el, down, up) => press(el, () => { if (!layoutEdit) down(); }, up && (() => { if (!layoutEdit) up(); }));
     padPress($('padJump'), jump);
     padPress($('padSlide'), () => { input.slide = true; }, () => { input.slide = false; });
-    padPress($('padSkill'), () => { if (run.skillReady) input.skill = true; });
+    padPress($('padSkill'), skillPress);
     applyPads();
     bindLayoutEditor();
     bindRotScroll();
@@ -3112,7 +3120,7 @@
       else if (['ArrowDown', 'KeyS', 'ShiftLeft', 'ShiftRight'].includes(e.code)) { e.preventDefault(); input.slide = true; }
       else if (e.code === 'Escape' && escBack()) e.preventDefault();
       else if (e.code === 'KeyP' || e.code === 'Escape') setPause(!paused);
-      else if ((e.code === 'KeyE' || e.code === 'KeyK') && run.skillReady) input.skill = true;
+      else if (e.code === 'KeyE' || e.code === 'KeyK') skillPress();
       else if (e.code === 'Enter' && state === 'result') startRun();
     });
     addEventListener('keyup', (e) => {
@@ -3138,7 +3146,7 @@
     $('btnAch').onclick = () => { AUDIO.unlock(); AUDIO.play('click', 0.5); buildAch(); $('achP').classList.add('show'); };
     document.querySelectorAll('.closeP').forEach((b) => { b.onclick = () => { AUDIO.play('click', 0.5); b.closest('.screen').classList.remove('show'); refreshTitle(); }; });
     $('btnPause').onclick = () => setPause(true);
-    $('skillRing').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (run.skillReady) input.skill = true; });
+    $('skillRing').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); skillPress(); });
     $('btnResume').onclick = () => setPause(false);
     $('btnRetire').onclick = () => { setPause(false); P.hp = 0; P.revived = true; die(); P.deadT = 2; };
     // the same options sit in the pause menu and the title's settings window (one class per option)
