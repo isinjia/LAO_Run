@@ -37,6 +37,9 @@
   const save = { coins: 0, best: 0, owned: ['brownie', 'leprechaun'], sel: 'brownie', bestBy: {}, lv: {} };
   try { Object.assign(save, JSON.parse(localStorage.getItem('laorun.save') || '{}')); } catch (e) { /* fresh save */ }
   save.lv = save.lv || {};
+  if (!Array.isArray(save.sups)) save.sups = [save.sup || '', '']; // support slots 1 and 2
+  delete save.sup;
+  const supIds = () => save.sups.filter((id, i, a) => id && id !== save.sel && save.owned.includes(id) && a.indexOf(id) === i);
   function newMission(skip) {
     const pool = MISSIONS.filter((m) => !skip.includes(m.type));
     const m = pool[(Math.random() * pool.length) | 0], tier = Math.random() < 0.5 ? 0 : Math.random() < 0.7 ? 1 : 2;
@@ -604,7 +607,7 @@
       addPlat(x0 + 4, x0 + 9, 2.4);
       addFoe('low', x0 + 6.5, 0);
       jellyArc(x0 + 6.5, 3.6, gs * 0.27, 'coin');
-      const id = run.rescueId && SD.ready(run.rescueId) && run.rescueId !== P.def.id && run.rescueId !== (sup && sup.def.id) ? run.rescueId : rescuePick(); // the one the arrow announced
+      const id = run.rescueId && SD.ready(run.rescueId) && run.rescueId !== P.def.id && !sups.some((sp) => sp.def.id === run.rescueId) ? run.rescueId : rescuePick(); // the one the arrow announced
       run.rescueId = null;
       if (id) {
         const rig = rigFrom(id, 1.75, FACE_ENEMY);
@@ -842,7 +845,7 @@
     { name: '경보: 집중 포격', q: ['bombs', 'shooter', 'bombs', 'lowAir'] },
     { name: '경보: 복합 전선', q: ['mix', 'pitLow', 'mix', 'airs'] },
   ];
-  const rescuePick = () => { const pool = CHARS.map((c) => c.id).filter((id) => id !== P.def.id && id !== (sup && sup.def.id) && SD.ready(id)); return pool.length ? pool[(Math.random() * pool.length) | 0] : null; }; // owned or not: a stranded squadmate
+  const rescuePick = () => { const pool = CHARS.map((c) => c.id).filter((id) => id !== P.def.id && !sups.some((sp) => sp.def.id === id) && SD.ready(id)); return pool.length ? pool[(Math.random() * pool.length) | 0] : null; }; // owned or not: a stranded squadmate
   // the right-edge arrow: who is waiting ahead and how far (from 100 m out until she is on screen)
   function rescueCall() {
     const el = $('rescueCall'), at = run.nextRescue == null ? 520 : run.nextRescue, wait = rescues.find((r) => !r.done);
@@ -1515,23 +1518,25 @@
   }
 
   // ── support member (the "pet"): a second member follows and helps in its own way ──
-  let sup = null;
+  let sups = [];
   const SUP_EVERY = 7;
+  function freeSups() { sups.forEach((sp) => freeRig(sp.rig)); sups = []; }
   async function makeSupport() {
-    if (sup) { freeRig(sup.rig); sup = null; }
-    const id = save.sup;
-    if (!id || id === P.def.id || !save.owned.includes(id)) return;
-    const rig = await makeRig(id, 1.5, FACE_PLAYER);
-    if (!rig || state !== 'play') { if (rig) freeRig(rig); return; }
-    rig.c.setOrder(L.PLAYER - 0.2);
-    outline(rig, OL_ALLY);
-    rig.c.play('move', null, true);
-    scene.add(rig.g);
-    sup = { def: charDef(id), rig, y: 0, t: SUP_EVERY * 0.6 };
-    preloadVoices(id);
+    freeSups();
+    const ids = supIds();
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i], rig = await makeRig(id, 1.5, FACE_PLAYER);
+      if (!rig || state !== 'play') { if (rig) freeRig(rig); return; }
+      rig.c.setOrder(L.PLAYER - 0.2 - i * 0.1);
+      outline(rig, OL_ALLY);
+      rig.c.play('move', null, true);
+      scene.add(rig.g);
+      sups.push({ def: charDef(id), rig, y: 0, t: SUP_EVERY * 0.6 + i * SUP_EVERY / 2, slot: i }); // the two take turns
+      preloadVoices(id);
+    }
   }
-  function supportAct() {
-    const d = sup.def, ty = d.skill.type, sx = PX - 1.3, sy = sup.y + 0.7;
+  function supportAct(sup) {
+    const d = sup.def, ty = d.skill.type, sx = PX - 1.3 - sup.slot * 1.15, sy = sup.y + 0.7;
     ring(sx, sy, d.color, 1.6, 0.35);
     const t = aliveAhead(PX + 10)[0];
     let said = '';
@@ -1548,16 +1553,16 @@
     else if (ty === 'frost') { if (t) { freeze(t, 2); said = '적 빙결 2초'; } }
     else { if (t && t.x < PX + 6) { slashFx(t.x, foeMid(t), d.color, 2.4); breakFoe(t, 'melee'); said = '근접 격파'; } else fireAtFoe(); }
     if (said) popup(sx, sy + 1.3, d.name + ' · ' + said, 'sup');
-    if (sup.rig.c.has('atk')) { sup.rig.c.play('atk', () => sup && sup.rig.c.play('move', null, true)); sup.rig.c.speed = 2; }
+    if (sup.rig.c.has('atk')) { sup.rig.c.play('atk', () => sups.includes(sup) && sup.rig.c.play('move', null, true)); sup.rig.c.speed = 2; }
     if ((sup.n = (sup.n || 0) + 1) % 3 === 1) voice(d.id, 'skill', 0.55); // the partner speaks up now and then
   }
-  function updateSupport(dt) {
-    if (!sup) return;
+  function updateSupport(dt) { for (const sp of sups) updateOneSupport(sp, dt); }
+  function updateOneSupport(sup, dt) {
     sup.y += (Math.max(0, P.y - 0.2) - sup.y) * Math.min(1, dt * 7);
-    sup.rig.g.position.set(PX - 1.45, sup.y, 0);
+    sup.rig.g.position.set(PX - 1.45 - sup.slot * 1.15, sup.y, 0);
     sup.rig.c.update(dt);
     if (P.dead) return;
-    if ((sup.t -= dt) <= 0) { sup.t = SUP_EVERY; supportAct(); }
+    if ((sup.t -= dt) <= 0) { sup.t = SUP_EVERY; supportAct(sup); }
   }
 
   // ── tutorial (first run): the first obstacles come with a hint and slow motion ──
@@ -2788,7 +2793,7 @@
   function goTitle() {
     state = 'title';
     document.body.classList.remove('running');
-    if (sup) { freeRig(sup.rig); sup = null; }
+    freeSups();
     clearBoss();
     paused = false;
     clearOverlays();
@@ -2802,66 +2807,88 @@
     AUDIO.music('ost/title');
   }
 
-  // member select: tiles (cheapest first) on the left; tapping one brings it into focus on the right, where its art, numbers,
-  // skill and trait sit with the actions (buy / sortie / support / upgrade). Nothing changes until an action is pressed.
-  let charView = null;
+  // member select: the squad slots on top (main 1, support 2), every member's card below (cheapest first).
+  // A card (or a filled slot) opens its popup: art, numbers, skill, trait and where to put her.
+  let charPopId = null;
+  const slotOf = (id) => save.sel === id ? 'main' : save.sups[0] === id ? 0 : save.sups[1] === id ? 1 : null;
   function buildCharGrid() {
+    $('charCoins').textContent = save.coins.toLocaleString();
+    // slots
+    const sl = $('charSlots');
+    const slot = (id, label, cls, k) => {
+      const d = id && charDef(id);
+      return '<button class="cSlot ' + cls + (d ? '' : ' empty') + '" data-slot="' + k + '"' + (d ? ' style="--c:' + hex(d.color) + '"' : '') + '>' +
+        '<span class="csLbl">' + label + '</span>' +
+        (d ? '<span class="csArt"><img src="assets/cut/' + d.id + '.webp" alt=""></span><span class="csNm">' + d.name + ' <small>Lv.' + lvOf(d.id) + '</small></span>'
+          : '<span class="csEmpty">+<small>카드를 눌러 배치</small></span>') + '</button>';
+    };
+    sl.innerHTML = slot(save.sel, '메인', 'main', 'main') + slot(supIds().includes(save.sups[0]) ? save.sups[0] : '', '보조 1', 'sub', 0) + slot(supIds().includes(save.sups[1]) ? save.sups[1] : '', '보조 2', 'sub', 1);
+    sl.querySelectorAll('.cSlot').forEach((b) => {
+      b.onclick = () => { const k = b.dataset.slot, id = k === 'main' ? save.sel : save.sups[+k]; AUDIO.unlock(); AUDIO.play('click', 0.4); if (id && charDef(id)) openCharPop(id); };
+    });
+    // cards
     const grid = $('charGrid');
     grid.innerHTML = '';
-    const byCost = CHARS.slice().sort((a, b) => a.cost - b.cost); // cheapest first
-    $('charCoins').textContent = save.coins.toLocaleString();
-    if (!charView || !charDef(charView)) charView = save.sel;
-    byCost.forEach((d) => {
-      const owned = save.owned.includes(d.id), lv = lvOf(d.id), rk = RANK[d.rank];
+    CHARS.slice().sort((a, b) => a.cost - b.cost).forEach((d) => {
+      const owned = save.owned.includes(d.id), lv = lvOf(d.id), rk = RANK[d.rank], at = slotOf(d.id);
       const el = document.createElement('button');
-      el.className = 'mTile' + (charView === d.id ? ' view' : '') + (owned ? '' : ' locked') + (save.sel === d.id ? ' isSel' : '') + (save.sup === d.id ? ' isSup' : '');
+      el.className = 'mTile' + (owned ? '' : ' locked') + (at === 'main' ? ' isSel' : at != null ? ' isSup' : '');
       el.style.setProperty('--c', hex(d.color));
       el.innerHTML = '<span class="mPor"><img src="' + portrait(d.id) + '" alt=""></span>' +
         '<span class="mRk" style="background:' + rk.color + '">' + d.rank + '</span>' +
-        (save.sel === d.id ? '<span class="mTag sel">출격</span>' : save.sup === d.id ? '<span class="mTag sup">지원</span>' : '') +
+        (at === 'main' ? '<span class="mTag sel">메인</span>' : at != null ? '<span class="mTag sup">보조 ' + (at + 1) + '</span>' : '') +
         '<span class="mNm">' + d.name + '</span>' +
         (owned ? '<span class="mLv">Lv.' + lv + '</span>' : '<span class="mCost"><i class="coinIco"></i>' + d.cost.toLocaleString() + '</span>');
-      el.onclick = () => { AUDIO.unlock(); AUDIO.play('click', 0.4); charView = d.id; buildCharGrid(); };
+      el.onclick = () => { AUDIO.unlock(); AUDIO.play('click', 0.4); openCharPop(d.id); };
       grid.appendChild(el);
     });
-    charDetailView();
+    if (charPopId) charDetailView();
   }
+  function openCharPop(id) { charPopId = id; charDetailView(); $('charPop').classList.add('on'); }
+  function closeCharPop() { charPopId = null; $('charPop').classList.remove('on'); }
   function charDetailView() {
-    const d = charDef(charView), box = $('charDetail');
-    const owned = save.owned.includes(d.id), lv = lvOf(d.id), rk = RANK[d.rank];
+    const d = charDef(charPopId), box = $('charDetail');
+    const owned = save.owned.includes(d.id), lv = lvOf(d.id), rk = RANK[d.rank], at = slotOf(d.id);
     const cd = (d.skill.cd * (1 - (lv - 1) * 0.06)).toFixed(1);
-    const isSel = save.sel === d.id, isSup = save.sup === d.id;
     let acts = '';
-    if (!owned) acts = '<button class="btn primary" data-a="buy"' + (save.coins < d.cost ? ' disabled' : '') + '><i class="coinIco"></i> ' + d.cost.toLocaleString() + ' 코인으로 영입</button>' +
+    if (!owned) acts = '<button class="btn primary wide" data-a="buy"' + (save.coins < d.cost ? ' disabled' : '') + '><i class="coinIco"></i> ' + d.cost.toLocaleString() + ' 코인으로 영입</button>' +
       (save.coins < d.cost ? '<small class="mNeed">코인 ' + (d.cost - save.coins).toLocaleString() + ' 부족</small>' : '');
     else {
-      acts = (isSel ? '<button class="btn primary" disabled>출격 대원</button>' : '<button class="btn primary" data-a="sel">출격 대원으로</button>') +
-        (isSel ? '' : isSup ? '<button class="btn" data-a="unsup">지원 해제</button>' : '<button class="btn" data-a="sup">지원 대원으로</button>') +
-        (lv < 5 ? '<button class="btn" data-a="up"' + (save.coins < UPG[lv] ? ' disabled' : '') + '>강화 Lv.' + (lv + 1) + ' · ' + UPG[lv].toLocaleString() + '</button>' : '<button class="btn" disabled>최대 강화</button>');
+      acts = (at === 'main' ? '<button class="btn primary" disabled>메인 배치 중</button>' : '<button class="btn primary" data-a="main">메인에 넣기</button>') +
+        [0, 1].map((k) => at === k ? '<button class="btn" data-a="out' + k + '">보조 ' + (k + 1) + '에서 빼기</button>'
+          : '<button class="btn" data-a="sub' + k + '"' + (at === 'main' ? ' disabled' : '') + '>보조 ' + (k + 1) + '에 넣기</button>').join('') +
+        (lv < 5 ? '<button class="btn wide" data-a="up"' + (save.coins < UPG[lv] ? ' disabled' : '') + '>강화 Lv.' + (lv + 1) + ' · ' + UPG[lv].toLocaleString() + ' 코인</button>' : '<button class="btn wide" disabled>최대 강화</button>');
     }
     box.style.setProperty('--c', hex(d.color));
     box.innerHTML =
+      '<button class="cpClose" aria-label="닫기">✕</button>' +
       '<div class="mArt"><img src="assets/cut/' + d.id + '.webp" alt=""></div>' +
       '<div class="mHead"><span class="mRk" style="background:' + rk.color + '">' + d.rank + '</span><b>' + d.name + '</b>' + (owned ? '<span class="mLv">Lv.' + lv + '</span>' : '<span class="mLock">미보유</span>') +
-        (isSel ? '<span class="mTag sel">출격</span>' : isSup ? '<span class="mTag sup">지원</span>' : '') + '</div>' +
+        (at === 'main' ? '<span class="mTag sel">메인</span>' : at != null ? '<span class="mTag sup">보조 ' + (at + 1) + '</span>' : '') + '</div>' +
       '<div class="mStats"><span>HP <b>' + (d.hp + (lv - 1) * 10) + '</b></span><span>스킬 대기 <b>' + cd + '초</b></span><span>최고 기록 <b>' + (save.bestBy[d.id] || 0).toLocaleString() + '</b></span></div>' +
-      '<div class="mSec"><h4>스킬 · ' + d.skill.name + ' <small>원작: ' + d.skill.n1 + '</small></h4><p>' + d.desc + '</p></div>' +
+      '<div class="mSec"><h4>스킬 · ' + d.skill.name + '</h4><p>' + d.desc + '</p></div>' +
       (d.pas ? '<div class="mSec"><h4>특성</h4><p>' + d.pas.t + '</p></div>' : '') +
-      '<div class="mSec mHint"><p>지원 대원으로 두면 출격 대원 뒤를 따라 달리며 7초마다 자기 스킬 방식으로 돕습니다.</p></div>' +
+      '<div class="mSec mHint"><p>보조 대원은 메인 대원 뒤를 따라 달리며 7초마다 자기 스킬 방식으로 돕습니다. 보조 대원은 피해를 받지 않아 HP는 메인일 때만 쓰입니다.</p></div>' +
       '<div class="mActs">' + acts + '</div>';
+    box.querySelector('.cpClose').onclick = () => { AUDIO.play('click', 0.4); closeCharPop(); };
     box.querySelectorAll('[data-a]').forEach((b) => { b.onclick = () => charAct(d, b.dataset.a); });
   }
   function charAct(d, a) {
     AUDIO.unlock();
-    const lv = lvOf(d.id);
+    const lv = lvOf(d.id), at = slotOf(d.id);
     if (a === 'buy') {
       if (save.coins < d.cost) { AUDIO.play('fail', 0.4); return; }
       save.coins -= d.cost; save.owned.push(d.id); AUDIO.play('purchase', 0.7); voice(d.id, 'start', 0.8, true);
-    } else if (a === 'sel') {
-      save.sel = d.id; if (save.sup === d.id) save.sup = '';
+    } else if (a === 'main') { // the old main takes her support slot (a swap), if she had one
+      const old = save.sel;
+      if (typeof at === 'number') save.sups[at] = old;
+      save.sel = d.id;
       AUDIO.play('click', 0.5); voice(d.id, 'start', 0.8, true); setPlayerChar(d.id);
-    } else if (a === 'sup') { save.sup = d.id; SD.prepare(d.id); AUDIO.play('reinforce', 0.5); }
-    else if (a === 'unsup') { save.sup = ''; AUDIO.play('click', 0.5); }
+    } else if (a === 'sub0' || a === 'sub1') {
+      const k = +a[3];
+      if (typeof at === 'number') save.sups[at] = save.sups[k]; // moving between the two support slots swaps them
+      save.sups[k] = d.id; SD.prepare(d.id); AUDIO.play('reinforce', 0.5);
+    } else if (a === 'out0' || a === 'out1') { save.sups[+a[3]] = ''; AUDIO.play('click', 0.5); }
     else if (a === 'up') {
       if (save.coins < UPG[lv]) { AUDIO.play('fail', 0.4); return; }
       save.coins -= UPG[lv]; save.lv[d.id] = lv + 1; AUDIO.play('rankUp', 0.7); ann('LevelUp-1');
@@ -2884,7 +2911,7 @@
 
   function startRun() {
     AUDIO.unlock();
-    if (sup) { freeRig(sup.rig); sup = null; }
+    freeSups();
     AUDIO.play('start', 0.6);
     state = 'play';
     paused = false;
@@ -2910,8 +2937,8 @@
     applyBoosts();
     run.mod = daily();
     setTimeout(() => state === 'play' && popup(VW / 2, 4.2, '오늘의 작전: ' + run.mod.name + ' (' + run.mod.t + ')', 'big'), 2200);
-    $('supPortrait').style.display = save.sup && save.sup !== P.def.id && save.owned.includes(save.sup) ? '' : 'none';
-    if (save.sup) $('supPortrait').src = portrait(save.sup);
+    const si = supIds(); // the support members' chips on the HUD portrait
+    ['supPortrait', 'supPortrait2'].forEach((e, i) => { $(e).style.display = si[i] ? '' : 'none'; if (si[i]) $(e).src = portrait(si[i]); });
   }
 
   function countUp(el, to, pre) {
@@ -2947,7 +2974,7 @@
     sfxs.forEach((f) => f.dispose()); sfxs.length = 0;
     salvo.length = 0;
     clearBoss();
-    if (sup) { freeRig(sup.rig); sup = null; }
+    freeSups();
     if (P.shieldFx) P.shieldFx.visible = false;
     if (P.magFx) P.magFx.visible = false;
     plats.forEach((p) => disposeMesh(p.mesh)); plats.length = 0;
@@ -3303,7 +3330,7 @@
     bindInput();
     goTitle();
     checkAttendance();
-    if (save.sup) SD.prepare(save.sup);
+    supIds().forEach((id) => SD.prepare(id));
     DATA.BOSSES.forEach((b) => SD.prepare(b.id));
     (async () => { for (const e of [...ENEMIES.low, ...ENEMIES.tall]) await SD.prepare(e.id); })(); // runners load when picked
   }

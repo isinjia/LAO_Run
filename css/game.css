@@ -650,3 +650,38 @@ html.rot #charDetail { touch-action: none; }
 /* support member: what she just did, over her head */
 .pop.sup { font-size: 13px; color: #b8ffcb; background: rgba(6, 30, 14, .72); border-left: 3px solid #5dff8a; padding: 2px 8px; text-shadow: 0 1px 2px #000; animation-duration: 1.3s; }
 #charDetail { text-align: left; }
+
+/* ── member select v2: squad slots (main 1 + support 2) on top, cards below, a popup per member ── */
+#charSlots { display: flex; gap: 10px; width: min(1100px, 100%); flex: none; margin-top: 10px; }
+.cSlot { --c: #5fe1ff; position: relative; flex: 1; height: 104px; padding: 0; border: 0; cursor: pointer; font: inherit; color: #fff; overflow: hidden; text-align: left;
+  background: linear-gradient(90deg, rgba(20, 30, 42, .96), rgba(30, 46, 60, .92)); box-shadow: inset 0 0 0 1px var(--loLine), inset 0 -3px 0 var(--c);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); }
+.cSlot.main { flex: 1.4; box-shadow: inset 0 0 0 2px var(--accent), inset 0 -3px 0 var(--c); }
+.cSlot.empty { --c: transparent; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .03) 0 10px, rgba(255, 255, 255, .06) 10px 20px), rgba(14, 20, 28, .9); cursor: default; }
+.csLbl { position: absolute; left: 0; top: 0; z-index: 2; padding: 2px 12px 2px 14px; font: 400 13px 'Black Han Sans', sans-serif; color: #1a1400; background: #5dff8a; clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+.cSlot.main .csLbl { background: var(--accent); }
+.csArt { position: absolute; right: 0; top: 0; bottom: 0; width: 62%; background: radial-gradient(ellipse at 60% 90%, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%); }
+.csArt img { position: absolute; right: 4%; top: -6%; height: 150%; object-fit: contain; }
+.csNm { position: absolute; left: 14px; bottom: 10px; z-index: 2; font: 400 19px 'Black Han Sans', sans-serif; text-shadow: 0 2px 3px #000; }
+.csNm small { font: 900 12px 'Noto Sans KR', sans-serif; color: var(--accent); }
+.csEmpty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 400 30px 'Black Han Sans', sans-serif; color: rgba(255, 255, 255, .35); }
+.csEmpty small { font: 700 11px 'Noto Sans KR', sans-serif; }
+#chars #charGrid { flex: 1; width: min(1100px, 100%); min-height: 0; margin-top: 10px; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+#charPop { position: absolute; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; }
+#charPop.on { display: flex; }
+#charPop .cpBack { position: absolute; inset: 0; background: rgba(4, 8, 14, .7); }
+#charPop #charDetail { position: relative; width: min(460px, calc(var(--vw) * 92)); max-height: calc(var(--vh) * 92); }
+.cpClose { position: absolute; right: 8px; top: 8px; z-index: 3; width: 34px; height: 34px; border: 0; cursor: pointer; font-size: 16px; font-weight: 900; color: #fff; background: rgba(0, 0, 0, .55);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+.mActs .btn.wide { flex-basis: 100%; }
+.mActs .btn { flex: 1 1 30%; }
+html.h480 #charSlots { margin-top: 6px; gap: 6px; }
+html.h480 .cSlot { height: 70px; }
+html.h480 .csNm { font-size: 15px; bottom: 6px; left: 10px; }
+html.h480 .csLbl { font-size: 11px; }
+html.h480 .csEmpty { font-size: 22px; }
+html.h480 #chars #charGrid { margin-top: 6px; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+html.h480 #charPop #charDetail { width: min(560px, calc(var(--vw) * 94)); }
+html.h480 #charPop .mArt { height: 96px; }
+html.rot #charPop #charDetail { touch-action: none; }
+#unit #supPortrait2 { position: absolute; right: 28px; bottom: 2px; width: 24px; height: 24px; border: 2px solid #5dff8a; background: #18202c; object-fit: cover; z-index: 3; clip-path: polygon(5px 0, 100% 0, 100% 100%, 0 100%, 0 5px); }
