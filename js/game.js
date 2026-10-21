@@ -617,7 +617,7 @@
         const sos = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.reticle, color: 0x7dff8a, depthTest: false, depthWrite: false, transparent: true }));
         sos.scale.set(1.9, 0.6, 1); sos.position.set(x0 + 7.6, 2.45, 0); sos.renderOrder = L.PROP + 0.3; scene.add(sos);
         rescues.push({ id, rig, sos, x: x0 + 7.6, y: 2.4, done: false });
-        popup(VW / 2, 4.0, '구조 요청: ' + charDef(id).name + ' — 발판 위로!', 'bossSkill');
+        popup(VW / 2, 4.0, '구조 요청: ' + charDef(id).name + ' (' + rescueFx(charDef(id)).name + ') — 발판 위로!', 'bossSkill');
       }
       return len;
     },
@@ -1572,6 +1572,29 @@
     const T = supType(d);
     return T.name + ': ' + T.d(T.n) + '. 게이지가 차면 발동 (약 ' + supTime(d).toFixed(1) + '초, 젤리·격파로 더 빨리 참). 보스 추격 중에는 보스에게 지원 공격.';
   }
+  // ── a rescued squadmate's thanks: what she does on joining depends on her skill type (name + desc for the gain card) ──
+  const foesAhead = (x1 = PX + 12) => aliveAhead(x1).filter((f) => f.kind !== 'shot' && f.kind !== 'bomb');
+  const rzBreak = (list, d) => list.length ? list.forEach((f, i) => setTimeout(() => { if (f.dead) return; tracer(PX + 1.1, P.y + 1, f.x, foeMid(f), d.color); breakFoe(f, 'shot'); }, i * 110)) : dropItems(PX + 3, 2.6, 'coin', 6); // no one in range: she brings coins instead
+  const RESCUE_FX = {
+    gun: { name: '엄호 사격', d: '앞의 적 최대 4명 격파', f: (d) => rzBreak(foesAhead().slice(0, 4), d) },
+    akimbo: { name: '요인 경호', d: '실드 6초 · 앞의 적 2명 격파', f: (d) => { P.shield = Math.max(P.shield, 6); rzBreak(foesAhead().slice(0, 2), d); } },
+    snipe: { name: '원거리 저격', d: '멀리 있는 적 3명 저격 (공중 포함) · 자리에 코인', f: (d) => { const l = foesAhead(PX + 14).slice(-3); rzBreak(l, d); l.forEach((f) => dropItems(f.x, foeMid(f), 'coin', 3)); } },
+    missile: { name: '미사일 폭격', d: '화면 안의 적 모두 격파', f: (d) => rzBreak(foesAhead(PX + 14), d) },
+    beam: { name: '관통 레이저', d: '지상 적 모두 관통 · 코인 2배 8초', f: (d) => { const l = foesAhead(PX + 14).filter((f) => f.kind !== 'air'); beamFx(PX + 1, PX + 14, 1, d.color, 0.25, 0.2); l.forEach((f) => breakFoe(f, 'shot')); P.buff.coin2 = Math.max(P.buff.coin2 || 0, 8); } },
+    flame: { name: '화염 돌파', d: '3초 동안 불길을 두르고 돌진 · 무적, 부딪힌 적 격파', f: () => { P.buff.boost = Math.max(P.buff.boost || 0, 3); } },
+    wolves: { name: '늑대 무리', d: '앞의 적 최대 3명 격파 · 2초 돌진', f: (d) => { rzBreak(foesAhead().slice(0, 3), d); P.buff.dash = Math.max(P.buff.dash || 0, 2); } },
+    judgement: { name: '심판의 낙뢰', d: '앞의 적 최대 5명에게 번개 · 자석 6초', f: (d) => { rzBreak(foesAhead().slice(0, 5), d); P.buff.magnet = Math.max(P.buff.magnet || 0, 6); } },
+    dash: { name: '동반 돌격', d: '4초 동안 함께 돌진 · 무적, 부딪힌 적 격파', f: () => { P.buff.boost = Math.max(P.buff.boost || 0, 4); } },
+    fly: { name: '공중 엄호', d: '공중 적 모두 격추 · 6초 동안 구덩이 위를 달림', f: (d) => { rzBreak(foesAhead(PX + 14).filter((f) => f.kind === 'air'), d); P.buff.bridge = Math.max(P.buff.bridge || 0, 6); } },
+    giant: { name: '거대화', d: '5초 동안 거대화 · 무적, 적과 장애물을 부수며 달림', f: () => { P.buff.giant = Math.max(P.buff.giant || 0, 5); AUDIO.play('quake', 0.6); } },
+    wind: { name: '순풍', d: '10초 동안 3단 점프 · 자석 10초', f: () => { P.buff.wind = Math.max(P.buff.wind || 0, 10); P.buff.magnet = Math.max(P.buff.magnet || 0, 10); } },
+    shield: { name: '방벽', d: '실드 10초', f: () => { P.shield = Math.max(P.shield, 10); } },
+    heal: { name: '응급 수리', d: 'HP +40 회복 · 실드 3초', f: () => { P.hp = Math.min(P.maxHp, P.hp + 40); P.shield = Math.max(P.shield, 3); } },
+    magnet: { name: '자력장', d: '15초 동안 젤리·코인을 끌어당김', f: () => { P.buff.magnet = Math.max(P.buff.magnet || 0, 15); } },
+    coinrain: { name: '코인 비', d: '앞쪽에 코인 18개 · 코인 2배 10초', f: () => { dropItems(PX + 2.5, 3.2, 'coin', 9); dropItems(PX + 4.5, 3.2, 'coin', 9); P.buff.coin2 = Math.max(P.buff.coin2 || 0, 10); } },
+    frost: { name: '빙결 지원', d: '앞의 적 모두 5초 동안 얼림', f: () => foesAhead(PX + 14).forEach((f) => freeze(f, 5)) },
+  };
+  const rescueFx = (d) => RESCUE_FX[d.skill.type] || RESCUE_FX.gun;
   function supCharge(k) { for (const sp of sups) sp.g = Math.min(1, sp.g + k * 6 / supTime(sp.def)); } // jelly / kills feed every gauge, scaled to her charge time (a slow, strong move stays slow)
   function supportAct(sup) {
     const d = sup.def, T = supType(d), ty = d.skill.type, sx = PX - 1.3 - sup.slot * 1.15, sy = sup.y + 0.7;
@@ -2212,8 +2235,8 @@
       if (!r.done && !P.dead && Math.abs(r.x - PX) < 0.8 && Math.abs(P.y - r.y) < 0.9) { // reached
         r.done = true; r.rig.c.setTint(1.35, 1.35, 1.35); r.rig.c.play('move', null, true); r.rig.g.scale.set(-1, 1, 1); r.rig.c.setOrder(L.PLAYER + 0.2); setTimeout(() => r.rig && r.rig.c.setTint(1, 1, 1), 250); r.tag = true; // a bright flash as she joins
         addScore(800); run.coins += 20; run.rescued = (run.rescued || 0) + 1;
-        P.shield = Math.max(P.shield, 3); P.skillT += 2;
-        gainCard('구조 성공! ' + charDef(r.id).name + ' 합류', '점수 +800 · 코인 +20 · 실드 3초 · 스킬 게이지 +2초', portrait(r.id), '#5dff8a'); ann('Success-1'); voice(r.id, 'mvp', 0.8, true); // the popup waits for the moment, never on top of the pickups
+        const rd = charDef(r.id), fx = rescueFx(rd); P.shield = Math.max(P.shield, 1.5); fx.f(rd); tally('rescue:' + rd.skill.type); // her own way of thanks (by skill type)
+        gainCard('구조 성공! ' + rd.name + ' · ' + fx.name, fx.d + ' · 점수 +800 · 코인 +20', portrait(r.id), '#5dff8a'); popup(PX + 0.6, P.y + 2.6, fx.name + '!', 'big'); ann('Success-1'); voice(r.id, 'mvp', 0.8, true); // the popup waits for the moment, never on top of the pickups
         { const o = origFor(r.id); origStatic(o.skill.statics[0] || o.atk.hit || ORIG_DEFAULT_HIT, r.x, r.y + 0.8, kOf()); } // her own skill effect
       }
       if (r.x < -3 || (r.done && r.t > 2.4)) { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); if (r.label) { scene.remove(r.label); r.label.material.map.dispose(); r.label.material.dispose(); } rescues.splice(i, 1); }
@@ -3443,7 +3466,7 @@
 
   // a little for debugging / the lab pages
   window.GAME = {
-    P, run, foes, items, segs, plats, get scene() { return scene; }, get state() { return state; }, get genX() { return genX; }, get traveled() { return traveled; }, set traveled(v) { traveled = v; },
+    P, run, foes, items, segs, plats, rescues, get scene() { return scene; }, get state() { return state; }, get genX() { return genX; }, get traveled() { return traveled; }, set traveled(v) { traveled = v; },
     startRun, goTitle, setChar: (id) => { if (save.owned.includes(id)) save.sel = id; return setPlayerChar(id); }, jump, setSlide: (v) => { input.slide = v; }, startBonus, activateSkill,
     runners, STAT, K: { G, JV, JV2, GB }, get spd() { return spd; }, get PX() { return PX; }, get VW() { return VW; }, get renderer() { return renderer; },
     smashing: () => smashing(), bridging: () => bridging(), origFor, save, lanes, changeStage: (i) => changeStage(i),
