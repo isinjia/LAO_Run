@@ -144,7 +144,7 @@ MANUAL = {
     'brunhild': ('FullbodyIMG_BR_Brunhild_N_part1.png', (0.02, 0.0, 0.46, 0.33)),
     'hela': ('FullbodyIMG_BR_Hela_N_Part1.png', (0.40, 0.03, 0.82, 0.35)),
     'thetis': ('FullbodyIMG_BR_Thetis_N.png', (0.29, 0.26, 0.69, 0.56)),
-    'khan': ('FullbodyIMG_BR_Khan_NS1.png', (0.32, 0.17, 0.70, 0.46)),
+    'khan': ('khan.png', (0.42, 0.20, 0.95, 0.50)),  # tools/full_src: the default art (the project only ships it as a 2D model)
 }
 
 
@@ -154,7 +154,8 @@ def cutin():
     for mid, (_, fb, _) in M.items():
         if mid in MANUAL:
             f, (a0, b0, a1, b1) = MANUAL[mid]
-            im = Image.open(f'{ABS}/Texture/FullbodyImg/{f}').convert('RGBA')
+            own = os.path.join(OUT, 'tools/full_src', f)
+            im = Image.open(own if os.path.exists(own) else f'{ABS}/Texture/FullbodyImg/{f}').convert('RGBA')
             crop = im.crop((int(a0 * im.width), int(b0 * im.height), int(a1 * im.width), int(b1 * im.height)))
             crop.thumbnail((560, 560), Image.LANCZOS)
             crop.save(f'{out}/{mid}.webp', quality=86)
