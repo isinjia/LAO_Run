@@ -1,0 +1,13 @@
+# Cloudflare 배포에서 빼는 것 (게임 실행에 필요 없는 파일, 25MB 넘는 git 기록)
+.git
+.claude
+.wrangler
+node_modules
+tools
+*.bat
+*.py
+README.md
+wrangler.jsonc
+.assetsignore
+.gitignore
+.nojekyll

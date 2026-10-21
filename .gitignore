@@ -7,3 +7,7 @@ desktop.ini
 .vscode/
 .idea/
 *.log
+
+# Cloudflare wrangler
+.wrangler/
+node_modules/
