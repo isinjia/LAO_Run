@@ -2979,6 +2979,15 @@
     $('btnChars').onclick = () => { AUDIO.unlock(); AUDIO.play('click', 0.5); buildCharGrid(); show('chars'); };
     $('btnBack').onclick = () => { AUDIO.play('click', 0.5); refreshTitle(); show('title'); };
     $('btnGear').onclick = () => { AUDIO.unlock(); AUDIO.play('click', 0.5); buildGear(); $('gear').classList.add('show'); };
+    // version under the logo, patch notes bottom-right (js/patchnotes.js, newest first)
+    const PN = window.PATCH || [];
+    $('ver').textContent = PN.length ? PN[0].v : '';
+    $('btnPatch').onclick = () => {
+      AUDIO.unlock(); AUDIO.play('click', 0.5);
+      const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+      $('patchList').innerHTML = PN.map((p, i) => '<div class="pnVer' + (i ? '' : ' now') + '"><b>' + esc(p.v) + '</b><small>' + esc(p.d) + '</small></div><ul class="pnList">' + p.notes.map((n) => '<li>' + esc(n) + '</li>').join('') + '</ul>').join('');
+      $('patchP').classList.add('show');
+    };
     $('btnAch').onclick = () => { AUDIO.unlock(); AUDIO.play('click', 0.5); buildAch(); $('achP').classList.add('show'); };
     document.querySelectorAll('.closeP').forEach((b) => { b.onclick = () => { AUDIO.play('click', 0.5); b.closest('.screen').classList.remove('show'); refreshTitle(); }; });
     $('btnPause').onclick = () => setPause(true);

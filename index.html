@@ -24,6 +24,8 @@
     <div class="titleTop"><div class="coinTag" title="보유 코인"><i class="coinIco"></i><b id="walletCoins">0</b></div></div>
     <div class="logo big"><span>ORCA</span> RUN</div>
     <div class="sub">오르카 런 · 라스트오리진 SD 러너</div>
+    <div id="ver" class="ver"></div>
+    <button id="btnPatch" class="btn small patchBtn">패치노트</button>
     <div class="titleSel">
       <img id="titlePortrait" alt="">
       <div>
@@ -166,6 +168,13 @@
       <div id="achList"></div>
     </div>
   </div>
+  <!-- patch notes -->
+  <div id="patchP" class="screen dim panelScreen">
+    <div class="panel">
+      <div class="head"><h2>패치노트</h2><button class="btn small closeP">닫기</button></div>
+      <div id="patchList"></div>
+    </div>
+  </div>
   <!-- attendance -->
   <div id="attend" class="screen dim panelScreen">
     <div class="panel">
@@ -186,6 +195,7 @@
 <script src="js/csfx.js"></script>
 <script src="js/dmgfont.js"></script>
 <script src="js/data.js"></script>
+<script src="js/patchnotes.js"></script>
 <script src="js/game.js"></script>
 <script>if (/[?&]selftest=1/.test(location.search)) document.write('<script src="js/selftest.js"><\/script>');</script>
 </body>
