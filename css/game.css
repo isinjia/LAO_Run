@@ -541,3 +541,51 @@ html.pc #btnPause kbd { display: block; font: 900 9px 'Noto Sans KR', sans-serif
 #gainCard b { font-size: 15px; color: var(--gc); font-weight: 900; }
 #gainCard span { font-size: 12.5px; color: #eef3ff; font-weight: 700; }
 html.h480 #gainCard { top: 74px; padding: 5px 12px 5px 6px; } html.h480 #gainCard b { font-size: 13px; } html.h480 #gainCard span { font-size: 11px; } html.h480 #gainCard img { width: 32px; height: 32px; }
+
+/* ── top-left unit plate (Last Origin squad card): chamfered portrait whose frame fills with the skill gauge,
+   name + skill name, segmented HP bar (green / yellow / red) and the SP bar with READY. Overrides the older HUD rules. ── */
+#unit { --sc: #5fe1ff; gap: 0; align-items: stretch; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .55)); }
+#unit #skillRing { width: 70px; height: 70px; padding: 3px; border-radius: 0; flex: none; z-index: 2; box-shadow: none; animation: none;
+  background: linear-gradient(to top, var(--sc) calc(var(--p) * 1%), #2c3644 calc(var(--p) * 1%));
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); }
+#unit #skillRing img#hudPortrait { width: 100%; height: 100%; border-radius: 0; object-fit: cover; background: #18202c; box-shadow: none; display: block;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+#unit #skillRing::before, #unit #skillRing::after { display: none; }
+#unit #skillRing.ready, #unit #skillRing.pick { background: var(--sc); animation: unitGlow .5s ease-in-out infinite alternate; }
+#unit #skillRing.active { background: linear-gradient(to top, #ff7bd0 calc(var(--p) * 1%), #2c3644 calc(var(--p) * 1%)); }
+@keyframes unitGlow { from { filter: brightness(1); } to { filter: brightness(1.45); } }
+#unit #supPortrait { position: absolute; left: auto; right: 2px; bottom: 2px; width: 24px !important; height: 24px !important; border-radius: 0; border: 2px solid #5dff8a; background: #18202c; object-fit: cover; z-index: 3;
+  clip-path: polygon(5px 0, 100% 0, 100% 100%, 0 100%, 0 5px); }
+#unit .unitInfo { display: flex; flex-direction: column; justify-content: center; gap: 3px; width: 262px; margin-left: -4px; padding: 5px 26px 6px 14px;
+  background: linear-gradient(90deg, rgba(14, 22, 32, .94), rgba(16, 26, 38, .72)); box-shadow: inset 0 2px 0 var(--sc);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%); }
+#unit .unitHead { display: flex; align-items: baseline; gap: 8px; min-width: 0; line-height: 1.1; }
+#unit .unitHead b { font-family: 'Black Han Sans', sans-serif; font-weight: 400; font-size: 16px; color: #fff; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+#unit #skillName { position: static; flex: 1; min-width: 0; font-size: 11px; font-weight: 700; color: #a8bccf; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; padding: 0; max-width: none; text-shadow: none; border: 0; }
+#unit .uRow { display: flex; align-items: center; gap: 6px; }
+#unit .uRow em { width: 18px; font-style: normal; font-family: 'Black Han Sans', sans-serif; font-size: 11px; color: #a8bccf; letter-spacing: .5px; }
+#unit .hpBar, #unit .skBar { position: relative; flex: 1; width: auto; height: 14px; margin: 0; border: 0; border-radius: 0; background: #0a0f15; box-shadow: inset 0 0 0 1px rgba(176, 196, 214, .35); overflow: hidden;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+#unit .skBar { height: 12px; }
+#unit .hpBar i, #unit .skBar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transition: width .15s; animation: none; }
+#unit .hpBar i { background: linear-gradient(180deg, #b6ffca, #3be07a 50%, #1c9b52); }
+#unit .hpBar.mid i { background: linear-gradient(180deg, #fff0a0, #ffc928 50%, #c98a00); }
+#unit .hpBar.low i { background: linear-gradient(180deg, #ffb0b8, #ff3a52 50%, #b3122c); animation: blink .4s infinite alternate; }
+#unit .hpBar::after, #unit .skBar::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 11px, rgba(6, 10, 16, .55) 11px 13px); pointer-events: none; } /* segment ticks */
+#unit .skBar i { background: linear-gradient(180deg, #e6fbff, var(--sc)); }
+#unit .skBar.ready i { background: linear-gradient(180deg, #fff3b0, #ffcc00 55%, #c99a00); }
+#unit .skBar.ready i::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .75), transparent); animation: skShine 1.1s linear infinite; }
+@keyframes skShine { from { left: -40%; } to { left: 100%; } }
+#unit .skBar.ready span { color: #1a1400; text-shadow: 0 0 2px rgba(255, 255, 255, .7); }
+#unit .skBar.active i { background: linear-gradient(180deg, #ffd6f0, #ff7bd0); }
+#unit .hpBar span, #unit .skBar span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; z-index: 1;
+  font-family: 'Black Han Sans', sans-serif; font-size: 11px; font-weight: 400; color: #fff; text-shadow: 0 0 2px #000, 0 1px 2px #000; letter-spacing: .3px; }
+#unit .skBar span { font-size: 10px; line-height: 1; }
+#unit #buffs { position: absolute; left: 76px; top: calc(100% + 4px); margin: 0; display: flex; gap: 4px; flex-wrap: wrap; width: 250px; }
+#unit .buff { border-radius: 0; background: rgba(10, 16, 24, .82); border: 0; box-shadow: inset 2px 0 0 var(--sc); font-size: 10.5px; padding: 1px 7px; }
+html.calm #unit #skillRing.ready, html.calm #unit #skillRing.pick, html.calm #unit .skBar.ready i::after { animation-duration: 2.2s; }
+html.h480 #unit #skillRing { width: 56px; height: 56px; }
+html.h480 #unit .unitInfo { width: 214px; padding: 4px 22px 5px 12px; gap: 2px; }
+html.h480 #unit .unitHead b { font-size: 14px; }
+html.h480 #unit .hpBar { height: 12px; } html.h480 #unit .skBar { height: 10px; } html.h480 #unit .skBar span { font-size: 9px; }
+html.h480 #unit #buffs { left: 62px; }

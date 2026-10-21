@@ -65,12 +65,14 @@
 
   <!-- HUD -->
   <div id="hud" class="hidden">
-    <div class="hpWrap">
-      <div id="skillRing"><img id="hudPortrait" alt=""><div id="skillName"></div><img id="supPortrait" alt="" title="지원 대원"></div>
-      <div class="hpBox">
-        <div class="hpBar"><i id="hpFill"></i><span id="hpTxt"></span></div>
-        <div id="buffs"></div>
+    <div class="hpWrap" id="unit">
+      <div id="skillRing"><img id="hudPortrait" alt=""><img id="supPortrait" alt="" title="지원 대원"></div>
+      <div class="unitInfo">
+        <div class="unitHead"><b id="unitName"></b><span id="skillName"></span></div>
+        <div class="uRow"><em>HP</em><div class="hpBar"><i id="hpFill"></i><span id="hpTxt"></span></div></div>
+        <div class="uRow"><em>SP</em><div class="skBar"><i id="skFill"></i><span id="skTxt"></span></div></div>
       </div>
+      <div id="buffs"></div>
     </div>
     <div class="scoreBox">
       <div id="score">0</div>

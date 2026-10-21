@@ -2642,7 +2642,7 @@
   function hud() {
     const hpP = Math.max(0, P.hp / P.maxHp);
     const hpS = (hpP * 100).toFixed(1) + '%';
-    if (hudCache.hp !== hpS) { hudCache.hp = hpS; $('hpFill').style.width = hpS; $('hpFill').parentNode.classList.toggle('low', hpP < 0.25); }
+    if (hudCache.hp !== hpS) { hudCache.hp = hpS; $('hpFill').style.width = hpS; const bar = $('hpFill').parentNode; bar.classList.toggle('low', hpP < 0.25); bar.classList.toggle('mid', hpP >= 0.25 && hpP < 0.5); }
     setText('hpTxt', Math.ceil(Math.max(0, P.hp)) + ' / ' + P.maxHp);
     setText('score', Math.floor(run.score).toLocaleString());
     setText('dist', Math.floor(traveled) + 'm');
@@ -2653,9 +2653,12 @@
     const ringEl = $('skillRing');
     const p = P.skillOn > 0 ? P.skillOn / P.skDur * 100 : Math.min(100, P.skillT / P.skCd * 100);
     const cls = P.skillOn > 0 ? 'active' : p > 85 ? 'ready' : '';
-    if (hudCache.ringCls !== cls) { hudCache.ringCls = cls; ringEl.className = cls; }
+    if (hudCache.ringCls !== cls) { hudCache.ringCls = cls; ringEl.classList.toggle('ready', cls === 'ready'); ringEl.classList.toggle('active', cls === 'active'); } // classList: the 'pick' state stays
     const ps = p.toFixed(0);
-    if (hudCache.ringP !== ps) { hudCache.ringP = ps; ringEl.style.setProperty('--p', ps); $('padSkill').style.setProperty('--p', ps); }
+    if (hudCache.ringP !== ps) { hudCache.ringP = ps; ringEl.style.setProperty('--p', ps); $('padSkill').style.setProperty('--p', ps); $('skFill').style.width = ps + '%'; }
+    const skT = run.skillReady ? (MOBILE ? 'READY' : 'READY · E') : P.skillOn > 0 ? '발동 중' : ps + '%';
+    setText('skTxt', skT);
+    if (hudCache.skCls !== skT) { hudCache.skCls = skT; $('skFill').parentNode.classList.toggle('ready', !!run.skillReady); $('skFill').parentNode.classList.toggle('active', P.skillOn > 0); }
     const sk = run.skillReady ? 'pad skill ready' : P.skillOn > 0 ? 'pad skill active' : 'pad skill';
     if (hudCache.padCls !== sk) { hudCache.padCls = sk; $('padSkill').className = sk; }
     const b = [];
@@ -2875,7 +2878,8 @@
     resetPlayer();
     startWorld(false);
     $('hudPortrait').src = portrait(P.def.id);
-    $('skillName').textContent = P.def.skill.name;
+    $('skillName').textContent = P.def.skill.name; $('unitName').textContent = P.def.name;
+    $('unit').style.setProperty('--sc', hex(P.def.color));
     $('skillRing').style.setProperty('--sc', hex(P.def.color));
     $('padSkill').style.setProperty('--sc', hex(P.def.color)); $('padSkillImg').src = portrait(P.def.id);
     show(null);
