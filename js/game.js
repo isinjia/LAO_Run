@@ -583,9 +583,10 @@
     // ORCA letters: one jump up, open ground only
     if (run.letters < 4 && !run.boss && y < 2.5 && traveled + x > run.nextLetter) { addItem('L' + run.letters, x, y + 0.25); run.nextLetter = traveled + x + rnd(80, 120); return; }
     if (traveled + x > run.nextHeart) { addItem('heart', x, y); run.nextHeart = traveled + x + rnd(200, 260); return; }
+    if (!run.boss && traveled + x > run.nextGiant) { addItem('giant', x, y); run.nextGiant = traveled + x + rnd(300, 400); return; } // a giant every 300-400 m for sure (Cookie Run's big moment)
     if (run.itemCd > 0 || Math.random() > 0.22) return;
     run.itemCd = 3;
-    const pool = ['magnet', 'magnet', 'boost', 'giant', 'coin', 'potion', 'potion', 'star', 'jbig'];
+    const pool = ['magnet', 'magnet', 'boost', 'giant', 'giant', 'coin', 'potion', 'potion', 'star', 'jbig'];
     const k = pool[(Math.random() * pool.length) | 0];
     if (k === 'coin') jellyLine(x - 1, x + 1, y, 'coin', 0.5);
     else addItem(k, x, y);
@@ -891,7 +892,7 @@
     clearWorld();
     traveled = 0;
     stageIx = 0;
-    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], timers: [], ev: null, evQ: null, evN: 0, nextEvent: 380, nextRescue: 520, rescued: 0, pStreak: 0, perfect: 0,
+    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, nextGiant: 240, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], timers: [], ev: null, evQ: null, evN: 0, nextEvent: 380, nextRescue: 520, rescued: 0, pStreak: 0, perfect: 0,
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
     showSet(STAGES[0].id, true);
@@ -2043,7 +2044,8 @@
       if (k === 'jbig') { addScore(300); run.jelly += 5; burst(it.x, it.y, 0x7ffff0, 18, 0.7, 7, 'spark'); ring(it.x, it.y, 0x7ffff0, 3.5, 0.4); }
       if (k === 'magnet') P.buff.magnet = Math.max(P.buff.magnet || 0, 6 * (pas().itemK || 1));
       if (k === 'boost') P.buff.boost = 4 * (pas().itemK || 1);
-      if (k === 'giant') { P.buff.giant = 4.5 * (pas().itemK || 1); AUDIO.play('quake', 0.6); }
+      if (k === 'giant') { P.buff.giant = 4.5 * (pas().itemK || 1); run.nextGiant = Math.max(run.nextGiant, traveled + 200); // no two giants back to back
+        AUDIO.play('quake', 0.6); }
     }
   }
 
