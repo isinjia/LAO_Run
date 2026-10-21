@@ -589,3 +589,64 @@ html.h480 #unit .unitInfo { width: 214px; padding: 4px 22px 5px 12px; gap: 2px; 
 html.h480 #unit .unitHead b { font-size: 14px; }
 html.h480 #unit .hpBar { height: 12px; } html.h480 #unit .skBar { height: 10px; } html.h480 #unit .skBar span { font-size: 9px; }
 html.h480 #unit #buffs { left: 62px; }
+
+/* ── member select: tile list (left) + member in focus (right) ── */
+#chars { padding: 10px max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left)); }
+#chars .head { width: min(1100px, 100%); flex: none; }
+#chars .charBody { display: flex; gap: 14px; width: min(1100px, 100%); flex: 1; min-height: 0; margin-top: 10px; }
+#chars #charGrid { flex: 1; min-width: 0; width: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; align-content: start; overflow-y: auto; padding: 2px 4px 14px 2px; max-height: none; }
+.mTile { --c: #5fe1ff; position: relative; display: flex; flex-direction: column; align-items: stretch; padding: 3px; cursor: pointer; font: inherit; color: #fff; border: 0;
+  background: linear-gradient(180deg, rgba(36, 48, 62, .95), rgba(18, 24, 34, .95)); box-shadow: inset 0 0 0 1px var(--loLine), inset 0 -3px 0 var(--c);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); transition: transform .08s; }
+.mTile:active { transform: scale(.96); }
+.mTile.view { background: linear-gradient(180deg, rgba(255, 204, 0, .35), rgba(60, 50, 10, .9)); box-shadow: inset 0 0 0 2px var(--accent), inset 0 -3px 0 var(--accent); }
+.mPor { display: block; aspect-ratio: 1; overflow: hidden; background: #141a24; clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px); }
+.mPor img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mTile.locked .mPor img { filter: grayscale(1) brightness(.45); }
+.mTile .mRk { position: absolute; left: 3px; top: 3px; }
+.mRk { display: inline-block; min-width: 18px; padding: 0 4px; font: 400 12px 'Black Han Sans', sans-serif; color: #111; text-align: center; line-height: 17px; clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.mTag { font: 900 10px 'Noto Sans KR', sans-serif; padding: 1px 6px; line-height: 15px; }
+.mTag.sel { background: var(--accent); color: #1a1400; }
+.mTag.sup { background: #5dff8a; color: #062a12; }
+.mTile .mTag { position: absolute; right: 3px; top: 3px; }
+.mNm { font-size: 12px; font-weight: 900; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.mTile .mLv, .mTile .mCost { font-size: 10.5px; font-weight: 900; text-align: center; color: #a8bccf; display: flex; align-items: center; justify-content: center; gap: 3px; }
+.mTile .mCost { color: #ffd84a; }
+.mTile .mCost .coinIco { width: 11px; height: 11px; }
+#charDetail { --c: #5fe1ff; width: min(400px, 42%); flex: none; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding: 0 0 12px;
+  background: linear-gradient(180deg, rgba(20, 30, 40, .96), rgba(30, 48, 60, .96)); box-shadow: inset 0 3px 0 var(--accent), inset 0 0 0 1px var(--loLine);
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); }
+.mArt { position: relative; height: 190px; flex: none; overflow: hidden; background: radial-gradient(ellipse at 50% 80%, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%), linear-gradient(180deg, #1a2634, #0e151e); }
+.mArt img { position: absolute; left: 50%; bottom: 0; height: 112%; transform: translateX(-50%); object-fit: contain; }
+.mArt::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background: linear-gradient(transparent, rgba(20, 30, 40, .96)); }
+.mHead { display: flex; align-items: center; gap: 8px; padding: 0 16px; margin-top: -18px; position: relative; z-index: 1; flex-wrap: wrap; }
+.mHead b { font: 400 24px 'Black Han Sans', sans-serif; text-shadow: 0 2px 0 rgba(0, 0, 0, .6); }
+.mHead .mLv { font-weight: 900; color: var(--accent); font-size: 14px; }
+.mLock { font-size: 12px; font-weight: 900; color: #a8bccf; border: 1px solid var(--loLine); padding: 0 6px; }
+.mStats { display: flex; gap: 6px; padding: 0 16px; flex-wrap: wrap; }
+.mStats span { font-size: 11.5px; color: #a8bccf; background: rgba(0, 0, 0, .3); padding: 3px 8px; border-left: 2px solid var(--c); }
+.mStats b { color: #fff; margin-left: 3px; }
+.mSec { padding: 0 16px; }
+.mSec h4 { margin: 0 0 2px; font-size: 13px; color: var(--cyan); font-weight: 900; }
+.mSec h4 small { color: var(--dim); font-weight: 700; margin-left: 4px; }
+.mSec p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #dfe9ff; }
+.mSec + .mSec h4 { color: #ffd98a; }
+.mHint p { font-size: 11.5px; color: var(--dim); }
+.mActs { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 16px 0; margin-top: auto; align-items: center; }
+.mActs .btn { flex: 1 1 auto; font-size: 15px; padding: 10px 14px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.mActs .coinIco { width: 14px; height: 14px; }
+.mNeed { width: 100%; text-align: center; color: #ff8a9a; font-weight: 900; font-size: 12px; }
+html.h480 #chars { padding-top: 6px; }
+html.h480 #chars .charBody { margin-top: 6px; gap: 10px; }
+html.h480 #chars #charGrid { grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; }
+html.h480 .mNm { font-size: 11px; }
+html.h480 #charDetail { width: min(340px, 46%); gap: 5px; }
+html.h480 .mArt { height: 120px; }
+html.h480 .mHead { margin-top: -14px; } html.h480 .mHead b { font-size: 19px; }
+html.h480 .mSec p { font-size: 11.5px; line-height: 1.4; }
+html.h480 .mActs .btn { font-size: 13px; padding: 8px 10px; }
+html.h480 .mHint { display: none; }
+html.rot #charDetail { touch-action: none; }
+/* support member: what she just did, over her head */
+.pop.sup { font-size: 13px; color: #b8ffcb; background: rgba(6, 30, 14, .72); border-left: 3px solid #5dff8a; padding: 2px 8px; text-shadow: 0 1px 2px #000; animation-duration: 1.3s; }
+#charDetail { text-align: left; }

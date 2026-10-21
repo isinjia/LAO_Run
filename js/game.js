@@ -1534,18 +1534,20 @@
     const d = sup.def, ty = d.skill.type, sx = PX - 1.3, sy = sup.y + 0.7;
     ring(sx, sy, d.color, 1.6, 0.35);
     const t = aliveAhead(PX + 10)[0];
-    const fireAtFoe = () => { if (!t) return; t.targeted = true; const o = origFor(d.id), name = o.atk.bullet || o.skill.bullet, k = sup.rig.k;
+    let said = '';
+    const fireAtFoe = () => { if (!t) return; said = said || '지원 사격'; t.targeted = true; const o = origFor(d.id), name = o.atk.bullet || o.skill.bullet, k = sup.rig.k;
       if (!origShot(name, sx + 0.4, sy, t, k, shotLanded, t.x, foeMid(t))) { tracer(sx, sy, t.x, foeMid(t), d.color); shotLanded(t, t.x, foeMid(t), ''); }
       AUDIO.play(d.sfx, 0.3); };
-    if (run.boss && !run.boss.leaving) { hitBoss(5, d.color); }
+    if (run.boss && !run.boss.leaving) { hitBoss(5, d.color); said = '보스에게 지원 공격'; }
     else if (['gun', 'snipe', 'akimbo', 'beam', 'missile', 'flame', 'wolves'].includes(ty)) fireAtFoe();
-    else if (ty === 'heal') { P.hp = Math.min(P.maxHp, P.hp + 6); popup(sx, sy + 1, 'HP +6'); }
-    else if (ty === 'shield') { if (P.shield <= 0) { P.shield = 6; popup(sx, sy + 1, '실드'); } else fireAtFoe(); }
-    else if (ty === 'magnet') P.buff.magnet = Math.max(P.buff.magnet || 0, 2.5);
-    else if (ty === 'coinrain') dropItems(PX + 3, 2.5, 'coin', 6);
-    else if (ty === 'bigjelly') { let n = 0; items.forEach((it) => { if (it.kind === 'jelly' && n < 6 && it.x > PX) { n++; it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 1.0; it.s.scale.set(1.0, 1.0, 1); } }); }
-    else if (ty === 'frost') { if (t) freeze(t, 2); }
-    else { if (t && t.x < PX + 6) { slashFx(t.x, foeMid(t), d.color, 2.4); breakFoe(t, 'melee'); } else fireAtFoe(); }
+    else if (ty === 'heal') { P.hp = Math.min(P.maxHp, P.hp + 6); said = 'HP +6 회복'; }
+    else if (ty === 'shield') { if (P.shield <= 0) { P.shield = 6; said = '실드 6초'; } else fireAtFoe(); }
+    else if (ty === 'magnet') { P.buff.magnet = Math.max(P.buff.magnet || 0, 2.5); said = '자석 2.5초'; }
+    else if (ty === 'coinrain') { dropItems(PX + 3, 2.5, 'coin', 6); said = '코인 6개 투하'; }
+    else if (ty === 'bigjelly') { let n = 0; items.forEach((it) => { if (it.kind === 'jelly' && n < 6 && it.x > PX) { n++; it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 1.0; it.s.scale.set(1.0, 1.0, 1); } }); said = n ? '앞의 젤리 ' + n + '개를 곰 젤리로' : ''; }
+    else if (ty === 'frost') { if (t) { freeze(t, 2); said = '적 빙결 2초'; } }
+    else { if (t && t.x < PX + 6) { slashFx(t.x, foeMid(t), d.color, 2.4); breakFoe(t, 'melee'); said = '근접 격파'; } else fireAtFoe(); }
+    if (said) popup(sx, sy + 1.3, d.name + ' · ' + said, 'sup');
     if (sup.rig.c.has('atk')) { sup.rig.c.play('atk', () => sup && sup.rig.c.play('move', null, true)); sup.rig.c.speed = 2; }
     if ((sup.n = (sup.n || 0) + 1) % 3 === 1) voice(d.id, 'skill', 0.55); // the partner speaks up now and then
   }
@@ -2800,57 +2802,72 @@
     AUDIO.music('ost/title');
   }
 
+  // member select: tiles (cheapest first) on the left; tapping one brings it into focus on the right, where its art, numbers,
+  // skill and trait sit with the actions (buy / sortie / support / upgrade). Nothing changes until an action is pressed.
+  let charView = null;
   function buildCharGrid() {
     const grid = $('charGrid');
     grid.innerHTML = '';
     const byCost = CHARS.slice().sort((a, b) => a.cost - b.cost); // cheapest first
     $('charCoins').textContent = save.coins.toLocaleString();
+    if (!charView || !charDef(charView)) charView = save.sel;
     byCost.forEach((d) => {
-      const owned = save.owned.includes(d.id), lv = lvOf(d.id);
-      const el = document.createElement('div');
-      el.className = 'card' + (save.sel === d.id ? ' sel' : '') + (owned ? '' : ' locked');
+      const owned = save.owned.includes(d.id), lv = lvOf(d.id), rk = RANK[d.rank];
+      const el = document.createElement('button');
+      el.className = 'mTile' + (charView === d.id ? ' view' : '') + (owned ? '' : ' locked') + (save.sel === d.id ? ' isSel' : '') + (save.sup === d.id ? ' isSup' : '');
       el.style.setProperty('--c', hex(d.color));
-      const rk = RANK[d.rank];
-      const up = owned && lv < 5 ? '<button class="btn up"' + (save.coins < UPG[lv] ? ' disabled' : '') + '>강화 ' + UPG[lv].toLocaleString() + '</button>' : '';
-      el.innerHTML =
-        '<div class="top"><img class="por" src="' + portrait(d.id) + '" alt=""><div><div class="nm">' + d.name + '</div>' +
-        '<span class="rk" style="background:' + rk.color + '33;color:' + rk.color + '">' + d.rank + '</span>' +
-        (owned ? ' <span class="lv">Lv.' + lv + '</span>' : '') + '</div></div>' +
-        '<div class="sk">' + d.skill.name + ' <small>· 원작: ' + d.skill.n1 + ' · ' + (d.skill.cd * (1 - (lv - 1) * 0.06)).toFixed(1) + '초</small></div>' +
-        '<div class="ds">' + d.desc + '</div>' +
-        (d.pas ? '<div class="pas">' + d.pas.t + '</div>' : '') +
-        '<div class="ft"><span>HP ' + (d.hp + (lv - 1) * 10) + ' · 최고 ' + ((save.bestBy[d.id] || 0).toLocaleString()) + '</span>' +
-        (owned ? up + (save.sel === d.id ? '<b class="on">출격 대기</b>' : save.sup === d.id ? '<b class="supOn">지원 중</b>' : '<button class="btn small supBtn">지원</button>')
-          : '<button class="btn primary buy"' + (save.coins < d.cost ? ' disabled' : '') + '>' + d.cost.toLocaleString() + ' 코인</button>') +
-        '</div>';
-      el.addEventListener('click', (e) => {
-        AUDIO.unlock();
-        if (e.target.classList.contains('supBtn')) { save.sup = d.id; SD.prepare(d.id); AUDIO.play('reinforce', 0.5); persist(); buildCharGrid(); return; }
-        if (e.target.classList.contains('up')) {
-          if (save.coins < UPG[lv]) { AUDIO.play('fail', 0.4); return; }
-          save.coins -= UPG[lv];
-          save.lv[d.id] = lv + 1;
-          AUDIO.play('rankUp', 0.7);
-          ann('LevelUp-1');
-          persist();
-          buildCharGrid();
-          return;
-        }
-        if (!owned) {
-          if (!e.target.classList.contains('buy') || save.coins < d.cost) { AUDIO.play('fail', 0.4); return; }
-          save.coins -= d.cost;
-          save.owned.push(d.id);
-          AUDIO.play('purchase', 0.7);
-        } else AUDIO.play('click', 0.5);
-        voice(d.id, 'start', 0.8, true);
-        save.sel = d.id;
-        if (save.sup === d.id) save.sup = '';
-        persist();
-        setPlayerChar(d.id);
-        buildCharGrid();
-      });
+      el.innerHTML = '<span class="mPor"><img src="' + portrait(d.id) + '" alt=""></span>' +
+        '<span class="mRk" style="background:' + rk.color + '">' + d.rank + '</span>' +
+        (save.sel === d.id ? '<span class="mTag sel">출격</span>' : save.sup === d.id ? '<span class="mTag sup">지원</span>' : '') +
+        '<span class="mNm">' + d.name + '</span>' +
+        (owned ? '<span class="mLv">Lv.' + lv + '</span>' : '<span class="mCost"><i class="coinIco"></i>' + d.cost.toLocaleString() + '</span>');
+      el.onclick = () => { AUDIO.unlock(); AUDIO.play('click', 0.4); charView = d.id; buildCharGrid(); };
       grid.appendChild(el);
     });
+    charDetailView();
+  }
+  function charDetailView() {
+    const d = charDef(charView), box = $('charDetail');
+    const owned = save.owned.includes(d.id), lv = lvOf(d.id), rk = RANK[d.rank];
+    const cd = (d.skill.cd * (1 - (lv - 1) * 0.06)).toFixed(1);
+    const isSel = save.sel === d.id, isSup = save.sup === d.id;
+    let acts = '';
+    if (!owned) acts = '<button class="btn primary" data-a="buy"' + (save.coins < d.cost ? ' disabled' : '') + '><i class="coinIco"></i> ' + d.cost.toLocaleString() + ' 코인으로 영입</button>' +
+      (save.coins < d.cost ? '<small class="mNeed">코인 ' + (d.cost - save.coins).toLocaleString() + ' 부족</small>' : '');
+    else {
+      acts = (isSel ? '<button class="btn primary" disabled>출격 대원</button>' : '<button class="btn primary" data-a="sel">출격 대원으로</button>') +
+        (isSel ? '' : isSup ? '<button class="btn" data-a="unsup">지원 해제</button>' : '<button class="btn" data-a="sup">지원 대원으로</button>') +
+        (lv < 5 ? '<button class="btn" data-a="up"' + (save.coins < UPG[lv] ? ' disabled' : '') + '>강화 Lv.' + (lv + 1) + ' · ' + UPG[lv].toLocaleString() + '</button>' : '<button class="btn" disabled>최대 강화</button>');
+    }
+    box.style.setProperty('--c', hex(d.color));
+    box.innerHTML =
+      '<div class="mArt"><img src="assets/cut/' + d.id + '.webp" alt=""></div>' +
+      '<div class="mHead"><span class="mRk" style="background:' + rk.color + '">' + d.rank + '</span><b>' + d.name + '</b>' + (owned ? '<span class="mLv">Lv.' + lv + '</span>' : '<span class="mLock">미보유</span>') +
+        (isSel ? '<span class="mTag sel">출격</span>' : isSup ? '<span class="mTag sup">지원</span>' : '') + '</div>' +
+      '<div class="mStats"><span>HP <b>' + (d.hp + (lv - 1) * 10) + '</b></span><span>스킬 대기 <b>' + cd + '초</b></span><span>최고 기록 <b>' + (save.bestBy[d.id] || 0).toLocaleString() + '</b></span></div>' +
+      '<div class="mSec"><h4>스킬 · ' + d.skill.name + ' <small>원작: ' + d.skill.n1 + '</small></h4><p>' + d.desc + '</p></div>' +
+      (d.pas ? '<div class="mSec"><h4>특성</h4><p>' + d.pas.t + '</p></div>' : '') +
+      '<div class="mSec mHint"><p>지원 대원으로 두면 출격 대원 뒤를 따라 달리며 7초마다 자기 스킬 방식으로 돕습니다.</p></div>' +
+      '<div class="mActs">' + acts + '</div>';
+    box.querySelectorAll('[data-a]').forEach((b) => { b.onclick = () => charAct(d, b.dataset.a); });
+  }
+  function charAct(d, a) {
+    AUDIO.unlock();
+    const lv = lvOf(d.id);
+    if (a === 'buy') {
+      if (save.coins < d.cost) { AUDIO.play('fail', 0.4); return; }
+      save.coins -= d.cost; save.owned.push(d.id); AUDIO.play('purchase', 0.7); voice(d.id, 'start', 0.8, true);
+    } else if (a === 'sel') {
+      save.sel = d.id; if (save.sup === d.id) save.sup = '';
+      AUDIO.play('click', 0.5); voice(d.id, 'start', 0.8, true); setPlayerChar(d.id);
+    } else if (a === 'sup') { save.sup = d.id; SD.prepare(d.id); AUDIO.play('reinforce', 0.5); }
+    else if (a === 'unsup') { save.sup = ''; AUDIO.play('click', 0.5); }
+    else if (a === 'up') {
+      if (save.coins < UPG[lv]) { AUDIO.play('fail', 0.4); return; }
+      save.coins -= UPG[lv]; save.lv[d.id] = lv + 1; AUDIO.play('rankUp', 0.7); ann('LevelUp-1');
+    }
+    persist();
+    buildCharGrid();
   }
 
   // overlays from the previous run (cut-in, flashes, score popups) never carry over
