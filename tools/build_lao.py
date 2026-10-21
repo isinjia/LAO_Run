@@ -187,6 +187,28 @@ def cutin():
     print('cut-ins', len(glob.glob(out + '/*.webp')))
 
 
+def main_blob(im):
+    """the largest connected figure in an atlas page (loose pieces around it are cleared)"""
+    S = 192
+    a = np.asarray(im.getchannel('A').resize((S, S), Image.BILINEAR)) > 20
+    from PIL import ImageFilter
+    a = np.asarray(Image.fromarray((a * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))) > 0  # join hair strands / fingers
+    lab = np.zeros((S, S), int); best, bestn, cur = 0, 0, 0
+    for y0 in range(S):
+        for x0 in range(S):
+            if not a[y0, x0] or lab[y0, x0]: continue
+            cur += 1; st = [(y0, x0)]; lab[y0, x0] = cur; n = 0
+            while st:
+                y, x = st.pop(); n += 1
+                for yy, xx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                    if 0 <= yy < S and 0 <= xx < S and a[yy, xx] and not lab[yy, xx]: lab[yy, xx] = cur; st.append((yy, xx))
+            if n > bestn: best, bestn = cur, n
+    keep = Image.fromarray(((lab == best) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)).resize(im.size, Image.BILINEAR)
+    al = np.minimum(np.asarray(im.getchannel('A')), np.asarray(keep))
+    out = im.copy(); out.putalpha(Image.fromarray(al.astype(np.uint8)))
+    return out
+
+
 def fullart():
     """whole figures (nothing cut at the sides) for the member select popup and squad slots -> assets/full/<id>.webp"""
     out = os.path.join(OUT, 'assets/full')
@@ -199,11 +221,10 @@ def fullart():
         else:
             base = f'{ABS}/Texture/FullbodyImg/FullbodyIMG_{fb}_N'
             parts = sorted(glob.glob(base + '_[pP]art*.png'))
-            if mid in MANUAL: im = Image.open(f'{ABS}/Texture/FullbodyImg/{MANUAL[mid][0]}').convert('RGBA')
-            elif os.path.exists(base + '.png'): im = Image.open(base + '.png').convert('RGBA')
-            elif parts:
-                im = Image.new('RGBA', Image.open(parts[0]).size)
-                for p in parts: im.alpha_composite(Image.open(p).convert('RGBA'))
+            if os.path.exists(base + '.png'): im = Image.open(base + '.png').convert('RGBA')
+            elif parts:  # split art is an atlas (the body + loose wings / weapons / summons): keep the body from part 1
+                im = main_blob(Image.open(parts[0]).convert('RGBA'))
+            elif mid in MANUAL: im = Image.open(f'{ABS}/Texture/FullbodyImg/{MANUAL[mid][0]}').convert('RGBA')
             else:
                 alt = sorted(glob.glob(f'{ABS}/Texture/FullbodyImg/FullbodyIMG_{fb}_NS*.png'))
                 if not alt: print('  no fullbody', mid); continue

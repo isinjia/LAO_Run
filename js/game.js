@@ -2810,6 +2810,10 @@
   // member select: the squad slots on top (main 1, support 2), every member's card below (cheapest first).
   // A card (or a filled slot) opens its popup: art, numbers, skill, trait and where to put her.
   let charPopId = null;
+  // per-member framing of the whole-figure art: s = size (wide weapons / wings shrink the figure), y = % up(-) / down(+), x = % left(-) / right(+)
+  const ART_FIT = { phoenix: { s: 2.0, y: -16 }, azazel: { s: 1.9, y: -50, x: 6 }, thetis: { s: 1.3, y: -32 }, banshee: { s: 1.15, y: -24 }, hraesvelgr: { s: 1.25 }, blacklilith: { s: 1.3 },
+    hela: { s: 1.2 }, leona: { s: 1.15 }, tiamat: { s: 1.15 }, labiata: { s: 1.15 }, brunhild: { s: 1.15 }, titania: { s: 1.1 }, valkyrie: { s: 1.1 }, khan: { s: 1.1 } };
+  const artVars = (id) => { const f = ART_FIT[id] || {}; return '--as:' + (f.s || 1) + ';--ay:' + (f.y || 0) + ';--ax:' + (f.x || 0); };
   const slotOf = (id) => save.sel === id ? 'main' : save.sups[0] === id ? 0 : save.sups[1] === id ? 1 : null;
   function buildCharGrid() {
     $('charCoins').textContent = save.coins.toLocaleString();
@@ -2819,7 +2823,7 @@
       const d = id && charDef(id);
       return '<button class="cSlot ' + cls + (d ? '' : ' empty') + '" data-slot="' + k + '"' + (d ? ' style="--c:' + hex(d.color) + '"' : '') + '>' +
         '<span class="csLbl">' + label + '</span>' +
-        (d ? '<span class="csArt"><img src="assets/full/' + d.id + '.webp" alt=""></span><span class="csNm">' + d.name + ' <small>Lv.' + lvOf(d.id) + '</small></span>'
+        (d ? '<span class="csArt"><img style="' + artVars(d.id) + '" src="assets/full/' + d.id + '.webp" alt=""></span><span class="csNm">' + d.name + ' <small>Lv.' + lvOf(d.id) + '</small></span>'
           : '<span class="csEmpty">+<small>카드를 눌러 배치</small></span>') + '</button>';
     };
     sl.innerHTML = slot(save.sel, '메인', 'main', 'main') + slot(supIds().includes(save.sups[0]) ? save.sups[0] : '', '보조 1', 'sub', 0) + slot(supIds().includes(save.sups[1]) ? save.sups[1] : '', '보조 2', 'sub', 1);
@@ -2855,7 +2859,7 @@
       : ty === 'bigjelly' ? '앞의 젤리 최대 6개를 곰 젤리로 바꿈'
       : ty === 'frost' ? '앞의 적 1명을 2초 동안 얼림'
       : '가까운 적은 근접 공격으로 격파, 멀면 지원 사격';
-    return '7초마다 ' + main + '. 보스 추격 중에는 대신 보스에게 지원 공격. 보조 대원은 피해를 받지 않습니다.';
+    return '7초마다 ' + main + '. 보스 추격 중에는 대신 보스에게 지원 공격.';
   }
   function openCharPop(id) { charPopId = id; charDetailView(); $('charPop').classList.add('on'); }
   function closeCharPop() { charPopId = null; $('charPop').classList.remove('on'); }
@@ -2871,7 +2875,7 @@
         [0, 1].map((k) => {
           if (at === k) return '<button class="btn" data-a="out' + k + '">보조 ' + (k + 1) + '에서 빼기</button>';
           const other = supIds().includes(save.sups[k]) ? charDef(save.sups[k]) : null;
-          if (at === 'main') return other ? '<button class="btn" data-a="swap' + k + '">보조 ' + (k + 1) + ' ' + other.name + '와 교체</button>' : '<button class="btn" disabled>보조 ' + (k + 1) + ' 비어 있음</button>';
+          if (at === 'main') return other ? '<button class="btn" data-a="swap' + k + '">보조 ' + (k + 1) + (k ? '와' : '과') + ' 교체</button>' : '<button class="btn" disabled>보조 ' + (k + 1) + ' 비어 있음</button>';
           return '<button class="btn" data-a="sub' + k + '">보조 ' + (k + 1) + '에 넣기</button>';
         }).join('') +
         (at === 'main' ? '<small class="mNote">메인은 비울 수 없어 보조 대원과 자리를 바꿉니다</small>' : '') +
@@ -2880,12 +2884,12 @@
     box.style.setProperty('--c', hex(d.color));
     box.innerHTML =
       '<button class="cpClose" aria-label="닫기">✕</button>' +
-      '<div class="mArt"><img src="assets/full/' + d.id + '.webp" alt=""></div>' +
+      '<div class="mArt"><img style="' + artVars(d.id) + '" src="assets/full/' + d.id + '.webp" alt=""></div>' +
       '<div class="mHead"><span class="mRk" style="background:' + rk.color + '">' + d.rank + '</span><b>' + d.name + '</b>' + (owned ? '<span class="mLv">Lv.' + lv + '</span>' : '<span class="mLock">미보유</span>') +
         (at === 'main' ? '<span class="mTag sel">메인</span>' : at != null ? '<span class="mTag sup">보조 ' + (at + 1) + '</span>' : '') + '</div>' +
       '<div class="mStats"><span>HP <b>' + (d.hp + (lv - 1) * 10) + '</b></span><span>스킬 대기 <b>' + cd + '초</b></span><span>최고 기록 <b>' + (save.bestBy[d.id] || 0).toLocaleString() + '</b></span></div>' +
       '<div class="mSec"><h4>메인 스킬 · ' + d.skill.name + '</h4><p>' + d.desc + '</p></div>' +
-      (d.pas ? '<div class="mSec"><h4>메인 특성</h4><p>' + d.pas.t + '</p></div>' : '') +
+      (d.pas ? (() => { const t = d.pas.t, i = t.indexOf(': '); return '<div class="mSec"><h4>메인 특성' + (i > 0 ? ' · ' + t.slice(0, i) : '') + '</h4><p>' + (i > 0 ? t.slice(i + 2) : t) + '</p></div>'; })() : '') + // '이름: 설명' -> the name in the heading, like the skill
       '<div class="mSec mSub"><h4>보조 효과</h4><p>' + supDesc(d) + '</p></div>' +
       '<div class="mActs">' + acts + '</div>';
     box.querySelector('.cpClose').onclick = () => { AUDIO.play('click', 0.4); closeCharPop(); };

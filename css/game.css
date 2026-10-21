@@ -697,3 +697,8 @@ html.pc #btnBack::after, html.pc .closeP::after { content: 'Esc'; margin-left: 6
 html.pc .closeP::after { color: #8a6a00; }
 .mSec.mSub h4 { color: #7dff8a; }
 html.h480 .mSec.mSub { display: block; }
+/* per-member framing (ART_FIT in game.js): --as size, --ay up/down %, --ax left/right % */
+#charPop .mArt img { height: calc(160% * var(--as, 1)); max-width: calc(94% * var(--as, 1)); top: calc(9% + var(--ay, 0) * 1%); left: calc(50% + var(--ax, 0) * 1%); }
+.csArt img { height: calc(240% * var(--as, 1)); max-width: calc(92% * var(--as, 1)); top: calc(12% + var(--ay, 0) * 1%); }
+/* slots are far shorter than the popup: the same up/down framing, as a share of the art's own height */
+.csArt img { top: 10%; transform: translateY(calc(var(--ay, 0) * 0.625% / var(--as, 1))); }
