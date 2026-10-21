@@ -462,7 +462,7 @@ html.ctlZone #padJump, html.ctlZone #padSlide { display: none; }
 :root { --accent: #ffcc00; --loLine: rgba(176, 196, 214, .42); --loNavy1: rgba(20, 30, 40, .94); --loNavy2: rgba(36, 58, 72, .94); }
 .btn { border-radius: 0; background: none; box-shadow: none; color: #16181d; text-shadow: none; font-weight: 900;
   border: 0 solid transparent; border-image: url(../assets/ui/UI_btn_02_White.png) 42 fill / 14px; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5)); }
-.btn.primary { color: #1a1400; border-image-source: url(../assets/ui/UI_btn_02.png); box-shadow: none; }
+.btn.primary { color: #1a1400; background: none; border-image-source: url(../assets/ui/UI_btn_02.png); box-shadow: none; }
 .btn:hover { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5)) brightness(1.06); }
 .btn:active { transform: translateY(2px); box-shadow: none; }
 .btn.small { border-image-width: 11px; }
