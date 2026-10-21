@@ -2057,6 +2057,11 @@
       ring(it.x, it.y, 0xffffff, 2.4, 0.35);
       const names = { heart: 'HP +' + HEART_HP, magnet: '자석!', boost: '부스트!', giant: '거대화!', potion: 'HP +15', star: '무적!', jbig: '대형 젤리 +300' };
       popup(it.x, it.y + 1, names[k], 'big');
+      const ik = pas().itemK || 1, sec = (v) => +(v * ik).toFixed(1) + '초';
+      const what = { heart: ['회복', 'HP +' + HEART_HP + ' 회복', '#ff6a8a'], potion: ['수리 키트', 'HP +15 회복', '#5fe39a'], magnet: ['자석', sec(6) + ' 동안 주변 젤리·코인을 끌어당김', '#6fb0ff'],
+        boost: ['부스트', sec(4) + ' 동안 빠르게 돌진 · 무적, 부딪힌 적 격파', '#ffbe2a'], giant: ['거대화', sec(4.5) + ' 동안 커져서 무적 · 적과 장애물을 부수며 달림', '#b07dff'],
+        star: ['무적', sec(5) + ' 동안 어떤 공격도 받지 않음', '#ff7ad8'], jbig: ['대형 젤리', '점수 +300 · 젤리 +5', '#7ffff0'] }[k];
+      if (what) gainCard(what[0], what[1], null, what[2]);
       if (k === 'heart') P.hp = Math.min(P.maxHp, P.hp + HEART_HP);
       if (k === 'potion') P.hp = Math.min(P.maxHp, P.hp + 15);
       if (k === 'star') { P.buff.star = 5 * (pas().itemK || 1); AUDIO.play('rankUp', 0.6); }
@@ -2134,7 +2139,7 @@
         r.done = true; r.rig.c.setTint(1.35, 1.35, 1.35); r.rig.c.play('move', null, true); r.rig.g.scale.set(-1, 1, 1); r.rig.c.setOrder(L.PLAYER + 0.2); setTimeout(() => r.rig && r.rig.c.setTint(1, 1, 1), 250); r.tag = true; // a bright flash as she joins
         addScore(800); run.coins += 20; run.rescued = (run.rescued || 0) + 1;
         P.shield = Math.max(P.shield, 3); P.skillT += 2;
-        setTimeout(() => popup(PX + 1, P.y + 3.2, '구조 성공! ' + charDef(r.id).name + ' 합류 +800', 'perfect'), 300); ann('Success-1'); voice(r.id, 'mvp', 0.8, true); // the popup waits for the moment, never on top of the pickups
+        gainCard('구조 성공! ' + charDef(r.id).name + ' 합류', '점수 +800 · 코인 +20 · 실드 3초 · 스킬 게이지 +2초', portrait(r.id), '#5dff8a'); ann('Success-1'); voice(r.id, 'mvp', 0.8, true); // the popup waits for the moment, never on top of the pickups
         { const o = origFor(r.id); origStatic(o.skill.statics[0] || o.atk.hit || ORIG_DEFAULT_HIT, r.x, r.y + 0.8, kOf()); } // her own skill effect
       }
       if (r.x < -3 || (r.done && r.t > 2.4)) { freeRig(r.rig); scene.remove(r.sos); r.sos.material.dispose(); if (r.label) { scene.remove(r.label); r.label.material.map.dispose(); r.label.material.dispose(); } rescues.splice(i, 1); }
@@ -2505,12 +2510,7 @@
         else if (P.inv < 1.0) r.c.setTint(1, 1, 1);
       }
     }
-    // invincible (any kind): a white outline; in its last second it blinks so the player knows it is about to end
-    if (r) {
-      const b = P.buff, left = P.dead ? 0 : Math.max(P.inv, b.giant || 0, b.dash || 0, b.boost || 0, b.fly || 0, b.star || 0);
-      const on = left > 0 && (left > 1 || Math.floor(left * (calm() ? 6 : 10)) % 2 === 0);
-      if (on !== P.olOn || r !== P.olRig) { P.olOn = on; P.olRig = r; r.c.setOutline(on ? 0xffffff : 0, 0.06 / r.k); }
-    }
+    if (r) invFx(r, dt);
 
     // trails
     if (smashing() && Math.random() < 0.7) streak(PX - 0.6 + Math.random() * 0.4, P.y + 0.3 + Math.random() * 1.6 * P.scale, P.buff.dash > 0 ? P.def.color : 0xbfefff);
@@ -2693,10 +2693,49 @@
     missionList($('titleMissions'), false);
   }
 
+  // invincible (any kind): a burst as it starts, a breathing golden aura, a slow ring of light, sparks rising off the body and
+  // an outline shimmering white to gold. In its last second everything blinks so the player knows it is about to end.
+  const INV_FX = { aura: null, halo: null, was: 0, spark: 0 };
+  function invFx(r, dt) {
+    const b = P.buff, left = P.dead ? 0 : Math.max(P.inv, b.giant || 0, b.dash || 0, b.boost || 0, b.fly || 0, b.star || 0);
+    const cm = calm(), t = performance.now() / 1000;
+    const on = left > 0 && (left > 1 || Math.floor(left * (cm ? 6 : 10)) % 2 === 0);
+    const h = r.h * P.scale, mx = PX, my = P.y + h * 0.5;
+    if (!INV_FX.aura) {
+      const mk = (map, color, ord) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map, color, depthTest: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending })); sp.renderOrder = ord; sp.visible = false; scene.add(sp); return sp; };
+      INV_FX.aura = mk(TEX.glow, 0xffe9a0, L.PLAYER - 0.6);
+      INV_FX.halo = mk(TEX.ring, 0xfff4c0, L.PLAYER + 0.4);
+    }
+    if (left > 0.6 && INV_FX.was <= 0) { ring(mx, my, 0xfff2a0, 2.2 + h, 0.45); burst(mx, my, 0xffe680, cm ? 6 : 14, 0.5, 5, 'spark'); } // it starts
+    INV_FX.was = left;
+    const { aura, halo } = INV_FX;
+    aura.visible = halo.visible = on;
+    if (on) {
+      const pulse = 0.5 + 0.5 * Math.sin(t * (cm ? 3 : 6));
+      aura.position.set(mx, my, 0); aura.scale.set(h * (1.5 + pulse * 0.25), h * (1.7 + pulse * 0.25), 1); aura.material.opacity = 0.32 + pulse * 0.18;
+      halo.position.set(mx, my, 0); halo.scale.set(h * 1.35, h * 1.35, 1); halo.material.rotation = t * 1.4; halo.material.opacity = 0.22 + pulse * 0.12;
+      if ((INV_FX.spark -= dt) <= 0) { // sparks rising off the body
+        INV_FX.spark = cm ? 0.14 : 0.06;
+        sparkle(mx + (Math.random() - 0.5) * h * 0.7, P.y + Math.random() * h, Math.random() < 0.5 ? 0xfff2a0 : 0xffffff);
+      }
+      const g = 0.5 + 0.5 * Math.sin(t * 7); // white -> gold shimmer
+      r.c.setOutline((255 << 16) | (Math.round(255 - g * 25) << 8) | Math.round(255 - g * 150), (0.06 + g * 0.015) / r.k);
+      P.olOn = true;
+    } else if (P.olOn) { P.olOn = false; r.c.setOutline(0); }
+  }
+  // what a pick-up does, said on screen: a card under the score with its name and effect (a portrait for a rescued squadmate)
+  function gainCard(title, desc, img, color) {
+    const el = $('gainCard');
+    el.style.setProperty('--gc', color || '#ffcc00');
+    $('gainImg').style.display = img ? '' : 'none'; if (img) $('gainImg').src = img;
+    $('gainTitle').textContent = title; $('gainDesc').textContent = desc;
+    el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    clearTimeout(gainCard.tm); gainCard.tm = setTimeout(() => el.classList.remove('on'), 2600);
+  }
   function placeRunner(x, s) {
     if (!P.rig) return;
     P.rig.g.position.set(x, -0.25 * s, 0); // the rig's feet sit a little above its box bottom: scaled up, that gap shows, so she is set down onto the road
-    P.rig.c.setOutline(0); P.olOn = false; // no invincibility glow on the result screen
+    P.rig.c.setOutline(0); P.olOn = false; INV_FX.was = 0; if (INV_FX.aura) INV_FX.aura.visible = INV_FX.halo.visible = false; // no invincibility glow on the result screen
     P.rig.g.scale.set(s, s, 1);
     P.rig.pivot.rotation.z = 0;
     P.rig.pivot.position.y = P.rig.baseY;

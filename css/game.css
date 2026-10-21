@@ -531,3 +531,13 @@ html.pc .pad { flex-direction: column; gap: 1px; }
 html.pc .pad kbd { display: block; position: relative; font: 900 11px 'Noto Sans KR', sans-serif; color: #1a1400; background: #ffcc00; padding: 0 6px; border-radius: 3px; box-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
 html.pc #btnPause { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: 2px; }
 html.pc #btnPause kbd { display: block; font: 900 9px 'Noto Sans KR', sans-serif; color: #ffcc00; }
+/* pick-up card: what the item / rescued squadmate just gave, under the score */
+#gainCard { --gc: #ffcc00; position: absolute; left: 50%; top: 92px; transform: translate(-50%, -8px); display: flex; align-items: center; gap: 10px; padding: 7px 16px 7px 8px; pointer-events: none; z-index: 4;
+  background: linear-gradient(90deg, rgba(10, 16, 26, .82), rgba(16, 26, 38, .72)); border: 1px solid var(--gc); box-shadow: 0 0 16px color-mix(in srgb, var(--gc) 45%, transparent), inset 4px 0 0 var(--gc);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); opacity: 0; transition: opacity .2s, transform .2s; max-width: calc(var(--vw) * 70); }
+#gainCard.on { opacity: 1; transform: translate(-50%, 0); }
+#gainCard img { width: 40px; height: 40px; object-fit: cover; flex: none; clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+#gainCard div { display: flex; flex-direction: column; line-height: 1.25; text-shadow: 0 1px 2px #000; }
+#gainCard b { font-size: 15px; color: var(--gc); font-weight: 900; }
+#gainCard span { font-size: 12.5px; color: #eef3ff; font-weight: 700; }
+html.h480 #gainCard { top: 74px; padding: 5px 12px 5px 6px; } html.h480 #gainCard b { font-size: 13px; } html.h480 #gainCard span { font-size: 11px; } html.h480 #gainCard img { width: 32px; height: 32px; }
