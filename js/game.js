@@ -1571,7 +1571,7 @@
     const T = supType(d);
     return T.name + ': ' + T.d(T.n) + '. 게이지가 차면 발동 (약 ' + supTime(d).toFixed(1) + '초, 젤리·격파로 더 빨리 참). 보스 추격 중에는 보스에게 지원 공격.';
   }
-  function supCharge(k) { for (const sp of sups) sp.g = Math.min(1, sp.g + k); } // jelly / kills feed every support gauge
+  function supCharge(k) { for (const sp of sups) sp.g = Math.min(1, sp.g + k * 6 / supTime(sp.def)); } // jelly / kills feed every gauge, scaled to her charge time (a slow, strong move stays slow)
   function supportAct(sup) {
     const d = sup.def, T = supType(d), ty = d.skill.type, sx = PX - 1.3 - sup.slot * 1.15, sy = sup.y + 0.7;
     ring(sx, sy, d.color, 1.6, 0.35);
