@@ -2484,6 +2484,12 @@
         else if (P.inv < 1.0) r.c.setTint(1, 1, 1);
       }
     }
+    // invincible (any kind): a white outline; in its last second it blinks so the player knows it is about to end
+    if (r) {
+      const b = P.buff, left = P.dead ? 0 : Math.max(P.inv, b.giant || 0, b.dash || 0, b.boost || 0, b.fly || 0, b.star || 0);
+      const on = left > 0 && (left > 1 || Math.floor(left * (calm() ? 6 : 10)) % 2 === 0);
+      if (on !== P.olOn || r !== P.olRig) { P.olOn = on; P.olRig = r; r.c.setOutline(on ? 0xffffff : 0, 0.06 / r.k); }
+    }
 
     // trails
     if (smashing() && Math.random() < 0.7) streak(PX - 0.6 + Math.random() * 0.4, P.y + 0.3 + Math.random() * 1.6 * P.scale, P.buff.dash > 0 ? P.def.color : 0xbfefff);
@@ -2668,6 +2674,7 @@
   function placeRunner(x, s) {
     if (!P.rig) return;
     P.rig.g.position.set(x, -0.25 * s, 0); // the rig's feet sit a little above its box bottom: scaled up, that gap shows, so she is set down onto the road
+    P.rig.c.setOutline(0); P.olOn = false; // no invincibility glow on the result screen
     P.rig.g.scale.set(s, s, 1);
     P.rig.pivot.rotation.z = 0;
     P.rig.pivot.position.y = P.rig.baseY;
