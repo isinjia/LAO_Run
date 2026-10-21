@@ -1543,25 +1543,26 @@
   // she does her move (by skill type). Charge time and strength differ per type; rank and level make her a bit quicker. ──
   const SUP_RANK = { B: 0, A: 1, S: 2, SS: 3, SSS: 4, LR: 5, UR: 6 };
   // t = seconds to fill from time alone, n = how many / how strong, boss = damage on a chase boss
+  // t / n tuned by a bot sweep (brownie main, one support each): multi-target shooters charge faster, buffs slower
   const SUP_TYPES = {
-    gun: { t: 6, n: 2, boss: 5, name: '연사', d: (n) => '앞의 적 ' + n + '명에게 지원 사격' },
+    gun: { t: 5.5, n: 2, boss: 5, name: '연사', d: (n) => '앞의 적 ' + n + '명에게 지원 사격' },
     snipe: { t: 5, n: 1, boss: 6, name: '저격', d: () => '가장 먼 적 1명을 저격 (공중 적 포함)' },
-    akimbo: { t: 6.5, n: 2, boss: 5, name: '쌍권총', d: (n) => '가까운 적 ' + n + '명에게 동시 사격' },
-    missile: { t: 9, n: 3, boss: 8, name: '미사일 일제 사격', d: (n) => '앞의 적 최대 ' + n + '명에게 미사일' },
-    beam: { t: 10, n: 4, boss: 9, name: '관통 레이저', d: (n) => '앞쪽 일직선의 적 최대 ' + n + '명 관통' },
-    flame: { t: 7, n: 9, boss: 6, name: '화염 방사', d: () => '바로 앞 4.5m 안의 지상 적 모두 소각' },
-    wolves: { t: 9, n: 3, boss: 8, name: '늑대 돌격', d: (n) => '가까운 적 ' + n + '명에게 늑대 돌격' },
-    judgement: { t: 8, n: 2, boss: 8, name: '낙뢰', d: (n) => '앞의 적 ' + n + '명에게 번개' },
-    dash: { t: 8, n: 1, boss: 6, name: '돌진 베기', d: () => '가까운 적 1명을 베고, 메인 대원에게 0.6초 돌진(무적)' },
-    fly: { t: 7, n: 9, boss: 6, name: '공중 지원', d: () => '앞의 공중 적 모두 격추 (없으면 지상 적 1명 사격)' },
-    giant: { t: 14, n: 1.6, boss: 9, name: '장갑 돌파', d: (n) => '메인 대원 ' + n + '초 거대화' },
-    wind: { t: 8, n: 2.5, boss: 5, name: '돌풍', d: (n) => n + '초 동안 젤리·코인을 끌어당기고 적 1명 사격' },
-    shield: { t: 10, n: 4, boss: 4, name: '보호막', d: (n) => '메인 대원에게 ' + n + '초 실드 (이미 있으면 적 1명 사격)' },
+    akimbo: { t: 5.5, n: 2, boss: 5, name: '쌍권총', d: (n) => '가까운 적 ' + n + '명에게 동시 사격' },
+    missile: { t: 6.5, n: 3, boss: 8, name: '미사일 일제 사격', d: (n) => '앞의 적 최대 ' + n + '명에게 미사일' },
+    beam: { t: 6.5, n: 4, boss: 9, name: '관통 레이저', d: (n) => '앞쪽 일직선의 적 최대 ' + n + '명 관통' },
+    flame: { t: 5.5, n: 9, boss: 6, name: '화염 방사', d: () => '바로 앞 4.5m 안의 지상 적 모두 소각' },
+    wolves: { t: 6.5, n: 3, boss: 8, name: '늑대 돌격', d: (n) => '가까운 적 ' + n + '명에게 늑대 돌격' },
+    judgement: { t: 6, n: 2, boss: 8, name: '낙뢰', d: (n) => '앞의 적 ' + n + '명에게 번개' },
+    dash: { t: 9, n: 1, boss: 6, name: '돌진 베기', d: () => '가까운 적 1명을 베고, 메인 대원에게 0.6초 돌진(무적)' },
+    fly: { t: 6, n: 9, boss: 6, name: '공중 지원', d: () => '앞의 공중 적 모두 격추 (없으면 지상 적 1명 사격)' },
+    giant: { t: 18, n: 1.2, boss: 9, name: '장갑 돌파', d: (n) => '메인 대원 ' + n + '초 거대화' },
+    wind: { t: 10, n: 2, boss: 5, name: '돌풍', d: (n) => n + '초 동안 젤리·코인을 끌어당기고 적 1명 사격' },
+    shield: { t: 12, n: 3, boss: 4, name: '보호막', d: (n) => '메인 대원에게 ' + n + '초 실드 (이미 있으면 적 1명 사격)' },
     heal: { t: 9, n: 5, boss: 3, name: '응급 수리', d: (n) => '메인 대원 HP +' + n + ' 회복' },
-    magnet: { t: 9, n: 3, boss: 3, name: '자력장', d: (n) => n + '초 동안 젤리·코인을 끌어당김' },
+    magnet: { t: 11, n: 2.5, boss: 3, name: '자력장', d: (n) => n + '초 동안 젤리·코인을 끌어당김' },
     coinrain: { t: 10, n: 5, boss: 4, name: '코인 투하', d: (n) => '앞쪽에 코인 ' + n + '개 투하' },
     bigjelly: { t: 10, n: 6, boss: 3, name: '젤리 강화', d: (n) => '앞의 젤리 최대 ' + n + '개를 곰 젤리로' },
-    frost: { t: 9, n: 3, boss: 5, name: '빙결', d: (n) => '앞의 적 최대 ' + n + '명을 2.5초 동안 얼림' },
+    frost: { t: 7, n: 3, boss: 5, name: '빙결', d: (n) => '앞의 적 최대 ' + n + '명을 2.5초 동안 얼림' },
   };
   const SUP_JELLY = 0.006, SUP_KILL = 0.06; // gauge share per eaten jelly / per kill (on top of time)
   const supType = (d) => SUP_TYPES[d.skill.type] || SUP_TYPES.gun;
