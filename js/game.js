@@ -2884,8 +2884,8 @@
       '<div class="mHead"><span class="mRk" style="background:' + rk.color + '">' + d.rank + '</span><b>' + d.name + '</b>' + (owned ? '<span class="mLv">Lv.' + lv + '</span>' : '<span class="mLock">미보유</span>') +
         (at === 'main' ? '<span class="mTag sel">메인</span>' : at != null ? '<span class="mTag sup">보조 ' + (at + 1) + '</span>' : '') + '</div>' +
       '<div class="mStats"><span>HP <b>' + (d.hp + (lv - 1) * 10) + '</b></span><span>스킬 대기 <b>' + cd + '초</b></span><span>최고 기록 <b>' + (save.bestBy[d.id] || 0).toLocaleString() + '</b></span></div>' +
-      '<div class="mSec"><h4>스킬 · ' + d.skill.name + '</h4><p>' + d.desc + '</p></div>' +
-      (d.pas ? '<div class="mSec"><h4>특성</h4><p>' + d.pas.t + '</p></div>' : '') +
+      '<div class="mSec"><h4>메인 스킬 · ' + d.skill.name + '</h4><p>' + d.desc + '</p></div>' +
+      (d.pas ? '<div class="mSec"><h4>메인 특성</h4><p>' + d.pas.t + '</p></div>' : '') +
       '<div class="mSec mSub"><h4>보조 효과</h4><p>' + supDesc(d) + '</p></div>' +
       '<div class="mActs">' + acts + '</div>';
     box.querySelector('.cpClose').onclick = () => { AUDIO.play('click', 0.4); closeCharPop(); };
