@@ -456,3 +456,45 @@ html.rot #charGrid, html.rot .panelScreen .panel, html.rot .resCard, html.rot #t
 html.ctlPad .ctl { pointer-events: none; }
 html.ctlZone #padJump, html.ctlZone #padSlide { display: none; }
 .btn:disabled { opacity: .5; }
+
+/* ── original Last Origin UI theme (masterAtlas_V2 pieces in assets/ui): yellow / white buttons with the cut corners,
+   dark navy popups with a steel line and the yellow head bar, slanted title strips ── */
+:root { --accent: #ffcc00; --loLine: rgba(176, 196, 214, .42); --loNavy1: rgba(20, 30, 40, .94); --loNavy2: rgba(36, 58, 72, .94); }
+.btn { border-radius: 0; background: none; box-shadow: none; color: #16181d; text-shadow: none; font-weight: 900;
+  border: 0 solid transparent; border-image: url(../assets/ui/UI_btn_02_White.png) 42 fill / 14px; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5)); }
+.btn.primary { color: #1a1400; border-image-source: url(../assets/ui/UI_btn_02.png); box-shadow: none; }
+.btn:hover { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5)) brightness(1.06); }
+.btn:active { transform: translateY(2px); box-shadow: none; }
+.btn.small { border-image-width: 11px; }
+.btn:disabled { filter: grayscale(1) brightness(.6); }
+#btnPause, .btn.icon { border-image: none; color: #fff; }
+#btnBack { border-image: none; color: #fff; background: linear-gradient(180deg, rgba(64, 70, 80, .95), rgba(32, 36, 44, .95)); box-shadow: inset 3px 0 0 var(--accent);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+
+/* popups and panels */
+.resCard, .panelScreen .panel, .titleSel, #pause .resCard, .missions, #pick {
+  background: linear-gradient(180deg, var(--loNavy1), var(--loNavy2)); border: 1px solid var(--loLine); border-radius: 0;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  box-shadow: inset 0 3px 0 var(--accent), inset 0 0 0 1px rgba(255, 255, 255, .04); }
+#resMissions.missions { box-shadow: none; background: none; }
+.panelScreen h2, #chars h2, #pause h2, #result h2 { text-shadow: 0 2px 0 rgba(0, 0, 0, .6); }
+.panelScreen h2::before, #chars h2::before, #pause h2::before, #result h2::before { content: ''; display: inline-block; width: 6px; height: .78em; margin-right: 10px; vertical-align: -.04em; background: var(--accent); transform: skewX(-14deg); }
+#chars .head, .panelScreen .head { padding-bottom: 6px; border-bottom: 1px solid var(--loLine); }
+#chars { background: linear-gradient(180deg, rgba(10, 16, 24, .94), rgba(22, 36, 46, .94)); }
+
+/* member cards, boosts, rows */
+.card { border-radius: 0; border: 1px solid var(--loLine); border-left: 4px solid var(--c, var(--loLine)); background: linear-gradient(180deg, rgba(24, 34, 46, .95), rgba(14, 20, 28, .95));
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%); }
+.card.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 26px rgba(255, 204, 0, .16); }
+.card .por { border-radius: 0; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+.titleSel img { border-radius: 0; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+.boost { border-radius: 0; border: 1px solid var(--loLine); background: linear-gradient(180deg, rgba(24, 34, 46, .92), rgba(14, 20, 28, .92));
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+.boost.on { border-color: var(--accent); background: linear-gradient(180deg, rgba(255, 204, 0, .28), rgba(120, 96, 0, .3)); box-shadow: none; }
+.gearRow, .achRow, .att { border-radius: 0; background: rgba(255, 255, 255, .05); border-left: 3px solid rgba(176, 196, 214, .35); }
+.gearRow.on, .att.now { outline: none; border-left-color: var(--accent); background: rgba(255, 204, 0, .12); }
+.att.got { background: rgba(255, 204, 0, .2); }
+.pickCard { border-color: var(--loLine); }
+.pickCard:hover { box-shadow: inset 0 0 0 2px var(--accent); }
+.coinTag, #btnPause { border-color: var(--loLine); }
+.hpBar { border-color: var(--loLine); }
