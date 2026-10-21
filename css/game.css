@@ -702,3 +702,6 @@ html.h480 .mSec.mSub { display: block; }
 .csArt img { height: calc(240% * var(--as, 1)); max-width: calc(92% * var(--as, 1)); top: calc(12% + var(--ay, 0) * 1%); }
 /* slots are far shorter than the popup: the same up/down framing, as a share of the art's own height */
 .csArt img { top: 10%; transform: translateY(calc(var(--ay, 0) * 0.625% / var(--as, 1))); }
+
+/* 언어 설정 */
+.languageSetting{display:flex;align-items:center;justify-content:center;gap:8px;font:14px system-ui,sans-serif;color:#fff;margin:6px}.languageSelect{min-width:130px;max-width:200px;padding:8px;border:1px solid #66748f;border-radius:8px;background:#15243a;color:#fff;font:inherit;pointer-events:auto}.optGrid .languageSetting{grid-column:1/-1}html:not([lang="ko"]) .btn{font-family:system-ui,sans-serif}html:not([lang="ko"]) .pad span{font-family:system-ui,sans-serif;font-size:12px}

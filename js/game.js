@@ -911,7 +911,7 @@
     clearWorld();
     traveled = 0;
     stageIx = 0;
-    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, nextGiant: 240, rescueId: null, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], timers: [], ev: null, evQ: null, evN: 0, nextEvent: 380, nextRescue: 520, rescued: 0, pStreak: 0, perfect: 0,
+    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, supActs: 0, supLog: {}, nextHeart: 200, nextGiant: 240, rescueId: null, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], timers: [], ev: null, evQ: null, evN: 0, nextEvent: 380, nextRescue: 520, rescued: 0, pStreak: 0, perfect: 0,
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
     showSet(STAGES[0].id, true);
@@ -1130,6 +1130,7 @@
     if (f.rig) { f.rig.g.children.forEach((c) => { if (c.isSprite) c.visible = false; }); f.rig.c.setOutline(0); } // the danger glow and the red outline go with it (a fading body over a solid outline reads as a blob)
     f.t = 0;
     run.kills++;
+    supCharge(SUP_KILL);
     addScore(100 * (pas().killK || 1) * ((run.mod && run.mod.kill) || 1));
     if (pas().trait === 'drain' && f.kind !== 'shot' && f.kind !== 'bomb' && (P.soulCd || 0) < performance.now()) { P.soulCd = performance.now() + 1800; addPlat(f.x - 0.6, f.x + 0.6, 1.7); plats[plats.length - 1].mesh.material.color.setHex(0xc77dff); } // a soul platform where it fell
     if (pas().trait === 'drain' && (P.drainAt || 0) < performance.now() && slowT <= 0) { P.drainAt = performance.now() + 2500; slowMo(0.55, 0.12); }
@@ -1520,8 +1521,7 @@
 
   // ── support member (the "pet"): a second member follows and helps in its own way ──
   let sups = [];
-  const SUP_EVERY = 7;
-  function freeSups() { sups.forEach((sp) => freeRig(sp.rig)); sups = []; }
+  function freeSups() { sups.forEach((sp) => { freeRig(sp.rig); for (const b of [sp.bar, sp.fill]) { scene.remove(b); b.material.dispose(); } }); sups = []; }
   async function makeSupport() {
     freeSups();
     const ids = supIds();
@@ -1532,38 +1532,97 @@
       outline(rig, OL_ALLY);
       rig.c.play('move', null, true);
       scene.add(rig.g);
-      sups.push({ def: charDef(id), rig, y: 0, t: SUP_EVERY * 0.6 + i * SUP_EVERY / 2, slot: i }); // the two take turns
+      if (!TEX.bar) TEX.bar = RUNTEX.canvasTex(64, 8, (g) => { g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 8); });
+      const spr = (color, op, ord) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.bar, color, opacity: op, depthTest: false, depthWrite: false, transparent: true })); sp.renderOrder = ord; scene.add(sp); return sp; };
+      const bar = spr(0x0a0f15, 0.8, L.FX + 1), fill = spr(charDef(id).color, 1, L.FX + 1.1);
+      bar.scale.set(0.98, 0.14, 1); fill.scale.set(0.001, 0.09, 1); fill.center.set(0, 0.5);
+      sups.push({ def: charDef(id), rig, y: 0, g: 0.35 + i * 0.3, slot: i, bar, fill }); // the two start apart
       preloadVoices(id);
     }
   }
+  // ── support members: each has her own gauge over her head; it fills with time, eaten jelly and kills, and when it is full
+  // she does her move (by skill type). Charge time and strength differ per type; rank and level make her a bit quicker. ──
+  const SUP_RANK = { B: 0, A: 1, S: 2, SS: 3, SSS: 4, LR: 5, UR: 6 };
+  // t = seconds to fill from time alone, n = how many / how strong, boss = damage on a chase boss
+  // t / n tuned by a bot sweep (brownie main, one support each): multi-target shooters charge faster, buffs slower
+  const SUP_TYPES = {
+    gun: { t: 5.5, n: 2, boss: 5, name: '연사', d: (n) => '앞의 적 ' + n + '명에게 지원 사격' },
+    snipe: { t: 5, n: 1, boss: 6, name: '저격', d: () => '가장 먼 적 1명을 저격 (공중 적 포함)' },
+    akimbo: { t: 5.5, n: 2, boss: 5, name: '쌍권총', d: (n) => '가까운 적 ' + n + '명에게 동시 사격' },
+    missile: { t: 6.5, n: 3, boss: 8, name: '미사일 일제 사격', d: (n) => '앞의 적 최대 ' + n + '명에게 미사일' },
+    beam: { t: 6.5, n: 4, boss: 9, name: '관통 레이저', d: (n) => '앞쪽 일직선의 적 최대 ' + n + '명 관통' },
+    flame: { t: 5.5, n: 9, boss: 6, name: '화염 방사', d: () => '바로 앞 4.5m 안의 지상 적 모두 소각' },
+    wolves: { t: 6.5, n: 3, boss: 8, name: '늑대 돌격', d: (n) => '가까운 적 ' + n + '명에게 늑대 돌격' },
+    judgement: { t: 6, n: 2, boss: 8, name: '낙뢰', d: (n) => '앞의 적 ' + n + '명에게 번개' },
+    dash: { t: 9, n: 1, boss: 6, name: '돌진 베기', d: () => '가까운 적 1명을 베고, 메인 대원에게 0.6초 돌진(무적)' },
+    fly: { t: 6, n: 9, boss: 6, name: '공중 지원', d: () => '앞의 공중 적 모두 격추 (없으면 지상 적 1명 사격)' },
+    giant: { t: 18, n: 1.2, boss: 9, name: '장갑 돌파', d: (n) => '메인 대원 ' + n + '초 거대화' },
+    wind: { t: 10, n: 2, boss: 5, name: '돌풍', d: (n) => n + '초 동안 젤리·코인을 끌어당기고 적 1명 사격' },
+    shield: { t: 12, n: 3, boss: 4, name: '보호막', d: (n) => '메인 대원에게 ' + n + '초 실드 (이미 있으면 적 1명 사격)' },
+    heal: { t: 9, n: 5, boss: 3, name: '응급 수리', d: (n) => '메인 대원 HP +' + n + ' 회복' },
+    magnet: { t: 11, n: 2.5, boss: 3, name: '자력장', d: (n) => n + '초 동안 젤리·코인을 끌어당김' },
+    coinrain: { t: 10, n: 5, boss: 4, name: '코인 투하', d: (n) => '앞쪽에 코인 ' + n + '개 투하' },
+    bigjelly: { t: 10, n: 6, boss: 3, name: '젤리 강화', d: (n) => '앞의 젤리 최대 ' + n + '개를 곰 젤리로' },
+    frost: { t: 7, n: 3, boss: 5, name: '빙결', d: (n) => '앞의 적 최대 ' + n + '명을 2.5초 동안 얼림' },
+  };
+  const SUP_JELLY = 0.006, SUP_KILL = 0.06; // gauge share per eaten jelly / per kill (on top of time)
+  const supType = (d) => SUP_TYPES[d.skill.type] || SUP_TYPES.gun;
+  const supTime = (d) => supType(d).t / (1 + SUP_RANK[d.rank] * 0.04 + (lvOf(d.id) - 1) * 0.05); // rank and level charge it faster
+  function supDesc(d) {
+    const T = supType(d);
+    return T.name + ': ' + T.d(T.n) + '. 게이지가 차면 발동 (약 ' + supTime(d).toFixed(1) + '초, 젤리·격파로 더 빨리 참). 보스 추격 중에는 보스에게 지원 공격.';
+  }
+  function supCharge(k) { for (const sp of sups) sp.g = Math.min(1, sp.g + k * 6 / supTime(sp.def)); } // jelly / kills feed every gauge, scaled to her charge time (a slow, strong move stays slow)
   function supportAct(sup) {
-    const d = sup.def, ty = d.skill.type, sx = PX - 1.3 - sup.slot * 1.15, sy = sup.y + 0.7;
+    const d = sup.def, T = supType(d), ty = d.skill.type, sx = PX - 1.3 - sup.slot * 1.15, sy = sup.y + 0.7;
     ring(sx, sy, d.color, 1.6, 0.35);
-    const t = aliveAhead(PX + 10)[0];
+    const ahead = aliveAhead(PX + 10).filter((f) => f.kind !== 'shot' && f.kind !== 'bomb');
     let said = '';
-    const fireAtFoe = () => { if (!t) return; said = said || '지원 사격'; t.targeted = true; const o = origFor(d.id), name = o.atk.bullet || o.skill.bullet, k = sup.rig.k;
-      if (!origShot(name, sx + 0.4, sy, t, k, shotLanded, t.x, foeMid(t))) { tracer(sx, sy, t.x, foeMid(t), d.color); shotLanded(t, t.x, foeMid(t), ''); }
-      AUDIO.play(d.sfx, 0.3); };
-    if (run.boss && !run.boss.leaving) { hitBoss(5, d.color); said = '보스에게 지원 공격'; }
-    else if (['gun', 'snipe', 'akimbo', 'beam', 'missile', 'flame', 'wolves'].includes(ty)) fireAtFoe();
-    else if (ty === 'heal') { P.hp = Math.min(P.maxHp, P.hp + 6); said = 'HP +6 회복'; }
-    else if (ty === 'shield') { if (P.shield <= 0) { P.shield = 6; said = '실드 6초'; } else fireAtFoe(); }
-    else if (ty === 'magnet') { P.buff.magnet = Math.max(P.buff.magnet || 0, 2.5); said = '자석 2.5초'; }
-    else if (ty === 'coinrain') { dropItems(PX + 3, 2.5, 'coin', 6); said = '코인 6개 투하'; }
-    else if (ty === 'bigjelly') { let n = 0; items.forEach((it) => { if (it.kind === 'jelly' && n < 6 && it.x > PX) { n++; it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 1.0; it.s.scale.set(1.0, 1.0, 1); } }); said = n ? '앞의 젤리 ' + n + '개를 곰 젤리로' : ''; }
-    else if (ty === 'frost') { if (t) { freeze(t, 2); said = '적 빙결 2초'; } }
-    else { if (t && t.x < PX + 6) { slashFx(t.x, foeMid(t), d.color, 2.4); breakFoe(t, 'melee'); said = '근접 격파'; } else fireAtFoe(); }
-    if (said) popup(sx, sy + 1.3, d.name + ' · ' + said, 'sup');
+    const shoot = (t) => { t.targeted = true; const o = origFor(d.id), name = o.atk.bullet || o.skill.bullet, k = sup.rig.k;
+      if (!origShot(name, sx + 0.4, sy, t, k, shotLanded, t.x, foeMid(t))) { tracer(sx, sy, t.x, foeMid(t), d.color); shotLanded(t, t.x, foeMid(t), ''); } };
+    const fire = (list, label) => { if (!list.length) return; list.forEach((t, i) => setTimeout(() => !t.dead && shoot(t), i * 90)); AUDIO.play(d.sfx, 0.3); said = label + (list.length > 1 ? ' ×' + list.length : ''); };
+    if (run.boss && !run.boss.leaving) { hitBoss(T.boss, d.color); said = '보스에게 ' + T.name; }
+    else if (ty === 'gun' || ty === 'akimbo' || ty === 'missile' || ty === 'wolves' || ty === 'judgement') fire(ahead.slice(0, T.n), T.name);
+    else if (ty === 'snipe') fire(aliveAhead(PX + 14).filter((f) => f.kind !== 'shot' && f.kind !== 'bomb').slice(-1), T.name);
+    else if (ty === 'beam') { const line = ahead.filter((f) => f.kind !== 'air').slice(0, T.n); if (line.length) { tracer(sx, sy, PX + 10, sy, d.color); line.forEach((f) => shotLanded(f, f.x, foeMid(f), '')); AUDIO.play(d.sfx, 0.35); said = T.name + ' ×' + line.length; } }
+    else if (ty === 'flame') { const near = ahead.filter((f) => f.x < PX + 4.5 && f.kind !== 'air'); near.forEach((f) => { burst(f.x, foeMid(f), 0xff7a2a, 8, 0.6, 4); breakFoe(f, 'shot'); }); if (near.length) { AUDIO.play(d.sfx, 0.35); said = T.name + ' ×' + near.length; } }
+    else if (ty === 'fly') { const air = ahead.filter((f) => f.kind === 'air'); if (air.length) fire(air, T.name); else fire(ahead.slice(0, 1), '지원 사격'); }
+    else if (ty === 'dash') { const t = ahead[0]; if (t && t.x < PX + 7) { slashFx(t.x, foeMid(t), d.color, 2.4); breakFoe(t, 'melee'); } P.buff.dash = Math.max(P.buff.dash || 0, 0.6); said = T.name; }
+    else if (ty === 'giant') { P.buff.giant = Math.max(P.buff.giant || 0, T.n); AUDIO.play('quake', 0.4); said = T.name + ' · 거대화 ' + T.n + '초'; }
+    else if (ty === 'wind') { P.buff.magnet = Math.max(P.buff.magnet || 0, T.n); fire(ahead.slice(0, 1), ''); said = T.name + ' · 자석 ' + T.n + '초'; }
+    else if (ty === 'shield') { if (P.shield <= 0) { P.shield = T.n; said = T.name + ' ' + T.n + '초'; } else fire(ahead.slice(0, 1), '지원 사격'); }
+    else if (ty === 'heal') { P.hp = Math.min(P.maxHp, P.hp + T.n); said = 'HP +' + T.n + ' 회복'; }
+    else if (ty === 'magnet') { P.buff.magnet = Math.max(P.buff.magnet || 0, T.n); said = T.name + ' ' + T.n + '초'; }
+    else if (ty === 'coinrain') { dropItems(PX + 3, 2.5, 'coin', T.n); said = '코인 ' + T.n + '개 투하'; }
+    else if (ty === 'bigjelly') { let n = 0; items.forEach((it) => { if (it.kind === 'jelly' && n < T.n && it.x > PX) { n++; it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 1.0; it.s.scale.set(1.0, 1.0, 1); } }); said = n ? '젤리 ' + n + '개를 곰 젤리로' : ''; }
+    else if (ty === 'frost') { const list = ahead.slice(0, T.n); list.forEach((f) => freeze(f, 2.5)); if (list.length) said = T.name + ' ×' + list.length; }
+    if (!said) return false; // nothing to do yet: she keeps the full gauge and fires at the first chance
+    popup(sx, sy + 1.6, d.name + ' · ' + said, 'sup');
     if (sup.rig.c.has('atk')) { sup.rig.c.play('atk', () => sups.includes(sup) && sup.rig.c.play('move', null, true)); sup.rig.c.speed = 2; }
     if ((sup.n = (sup.n || 0) + 1) % 3 === 1) voice(d.id, 'skill', 0.55); // the partner speaks up now and then
+    run.supActs = (run.supActs || 0) + 1;
+    { const m = said.match(/×(d+)/), n = m ? +m[1] : 1; // balance log: what this act was worth
+      const v = run.boss && !run.boss.leaving ? T.boss * 40 : ty === 'heal' ? T.n * 25 : ty === 'shield' && said.startsWith(T.name) ? T.n * 120 : ty === 'magnet' ? T.n * 150 : ty === 'wind' ? T.n * 150 + 100 : ty === 'coinrain' ? T.n * 30
+        : ty === 'bigjelly' ? n * 40 : ty === 'frost' ? n * 60 : ty === 'giant' ? T.n * 500 : ty === 'dash' ? 190 : n * 100;
+      const L = (run.supLog = run.supLog || {})[d.id] || (run.supLog[d.id] = { acts: 0, val: 0 }); L.acts++; L.val += v; }
+    return true;
   }
   function updateSupport(dt) { for (const sp of sups) updateOneSupport(sp, dt); }
   function updateOneSupport(sup, dt) {
     sup.y += (Math.max(0, P.y - 0.2) - sup.y) * Math.min(1, dt * 7);
-    sup.rig.g.position.set(PX - 1.45 - sup.slot * 1.15, sup.y, 0);
+    const x = PX - 1.45 - sup.slot * 1.15;
+    sup.rig.g.position.set(x, sup.y, 0);
     sup.rig.c.update(dt);
+    // the gauge over her head
+    const by = sup.y + sup.rig.h + 0.32;
+    sup.bar.position.set(x, by, 0); sup.fill.position.set(x - 0.45, by, 0);
+    sup.fill.scale.x = Math.max(0.001, 0.9 * sup.g);
+    const full = sup.g >= 1;
+    sup.fill.material.color.setHex(full ? 0xffffff : sup.def.color);
+    sup.fill.material.opacity = full ? 0.6 + 0.4 * Math.sin(performance.now() / 70) : 1;
     if (P.dead) return;
-    if ((sup.t -= dt) <= 0) { sup.t = SUP_EVERY; supportAct(sup); }
+    sup.g = Math.min(1, sup.g + dt / supTime(sup.def));
+    if (full && supportAct(sup)) { sup.g = 0; ring(x, by, sup.def.color, 0.9, 0.25); }
   }
 
   // ── tutorial (first run): the first obstacles come with a hint and slow motion ──
@@ -2056,6 +2115,7 @@
       run.maxCombo = Math.max(run.maxCombo, run.combo);
       if (run.combo % 50 === 0) { popup(PX, P.y + 2.6, run.combo + ' COMBO!', 'combo'); AUDIO.play('genA', 0.32); if (run.combo % 100 === 0) ann(['Combo-1', 'Great-1', 'Nice-1', 'Combo-2', 'Perfect-1', 'Combo-3'][Math.min(5, run.combo / 100 - 1)]); }
     }
+    if (k === 'jelly' || k === 'bear') supCharge(SUP_JELLY);
     if (k === 'jelly') { addScore(10 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1) * ((run.mod && run.mod.jelly) || 1)); run.jelly++; sparkle(it.x, it.y, 0x9ff3ff); AUDIO.play('coin', 0.07, 1.3, 0.085); }
     else if (k === 'bear') { addScore(50 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1)); run.jelly++; AUDIO.play('coin', 0.11, 1.15, 0.085); burst(it.x, it.y, 0xff7ab8, 3, 0.4, 2); }
     else if (k === 'coin') { run.coins += (P.def.coinK || 1) * (P.buff.coin2 > 0 ? 2 : 1) * ((run.mod && run.mod.coin) || 1); run.coinsPicked++; addScore(3); sparkle(it.x, it.y, 0xffd84a); AUDIO.play('coin', 0.13, 1, 0.07); }
@@ -2855,19 +2915,6 @@
       grid.appendChild(el);
     });
     if (charPopId) charDetailView();
-  }
-  // what she does as a support member (mirrors supportAct)
-  function supDesc(d) {
-    const ty = d.skill.type;
-    const main = ['gun', 'snipe', 'akimbo', 'beam', 'missile', 'flame', 'wolves'].includes(ty) ? '앞의 적 1명에게 지원 사격'
-      : ty === 'heal' ? '메인 대원 HP +6 회복'
-      : ty === 'shield' ? '실드가 없으면 6초 실드, 있으면 앞의 적에게 지원 사격'
-      : ty === 'magnet' ? '2.5초 동안 자석으로 젤리·코인을 끌어당김'
-      : ty === 'coinrain' ? '앞쪽에 코인 6개 투하'
-      : ty === 'bigjelly' ? '앞의 젤리 최대 6개를 곰 젤리로 바꿈'
-      : ty === 'frost' ? '앞의 적 1명을 2초 동안 얼림'
-      : '가까운 적은 근접 공격으로 격파, 멀면 지원 사격';
-    return '7초마다 ' + main + '. 보스 추격 중에는 대신 보스에게 지원 공격.';
   }
   function openCharPop(id) { charPopId = id; charDetailView(); $('charPop').classList.add('on'); }
   function closeCharPop() { charPopId = null; $('charPop').classList.remove('on'); }
