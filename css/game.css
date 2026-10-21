@@ -685,3 +685,15 @@ html.h480 #charPop #charDetail { width: min(560px, calc(var(--vw) * 94)); }
 html.h480 #charPop .mArt { height: 96px; }
 html.rot #charPop #charDetail { touch-action: none; }
 #unit #supPortrait2 { position: absolute; right: 28px; bottom: 2px; width: 24px; height: 24px; border: 2px solid #5dff8a; background: #18202c; object-fit: cover; z-index: 3; clip-path: polygon(5px 0, 100% 0, 100% 100%, 0 100%, 0 5px); }
+/* member art: whole figures (assets/full), set lower so the head always has room above it; the legs may run off the bottom */
+#charPop .mArt { height: 250px; }
+#charPop .mArt img { left: 50%; top: 9%; bottom: auto; height: 160%; max-width: 94%; object-fit: contain; object-position: center top; transform: translateX(-50%); }
+.csArt { width: 58%; }
+.csArt img { right: 4%; top: 12%; height: 240%; max-width: 92%; object-fit: contain; object-position: right top; }
+html.h480 #charPop .mArt { height: 130px; }
+.mNote { width: 100%; text-align: center; color: var(--dim); font-size: 11.5px; font-weight: 700; }
+/* PC: Esc goes back */
+html.pc #btnBack::after, html.pc .closeP::after { content: 'Esc'; margin-left: 6px; font: 900 10px 'Noto Sans KR', sans-serif; color: var(--accent); }
+html.pc .closeP::after { color: #8a6a00; }
+.mSec.mSub h4 { color: #7dff8a; }
+html.h480 .mSec.mSub { display: block; }

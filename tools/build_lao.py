@@ -4,6 +4,7 @@ voice : per member skill / sortie / MVP / retreat lines (mp3)        -> assets/v
 sfx   : per member skill sounds (wav, downmixed to 22 kHz mono)     -> assets/csfx/<id>_s1.wav, _s2.wav
 ann   : minigame announcer lines (wav, 22 kHz mono)                 -> assets/ann/<name>.wav
 cutin : upper-body crops of the full-body illustrations (webp)      -> assets/cut/<id>.webp
+fullart: whole figures for the member select (tools/full_src/<id>.png wins) -> assets/full/<id>.webp
 icons : resource icons from the UI atlas for jellies / coins (webp) -> assets/img/res_<name>.webp
 """
 import glob, os, re, shutil, sys, wave
@@ -186,6 +187,36 @@ def cutin():
     print('cut-ins', len(glob.glob(out + '/*.webp')))
 
 
+def fullart():
+    """whole figures (nothing cut at the sides) for the member select popup and squad slots -> assets/full/<id>.webp"""
+    out = os.path.join(OUT, 'assets/full')
+    os.makedirs(out, exist_ok=True)
+    keep = os.path.join(OUT, 'tools/full_src')  # hand-picked art that wins over the original (e.g. lrl.png)
+    for mid, (_, fb, _) in M.items():
+        own = os.path.join(keep, mid + '.png')
+        if os.path.exists(own):
+            im = Image.open(own).convert('RGBA')
+        else:
+            base = f'{ABS}/Texture/FullbodyImg/FullbodyIMG_{fb}_N'
+            parts = sorted(glob.glob(base + '_[pP]art*.png'))
+            if mid in MANUAL: im = Image.open(f'{ABS}/Texture/FullbodyImg/{MANUAL[mid][0]}').convert('RGBA')
+            elif os.path.exists(base + '.png'): im = Image.open(base + '.png').convert('RGBA')
+            elif parts:
+                im = Image.new('RGBA', Image.open(parts[0]).size)
+                for p in parts: im.alpha_composite(Image.open(p).convert('RGBA'))
+            else:
+                alt = sorted(glob.glob(f'{ABS}/Texture/FullbodyImg/FullbodyIMG_{fb}_NS*.png'))
+                if not alt: print('  no fullbody', mid); continue
+                im = Image.open(alt[0]).convert('RGBA')
+        bb = im.getchannel('A').point(lambda v: 255 if v > 24 else 0).getbbox()
+        if not bb: continue
+        pad = int(max(bb[2] - bb[0], bb[3] - bb[1]) * 0.02)
+        im = im.crop((max(0, bb[0] - pad), max(0, bb[1] - pad), min(im.width, bb[2] + pad), min(im.height, bb[3] + pad)))
+        im.thumbnail((640, 760), Image.LANCZOS)
+        im.save(f'{out}/{mid}.webp', quality=86)
+    print('full art', len(glob.glob(out + '/*.webp')))
+
+
 def atlas_rects(prefab):
     txt = open(prefab, encoding='utf8', errors='ignore').read()
     rects = {}
@@ -220,6 +251,6 @@ def icons():
 
 if __name__ == '__main__':
     what = sys.argv[1:] or ['all']
-    for f in (voice, sfx, ann, cutin, icons):
+    for f in (voice, sfx, ann, cutin, fullart, icons):
         if 'all' in what or f.__name__ in what:
             f()

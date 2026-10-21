@@ -2819,7 +2819,7 @@
       const d = id && charDef(id);
       return '<button class="cSlot ' + cls + (d ? '' : ' empty') + '" data-slot="' + k + '"' + (d ? ' style="--c:' + hex(d.color) + '"' : '') + '>' +
         '<span class="csLbl">' + label + '</span>' +
-        (d ? '<span class="csArt"><img src="assets/cut/' + d.id + '.webp" alt=""></span><span class="csNm">' + d.name + ' <small>Lv.' + lvOf(d.id) + '</small></span>'
+        (d ? '<span class="csArt"><img src="assets/full/' + d.id + '.webp" alt=""></span><span class="csNm">' + d.name + ' <small>Lv.' + lvOf(d.id) + '</small></span>'
           : '<span class="csEmpty">+<small>카드를 눌러 배치</small></span>') + '</button>';
     };
     sl.innerHTML = slot(save.sel, '메인', 'main', 'main') + slot(supIds().includes(save.sups[0]) ? save.sups[0] : '', '보조 1', 'sub', 0) + slot(supIds().includes(save.sups[1]) ? save.sups[1] : '', '보조 2', 'sub', 1);
@@ -2844,6 +2844,19 @@
     });
     if (charPopId) charDetailView();
   }
+  // what she does as a support member (mirrors supportAct)
+  function supDesc(d) {
+    const ty = d.skill.type;
+    const main = ['gun', 'snipe', 'akimbo', 'beam', 'missile', 'flame', 'wolves'].includes(ty) ? '앞의 적 1명에게 지원 사격'
+      : ty === 'heal' ? '메인 대원 HP +6 회복'
+      : ty === 'shield' ? '실드가 없으면 6초 실드, 있으면 앞의 적에게 지원 사격'
+      : ty === 'magnet' ? '2.5초 동안 자석으로 젤리·코인을 끌어당김'
+      : ty === 'coinrain' ? '앞쪽에 코인 6개 투하'
+      : ty === 'bigjelly' ? '앞의 젤리 최대 6개를 곰 젤리로 바꿈'
+      : ty === 'frost' ? '앞의 적 1명을 2초 동안 얼림'
+      : '가까운 적은 근접 공격으로 격파, 멀면 지원 사격';
+    return '7초마다 ' + main + '. 보스 추격 중에는 대신 보스에게 지원 공격. 보조 대원은 피해를 받지 않습니다.';
+  }
   function openCharPop(id) { charPopId = id; charDetailView(); $('charPop').classList.add('on'); }
   function closeCharPop() { charPopId = null; $('charPop').classList.remove('on'); }
   function charDetailView() {
@@ -2855,20 +2868,25 @@
       (save.coins < d.cost ? '<small class="mNeed">코인 ' + (d.cost - save.coins).toLocaleString() + ' 부족</small>' : '');
     else {
       acts = (at === 'main' ? '<button class="btn primary" disabled>메인 배치 중</button>' : '<button class="btn primary" data-a="main">메인에 넣기</button>') +
-        [0, 1].map((k) => at === k ? '<button class="btn" data-a="out' + k + '">보조 ' + (k + 1) + '에서 빼기</button>'
-          : '<button class="btn" data-a="sub' + k + '"' + (at === 'main' ? ' disabled' : '') + '>보조 ' + (k + 1) + '에 넣기</button>').join('') +
+        [0, 1].map((k) => {
+          if (at === k) return '<button class="btn" data-a="out' + k + '">보조 ' + (k + 1) + '에서 빼기</button>';
+          const other = supIds().includes(save.sups[k]) ? charDef(save.sups[k]) : null;
+          if (at === 'main') return other ? '<button class="btn" data-a="swap' + k + '">보조 ' + (k + 1) + ' ' + other.name + '와 교체</button>' : '<button class="btn" disabled>보조 ' + (k + 1) + ' 비어 있음</button>';
+          return '<button class="btn" data-a="sub' + k + '">보조 ' + (k + 1) + '에 넣기</button>';
+        }).join('') +
+        (at === 'main' ? '<small class="mNote">메인은 비울 수 없어 보조 대원과 자리를 바꿉니다</small>' : '') +
         (lv < 5 ? '<button class="btn wide" data-a="up"' + (save.coins < UPG[lv] ? ' disabled' : '') + '>강화 Lv.' + (lv + 1) + ' · ' + UPG[lv].toLocaleString() + ' 코인</button>' : '<button class="btn wide" disabled>최대 강화</button>');
     }
     box.style.setProperty('--c', hex(d.color));
     box.innerHTML =
       '<button class="cpClose" aria-label="닫기">✕</button>' +
-      '<div class="mArt"><img src="assets/cut/' + d.id + '.webp" alt=""></div>' +
+      '<div class="mArt"><img src="assets/full/' + d.id + '.webp" alt=""></div>' +
       '<div class="mHead"><span class="mRk" style="background:' + rk.color + '">' + d.rank + '</span><b>' + d.name + '</b>' + (owned ? '<span class="mLv">Lv.' + lv + '</span>' : '<span class="mLock">미보유</span>') +
         (at === 'main' ? '<span class="mTag sel">메인</span>' : at != null ? '<span class="mTag sup">보조 ' + (at + 1) + '</span>' : '') + '</div>' +
       '<div class="mStats"><span>HP <b>' + (d.hp + (lv - 1) * 10) + '</b></span><span>스킬 대기 <b>' + cd + '초</b></span><span>최고 기록 <b>' + (save.bestBy[d.id] || 0).toLocaleString() + '</b></span></div>' +
       '<div class="mSec"><h4>스킬 · ' + d.skill.name + '</h4><p>' + d.desc + '</p></div>' +
       (d.pas ? '<div class="mSec"><h4>특성</h4><p>' + d.pas.t + '</p></div>' : '') +
-      '<div class="mSec mHint"><p>보조 대원은 메인 대원 뒤를 따라 달리며 7초마다 자기 스킬 방식으로 돕습니다. 보조 대원은 피해를 받지 않아 HP는 메인일 때만 쓰입니다.</p></div>' +
+      '<div class="mSec mSub"><h4>보조 효과</h4><p>' + supDesc(d) + '</p></div>' +
       '<div class="mActs">' + acts + '</div>';
     box.querySelector('.cpClose').onclick = () => { AUDIO.play('click', 0.4); closeCharPop(); };
     box.querySelectorAll('[data-a]').forEach((b) => { b.onclick = () => charAct(d, b.dataset.a); });
@@ -2888,6 +2906,10 @@
       const k = +a[3];
       if (typeof at === 'number') save.sups[at] = save.sups[k]; // moving between the two support slots swaps them
       save.sups[k] = d.id; SD.prepare(d.id); AUDIO.play('reinforce', 0.5);
+    } else if (a === 'swap0' || a === 'swap1') { // the main goes down to that support slot, the one there comes up
+      const k = +a[4], up = save.sups[k];
+      save.sups[k] = d.id; save.sel = up;
+      AUDIO.play('click', 0.5); voice(up, 'start', 0.8, true); setPlayerChar(up); SD.prepare(d.id);
     } else if (a === 'out0' || a === 'out1') { save.sups[+a[3]] = ''; AUDIO.play('click', 0.5); }
     else if (a === 'up') {
       if (save.coins < UPG[lv]) { AUDIO.play('fail', 0.4); return; }
@@ -3051,7 +3073,17 @@
   }
 
   // ── input ──
+  // Esc = back: the innermost thing on screen closes first (button editor, member popup, a window, the member select)
+  function escBack() {
+    if ($('layout').classList.contains('show')) { $('layDone').click(); return true; }
+    if ($('charPop').classList.contains('on')) { AUDIO.play('click', 0.4); closeCharPop(); return true; }
+    const win = [...document.querySelectorAll('.panelScreen.show')].pop();
+    if (win) { const c = win.querySelector('.closeP'); if (c) { c.click(); return true; } }
+    if ($('chars').classList.contains('show')) { $('btnBack').click(); return true; }
+    return false;
+  }
   function bindInput() {
+    document.querySelector('#charPop .cpBack').onclick = () => { AUDIO.play('click', 0.4); closeCharPop(); }; // tap outside the popup
     const press = (el, down, up) => {
       el.addEventListener('pointerdown', (e) => { e.preventDefault(); AUDIO.unlock(); el.classList.add('on'); down(); });
       const end = () => { el.classList.remove('on'); up && up(); };
@@ -3074,6 +3106,7 @@
       AUDIO.unlock();
       if (['Space', 'ArrowUp', 'KeyW'].includes(e.code)) { e.preventDefault(); if (state === 'title') startRun(); else jump(); }
       else if (['ArrowDown', 'KeyS', 'ShiftLeft', 'ShiftRight'].includes(e.code)) { e.preventDefault(); input.slide = true; }
+      else if (e.code === 'Escape' && escBack()) e.preventDefault();
       else if (e.code === 'KeyP' || e.code === 'Escape') setPause(!paused);
       else if ((e.code === 'KeyE' || e.code === 'KeyK') && run.skillReady) input.skill = true;
       else if (e.code === 'Enter' && state === 'result') startRun();
