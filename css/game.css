@@ -105,6 +105,10 @@ button { font: inherit; color: inherit; }
 #stageName { position: absolute; left: 50%; top: 26%; transform: translateX(-50%); font-family: 'Black Han Sans', sans-serif; font-size: 34px;
   white-space: nowrap; opacity: 0; text-shadow: 0 3px 0 #1b2a55, 0 0 18px rgba(95, 225, 255, .7); transition: opacity .4s; }
 #stageName.on { opacity: 1; }
+#countDown { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%); font-family: 'Black Han Sans', sans-serif; font-size: 110px; line-height: 1; color: #ffe14d;
+  white-space: nowrap; opacity: 0; pointer-events: none; text-shadow: 0 5px 0 #1b2a55, 0 0 26px rgba(255, 200, 60, .75); }
+#countDown.on { animation: countPop .9s ease-out forwards; }
+@keyframes countPop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.8); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(.9); } }
 
 .ctl { position: absolute; bottom: 0; top: 30%; width: 50%; pointer-events: auto; display: flex; align-items: flex-end; padding: 0 0 max(18px, env(safe-area-inset-bottom)); }
 .ctl.left { left: 0; justify-content: flex-start; padding-left: max(18px, env(safe-area-inset-left)); }

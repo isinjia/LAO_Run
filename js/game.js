@@ -1071,7 +1071,7 @@
 
   const voicePitch = () => { const g = pas().gravK || 1; return g > 1.05 ? 0.8 : g < 0.95 ? 1.25 : (pas().runK || 1) > 1.03 ? 1.1 : 1; }; // heavy thud, light flick
   function jump() {
-    if (state !== 'play' || P.dead || paused || run.pick) return;
+    if (state !== 'play' || P.dead || paused || run.pick || run.count > 0) return;
     P.inT = 0;
     if (P.buff.fly > 0) return;
     const boostJ = run.bonus > 0 ? 1.3 : 1;
@@ -2026,7 +2026,7 @@
   function skillPress() {
     if (run.skillReady) { input.skill = true; return; }
     const now = performance.now();
-    if (state === 'play' && !paused && !P.dead && !(P.skillOn > 0) && !(now < run.notReadyT)) { run.notReadyT = now + 2500; ann('NotReady-1', 0.7); } // not charged yet
+    if (state === 'play' && !paused && !P.dead && !(run.count > 0) && !(P.skillOn > 0) && !(now < run.notReadyT)) { run.notReadyT = now + 2500; ann('NotReady-1', 0.7); } // not charged yet
   }
 
   function activateSkill() {
@@ -3009,17 +3009,30 @@
     $('padSkill').style.setProperty('--sc', hex(P.def.color)); $('padSkillImg').src = portrait(P.def.id);
     show(null);
     AUDIO.music(STAGES[0].bgm);
-    ann('GameStart-1');
-    setTimeout(() => state === 'play' && voice(P.def.id, 'start', 0.9, true), 1300);
+    run.count = 3; countTick(0); // 3-2-1 before the run moves
     Object.keys(hudCache).forEach((k) => delete hudCache[k]);
     hud();
     makeSupport();
     CHARS.map((c) => c.id).filter((id) => id !== P.def.id).sort(() => Math.random() - 0.5).slice(0, 3).forEach((id) => SD.prepare(id)); // members who may need a rescue
     applyBoosts();
     run.mod = daily();
-    setTimeout(() => state === 'play' && popup(VW / 2, 4.2, '오늘의 작전: ' + run.mod.name + ' (' + run.mod.t + ')', 'big'), 2200);
     const si = supIds(); // the support members' chips on the HUD portrait
     ['supPortrait', 'supPortrait2'].forEach((e, i) => { $(e).style.display = si[i] ? '' : 'none'; if (si[i]) $(e).src = portrait(si[i]); });
+  }
+
+  // the start countdown: the world waits, then GameStart, the member's line and today's operation
+  function countTick(dt) {
+    const was = Math.ceil(run.count);
+    run.count -= dt;
+    const n = Math.ceil(run.count), el = $('countDown');
+    if (n === was && dt > 0) return;
+    el.classList.remove('on'); void el.offsetWidth; // restart the pop
+    if (n > 0) { el.textContent = n; el.classList.add('on'); ann(n + '-1', 0.85); return; }
+    run.count = 0;
+    el.textContent = 'START!'; el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 600);
+    ann('GameStart-1');
+    setTimeout(() => state === 'play' && voice(P.def.id, 'start', 0.9, true), 900);
+    setTimeout(() => state === 'play' && popup(VW / 2, 4.2, '오늘의 작전: ' + run.mod.name + ' (' + run.mod.t + ')', 'big'), 1800);
   }
 
   function countUp(el, to, pre) {
@@ -3310,7 +3323,8 @@
     if (state === 'loading') return;
     if (slowT > 0) { slowT -= dt; if (slowT <= 0) timeScale = 1; }
     const hold = state === 'play' && run.pick; // a choice on screen: the run waits for the player
-    if (!paused && !hold) {
+    if (!paused && state === 'play' && run.count > 0) { countTick(dt); if (P.rig) P.rig.c.update(dt); updateAmbient(dt, 0); } // counting down: only the idle motion
+    else if (!paused && !hold) {
       if (state === 'result') { if (P.rig) P.rig.c.update(dt); updateAmbient(dt, 0); }
       else while (dt > 0) { const s = Math.min(0.025, dt); update(s * timeScale); dt -= s; }
     }
