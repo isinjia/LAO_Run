@@ -303,6 +303,7 @@
 
   async function main() {
     while (!window.GAME || GAME.state !== 'title') await sleep(200);
+    if (/[?&]bal=1/.test(location.search)) { out.runOne = runOne; out.ready = true; return; } // balance sweeps drive single runs from outside
     const saved = localStorage.getItem('laorun.save');
     const restore = () => { if (saved == null) localStorage.removeItem('laorun.save'); else localStorage.setItem('laorun.save', saved); };
     addEventListener('pagehide', restore); // also when the test is left half way
