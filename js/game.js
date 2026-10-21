@@ -159,7 +159,9 @@
   }
 
   // ── SD rigs ──
+  const RIG_FACE = { lrl: -1 }; // rigs authored facing the other way
   function rigFrom(id, height, face) {
+    face *= RIG_FACE[id] || 1;
     const t = SD.template(id);
     const c = SD.acquire(id);
     const k = height / t.height;
