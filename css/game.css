@@ -521,3 +521,7 @@ html.ctlZone #padJump, html.ctlZone #padSlide { display: none; }
 @keyframes rcNudge { to { transform: translateX(5px); } }
 html.calm #rescueCall .rcArrow { animation-duration: 1.2s; }
 html.h480 #rescueCall { top: 34%; } html.h480 #rescueCall img { width: 34px; height: 34px; }
+/* title settings window */
+.optPanel { width: min(420px, calc(var(--vw) * 92)) !important; }
+.optGrid { display: flex; flex-direction: column; gap: 10px; padding: 6px 4px 4px; }
+.optGrid .btn { width: 100%; }

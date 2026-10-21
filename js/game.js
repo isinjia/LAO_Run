@@ -2950,12 +2950,13 @@
   }
   addEventListener('pointerdown', () => { if (save.full) setFull(true); lockLandscape(); }, { once: true });
   function portraitCheck() { /* an upright phone now shows the game rotated (resize), so nothing to ask */ }
+  function soundLabel() { document.querySelectorAll('.optSound').forEach((b) => { b.textContent = '사운드: ' + (AUDIO.on ? '켬' : '끔'); }); }
   function setPause(v) {
     if (state !== 'play' || P.dead) return;
     paused = v;
     $('pause').classList.toggle('show', v);
     $('fpsTxt').textContent = '현재 화면 주사율: ' + fps + ' fps (게임은 화면 주사율을 그대로 따릅니다)';
-    $('btnSound').textContent = '사운드: ' + (AUDIO.on ? '켬' : '끔');
+    soundLabel();
   }
 
   // ── input ──
@@ -3012,10 +3013,12 @@
     $('skillRing').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (run.skillReady) input.skill = true; });
     $('btnResume').onclick = () => setPause(false);
     $('btnRetire').onclick = () => { setPause(false); P.hp = 0; P.revived = true; die(); P.deadT = 2; };
-    const calmLabel = () => { $('btnCalm').textContent = '화면 효과: ' + (calm() ? '편안하게' : '기본'); document.documentElement.classList.toggle('calm', calm()); };
-    calmLabel();
-    $('btnCalm').onclick = () => { save.calm = !calm(); persist(); calmLabel(); AUDIO.play('click', 0.5); };
-    $('btnSound').onclick = () => { AUDIO.setOn(!AUDIO.on); $('btnSound').textContent = '사운드: ' + (AUDIO.on ? '켬' : '끔'); };
+    // the same options sit in the pause menu and the title's settings window (one class per option)
+    const calmLabel = () => { document.querySelectorAll('.optCalm').forEach((b) => { b.textContent = '화면 효과: ' + (calm() ? '편안하게' : '기본'); }); document.documentElement.classList.toggle('calm', calm()); };
+    calmLabel(); soundLabel();
+    document.querySelectorAll('.optCalm').forEach((b) => { b.onclick = () => { save.calm = !calm(); persist(); calmLabel(); AUDIO.play('click', 0.5); }; });
+    document.querySelectorAll('.optSound').forEach((b) => { b.onclick = () => { AUDIO.unlock(); AUDIO.setOn(!AUDIO.on); soundLabel(); AUDIO.play('click', 0.5); }; });
+    $('btnOptT').onclick = () => { AUDIO.unlock(); AUDIO.play('click', 0.5); soundLabel(); calmLabel(); applyOpts(); $('optP').classList.add('show'); };
     $('btnRetry').onclick = startRun;
     $('btnHome').onclick = () => { goTitle(); buildCharGrid(); show('chars'); };
   }
@@ -3074,7 +3077,9 @@
       $('layout').classList.add('show'); document.body.classList.add('editPads'); AUDIO.play('click', 0.5);
     };
     const close = () => { layoutEdit = false; $('layout').classList.remove('show'); document.body.classList.remove('editPads'); if (paused) $('pause').classList.add('show'); persist(); AUDIO.play('click', 0.5); };
-    $('btnLayout').onclick = open; $('btnLayoutT').onclick = open; $('layDone').onclick = close;
+    let fromOpt = false; // opened from the title's settings window: go back to it when done
+    $('btnLayout').onclick = open; $('btnLayoutT').onclick = () => { fromOpt = true; $('optP').classList.remove('show'); open(); };
+    $('layDone').onclick = () => { close(); if (fromOpt) { fromOpt = false; $('optP').classList.add('show'); } };
     $('layReset').onclick = () => { save.ui = {}; $('layScale').value = 100; $('layScaleTxt').textContent = '100%'; applyPads(); };
     $('layScale').oninput = (e) => { save.ui.scale = +e.target.value / 100; $('layScaleTxt').textContent = e.target.value + '%'; applyPads(); };
     document.querySelectorAll('.pad').forEach((el) => {
