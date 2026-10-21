@@ -2013,21 +2013,21 @@
     const k = it.kind;
     tally('item:' + k);
     if ((k === 'jelly' || k === 'bear') && P.def.id === 'daphne' && P.skillOn > 0) P.hp = Math.min(P.maxHp, P.hp + 0.6);
-    if (k === 'gjelly') { addScore(300 * (pas().jellyK || 1)); run.jelly += 3; burst(it.x, it.y, 0xffc23a, 10, 0.6, 4, 'spark'); popup(it.x, it.y + 0.8, '골드 +300', 'perfect'); AUDIO.play('genA', 0.4, 1.4); }
+    if (k === 'gjelly') { addScore(300 * (pas().jellyK || 1)); run.jelly += 3; burst(it.x, it.y, 0xffc23a, 10, 0.6, 4, 'spark'); popup(it.x, it.y + 0.8, '골드 +300', 'perfect'); AUDIO.play('genA', 0.25, 1.25); }
     if ((k === 'jelly' || k === 'bear' || k === 'coin' || k === 'gjelly') && run.boss && !run.boss.leaving && !run.boss.dying && ++run.boss.charge >= COUNTER_EVERY) { run.boss.charge = 0; hitBoss(6); }
     if (k === 'jelly' || k === 'bear' || k === 'coin' || k === 'gjelly') {
       run.combo++;
       run.comboT = 2.0;
       if (run.combo % 150 === 0) startFever();
       run.maxCombo = Math.max(run.maxCombo, run.combo);
-      if (run.combo % 50 === 0) { popup(PX, P.y + 2.6, run.combo + ' COMBO!', 'combo'); AUDIO.play('genA', 0.5); if (run.combo % 100 === 0) ann(['Combo-1', 'Great-1', 'Nice-1', 'Combo-2', 'Perfect-1', 'Combo-3'][Math.min(5, run.combo / 100 - 1)]); }
+      if (run.combo % 50 === 0) { popup(PX, P.y + 2.6, run.combo + ' COMBO!', 'combo'); AUDIO.play('genA', 0.32); if (run.combo % 100 === 0) ann(['Combo-1', 'Great-1', 'Nice-1', 'Combo-2', 'Perfect-1', 'Combo-3'][Math.min(5, run.combo / 100 - 1)]); }
     }
-    if (k === 'jelly') { addScore(10 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1) * ((run.mod && run.mod.jelly) || 1)); run.jelly++; sparkle(it.x, it.y, 0x9ff3ff); AUDIO.play('coin', 0.16, 1.6, 0.05); }
-    else if (k === 'bear') { addScore(50 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1)); run.jelly++; AUDIO.play('coin', 0.24, 1.3, 0.05); burst(it.x, it.y, 0xff7ab8, 3, 0.4, 2); }
-    else if (k === 'coin') { run.coins += (P.def.coinK || 1) * (P.buff.coin2 > 0 ? 2 : 1) * ((run.mod && run.mod.coin) || 1); run.coinsPicked++; addScore(3); sparkle(it.x, it.y, 0xffd84a); AUDIO.play('coin', 0.3, 1, 0.05); }
+    if (k === 'jelly') { addScore(10 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1) * ((run.mod && run.mod.jelly) || 1)); run.jelly++; sparkle(it.x, it.y, 0x9ff3ff); AUDIO.play('coin', 0.07, 1.3, 0.085); }
+    else if (k === 'bear') { addScore(50 * (pas().jellyK || 1) * (P.buff.jelly2 > 0 ? 2 : 1)); run.jelly++; AUDIO.play('coin', 0.11, 1.15, 0.085); burst(it.x, it.y, 0xff7ab8, 3, 0.4, 2); }
+    else if (k === 'coin') { run.coins += (P.def.coinK || 1) * (P.buff.coin2 > 0 ? 2 : 1) * ((run.mod && run.mod.coin) || 1); run.coinsPicked++; addScore(3); sparkle(it.x, it.y, 0xffd84a); AUDIO.play('coin', 0.13, 1, 0.07); }
     else if (k[0] === 'L') {
       run.letters++;
-      AUDIO.play('genS', 0.7);
+      AUDIO.play('genS', 0.45);
       ring(it.x, it.y, 0xffffff, 2.8, 0.4);
       burst(it.x, it.y, 0xfff0a0, 12, 0.5, 5, 'spark');
       letterHud();
