@@ -5,6 +5,7 @@
   const $ = (id) => document.getElementById(id);
   const { CHARS, ENEMIES, STAGES, RANK, UPG, MISSIONS, MISSION_PAY } = DATA;
   const MOBILE = matchMedia('(pointer: coarse)').matches;
+  if (!MOBILE) document.documentElement.classList.add('pc'); // key captions on the buttons (css)
 
   // ── tuning ──
   const G = 62; // gravity (world units / s²)
@@ -1558,17 +1559,20 @@
   }
 
   // ── tutorial (first run): the first obstacles come with a hint and slow motion ──
-  const TUT = { low: '점프! 왼쪽 화면 · Space', tall: '2단 점프! 공중에서 한 번 더', air: '슬라이드! 오른쪽 화면 누르기 · ↓', pit: '구덩이는 점프로 건너요', L: '글자 O·R·C·A를 모으면 보너스 타임!' };
-  function tutHint(key) {
-    if (!run.tut || run.tutSeen[key] || run.boss) return; // never on top of a chase
+  // PC (mouse / keyboard) hints name the keys; touch hints name the screen halves and buttons
+  const TUT_PC = { low: '점프! Space 또는 ↑', tall: '2단 점프! 공중에서 Space 한 번 더', air: '슬라이드! ↓ 또는 S 누르고 있기', pit: '구덩이는 점프(Space)로 건너요', L: '글자 O·R·C·A를 모으면 보너스 타임!', skill: '스킬 준비! E 키로 사용' };
+  const TUT_TOUCH = { low: '점프! 왼쪽 화면 또는 점프 버튼', tall: '2단 점프! 공중에서 한 번 더', air: '슬라이드! 오른쪽 화면 누르고 있기', pit: '구덩이는 점프로 건너요', L: '글자 O·R·C·A를 모으면 보너스 타임!', skill: '스킬 준비! 스킬 버튼을 누르세요' };
+  const TUT = MOBILE ? TUT_TOUCH : TUT_PC;
+  function tutHint(key, once) {
+    if ((!run.tut && !once) || run.tutSeen[key] || run.boss) return; // never on top of a chase
     run.tutSeen[key] = true;
     const el = $('tutHint');
-    el.textContent = MOBILE ? TUT[key].replace(' · Space', '').replace(' · ↓', '') : TUT[key];
+    el.textContent = TUT[key];
     el.classList.add('on');
     slowMo(0.3, 1.0);
     clearTimeout(tutHint.tm);
     tutHint.tm = setTimeout(() => el.classList.remove('on'), 2400);
-    if (Object.keys(run.tutSeen).length >= 4) { save.tut = true; persist(); }
+    if (Object.keys(run.tutSeen).filter((k) => k !== 'skill').length >= 4) { save.tut = true; persist(); }
   }
   function tutWatch() {
     if (!run.tut) return;
@@ -2417,7 +2421,7 @@
       P.skillT += dt;
       passiveTick(dt);
       if (P.skillT >= P.skCd) {
-        if (!run.skillReady) { run.skillReady = 1; AUDIO.play('genB', 0.5); $('skillRing').classList.add('pick'); } // ready: it waits for the player (E / K / tap), never fires on its own
+        if (!run.skillReady) { if (!save.skillTip) { save.skillTip = true; persist(); tutHint('skill', true); } run.skillReady = 1; AUDIO.play('genB', 0.5); $('skillRing').classList.add('pick'); } // ready: it waits for the player (E / K / tap), never fires on its own
         else if (input.skill) { run.skillReady = 0; input.skill = false; $('skillRing').classList.remove('pick'); activateSkill(); }
       }
     }

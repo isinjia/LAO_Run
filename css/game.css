@@ -525,3 +525,9 @@ html.h480 #rescueCall { top: 34%; } html.h480 #rescueCall img { width: 34px; hei
 .optPanel { width: min(420px, calc(var(--vw) * 92)) !important; }
 .optGrid { display: flex; flex-direction: column; gap: 10px; padding: 6px 4px 4px; }
 .optGrid .btn { width: 100%; }
+/* PC: the key for each on-screen button, in small text under its label */
+.pad kbd, #btnPause kbd { display: none; }
+html.pc .pad { flex-direction: column; gap: 1px; }
+html.pc .pad kbd { display: block; position: relative; font: 900 11px 'Noto Sans KR', sans-serif; color: #1a1400; background: #ffcc00; padding: 0 6px; border-radius: 3px; box-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
+html.pc #btnPause { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: 2px; }
+html.pc #btnPause kbd { display: block; font: 900 9px 'Noto Sans KR', sans-serif; color: #ffcc00; }
