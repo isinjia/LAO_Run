@@ -1187,13 +1187,13 @@
         const mk = (add, side) => {
           const m = new THREE.MeshBasicMaterial({ map: this.tpl.atlas.tex, vertexColors: true, transparent: true, depthTest: false, depthWrite: false, alphaTest: 0.02, side });
           m.visible = !add;
-          const flat = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <alphatest_fragment>', 'diffuseColor.rgb = diffuse; diffuseColor.a = min(1.0, diffuseColor.a * 1.8);\n#include <alphatest_fragment>'); };
+          const flat = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <alphatest_fragment>', 'diffuseColor.rgb = diffuse; diffuseColor.a = smoothstep(0.45, 0.75, diffuseColor.a / max(opacity, 0.001)) * opacity;\n#include <alphatest_fragment>'); };
           if (this.gpu) { m.userData.sd = this.sdU; m.onBeforeCompile = (sh) => { sdShader(sh, m); flat(sh); }; m.customProgramCacheKey = () => 'sdgpuOL'; }
           else { m.onBeforeCompile = (sh) => { stShader(sh); flat(sh); }; m.customProgramCacheKey = () => 'sdcpuOL'; }
           return m;
         };
         this.olMats = [THREE.DoubleSide, THREE.BackSide, THREE.FrontSide].flatMap((side) => [mk(false, side), mk(true, side)]);
-        this.ol = OL_DIRS.map(() => { const m = new THREE.Mesh(this.geo, this.olMats); m.frustumCulled = false; if (this.gpu) m.onBeforeRender = baFlush; this.root.add(m); return m; });
+        this.ol = OL_DIRS.map(() => { const m = new THREE.Mesh(this.geo, this.olMats); m.frustumCulled = false; if (this.gpu) m.onBeforeRender = baFlush; this.mesh.add(m); return m; }); // children of the body: they follow its root-motion pin
         this.setOrder(this.mesh.renderOrder);
       }
       for (const m of this.olMats) { m.color.setHex(hex); m.opacity = this.mats[0].opacity; }

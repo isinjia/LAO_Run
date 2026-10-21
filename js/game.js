@@ -475,7 +475,7 @@
     return sharedMat[key];
   }
   function addItem(kind, x, y) {
-    const sizes = { gjelly: 0.75, jelly: 0.5, bear: 0.85, coin: 0.5, heart: 1.0, magnet: 1.0, boost: 1.0, giant: 1.0, L0: 1.05, L1: 1.05, L2: 1.05, L3: 1.05, jbig: 1.45, potion: 0.85, star: 1.0 };
+    const sizes = { gjelly: 0.9, jelly: 0.62, bear: 1.0, coin: 0.62, heart: 1.0, magnet: 1.0, boost: 1.0, giant: 1.0, L0: 1.05, L1: 1.05, L2: 1.05, L3: 1.05, jbig: 1.45, potion: 0.85, star: 1.0 };
     if (kind === 'jelly' && P.buff.bear > 0) kind = 'bear';
     if ((kind === 'jelly' || kind === 'bear') && P.buff.coinrain > 0) kind = 'coin';
     const s = new THREE.Sprite(kind === 'jelly' ? jellyMat() : matFor(kind));
@@ -603,15 +603,15 @@
       addPlat(x0 + 4, x0 + 9, 2.4);
       addFoe('low', x0 + 6.5, 0);
       jellyArc(x0 + 6.5, 3.6, gs * 0.27, 'coin');
-      const pool = CHARS.map((c) => c.id).filter((id) => id !== P.def.id && SD.ready(id)); // owned or not: a stranded squadmate
-      const id = pool.length ? pool[(Math.random() * pool.length) | 0] : null;
+      const id = run.rescueId && SD.ready(run.rescueId) && run.rescueId !== P.def.id && run.rescueId !== (sup && sup.def.id) ? run.rescueId : rescuePick(); // the one the arrow announced
+      run.rescueId = null;
       if (id) {
-        const rig = rigFrom(id, 1.25, FACE_ENEMY);
+        const rig = rigFrom(id, 1.75, FACE_ENEMY);
         outline(rig, OL_ALLY);
         rig.c.setOrder(L.ENEMY - 0.2); rig.c.play('idle', null, true); rig.c.setTint(0.7, 0.75, 0.9);
         rig.g.position.set(x0 + 7.6, 2.4, 0); scene.add(rig.g);
         const sos = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.reticle, color: 0x7dff8a, depthTest: false, depthWrite: false, transparent: true }));
-        sos.scale.set(1.4, 0.5, 1); sos.position.set(x0 + 7.6, 2.45, 0); sos.renderOrder = L.PROP + 0.3; scene.add(sos);
+        sos.scale.set(1.9, 0.6, 1); sos.position.set(x0 + 7.6, 2.45, 0); sos.renderOrder = L.PROP + 0.3; scene.add(sos);
         rescues.push({ id, rig, sos, x: x0 + 7.6, y: 2.4, done: false });
         popup(VW / 2, 4.0, '구조 요청: ' + charDef(id).name + ' — 발판 위로!', 'bossSkill');
       }
@@ -841,6 +841,21 @@
     { name: '경보: 집중 포격', q: ['bombs', 'shooter', 'bombs', 'lowAir'] },
     { name: '경보: 복합 전선', q: ['mix', 'pitLow', 'mix', 'airs'] },
   ];
+  const rescuePick = () => { const pool = CHARS.map((c) => c.id).filter((id) => id !== P.def.id && id !== (sup && sup.def.id) && SD.ready(id)); return pool.length ? pool[(Math.random() * pool.length) | 0] : null; }; // owned or not: a stranded squadmate
+  // the right-edge arrow: who is waiting ahead and how far (from 100 m out until she is on screen)
+  function rescueCall() {
+    const el = $('rescueCall'), at = run.nextRescue == null ? 520 : run.nextRescue, wait = rescues.find((r) => !r.done);
+    const ahead = Math.max(at - traveled, 0) + (genX - PX) + 7.6; // the chunk is laid at the generator's edge, ahead of the runner
+    if (!run.rescueId && !wait && !run.boss && ahead < 100) run.rescueId = rescuePick();
+    let d = -1, id = null;
+    if (wait) { id = wait.id; d = wait.x > VW - 1 ? wait.x - PX : -1; }
+    else if (run.rescueId && !run.boss) { id = run.rescueId; d = ahead; }
+    const on = d > 0 && state === 'play' && !P.dead;
+    if (hudCache.rcOn !== on) { hudCache.rcOn = on; el.classList.toggle('on', on); }
+    if (!on) return;
+    if (hudCache.rcId !== id) { hudCache.rcId = id; $('rescueImg').src = portrait(id); $('rescueName').textContent = charDef(id).name; }
+    setText('rescueDist', Math.ceil(d) + 'm');
+  }
   function pickChunk() {
     if (run.tutQ && run.tutQ.length) return run.tutQ.shift();
     if (!run.boss && !run.pick && run.bonus <= 0 && traveled > (run.nextRescue == null ? 520 : run.nextRescue) && (!run.evQ || !run.evQ.length) && Math.abs(traveled - 1150) > 120 && Math.abs(traveled - 2750) > 120) { run.nextRescue = traveled + rnd(800, 1000); return 'rescue'; }
@@ -892,7 +907,7 @@
     clearWorld();
     traveled = 0;
     stageIx = 0;
-    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, nextGiant: 240, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], timers: [], ev: null, evQ: null, evN: 0, nextEvent: 380, nextRescue: 520, rescued: 0, pStreak: 0, perfect: 0,
+    Object.assign(run, { score: 0, coins: 0, jelly: 0, kills: 0, nextHeart: 200, nextGiant: 240, rescueId: null, fever: 0, loop: 0, skillReady: 0, itemCd: 2, combo: 0, comboT: 0, maxCombo: 0, letters: 0, nextLetter: 60, bonus: 0, bonusCount: 0, coinsPicked: 0, done: [], nextBoss: 2000, bossCount: (Math.random() * 4) | 0, bossBeat: 0, stomps: 0, skills: 0, picked: [], timers: [], ev: null, evQ: null, evN: 0, nextEvent: 380, nextRescue: 520, rescued: 0, pStreak: 0, perfect: 0,
       tut: !attract && !save.tut, tutSeen: {}, tutQ: !attract && !save.tut ? ['flat', 'low', 'flat', 'tall', 'air', 'flat', 'pit', 'flat'] : null });
     clearBoss();
     showSet(STAGES[0].id, true);
@@ -1108,7 +1123,7 @@
     if (f.dead) return;
     tally('kill:' + by);
     f.dead = true;
-    if (f.rig) f.rig.g.children.forEach((c) => { if (c.isSprite) c.visible = false; }); // the danger glow goes with it
+    if (f.rig) { f.rig.g.children.forEach((c) => { if (c.isSprite) c.visible = false; }); f.rig.c.setOutline(0); } // the danger glow and the red outline go with it (a fading body over a solid outline reads as a blob)
     f.t = 0;
     run.kills++;
     addScore(100 * (pas().killK || 1) * ((run.mod && run.mod.kill) || 1));
@@ -1212,7 +1227,7 @@
       start(d) {
         P.buff.bear = d;
         clipFor('skill', 0.9);
-        items.forEach((it) => { if (it.kind === 'jelly') { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } });
+        items.forEach((it) => { if (it.kind === 'jelly') { it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 1.0; it.s.scale.set(1.0, 1.0, 1); } });
       },
     },
     heal: {
@@ -1505,7 +1520,7 @@
     if (sup) { freeRig(sup.rig); sup = null; }
     const id = save.sup;
     if (!id || id === P.def.id || !save.owned.includes(id)) return;
-    const rig = await makeRig(id, 1.15, FACE_PLAYER);
+    const rig = await makeRig(id, 1.5, FACE_PLAYER);
     if (!rig || state !== 'play') { if (rig) freeRig(rig); return; }
     rig.c.setOrder(L.PLAYER - 0.2);
     outline(rig, OL_ALLY);
@@ -1527,7 +1542,7 @@
     else if (ty === 'shield') { if (P.shield <= 0) { P.shield = 6; popup(sx, sy + 1, '실드'); } else fireAtFoe(); }
     else if (ty === 'magnet') P.buff.magnet = Math.max(P.buff.magnet || 0, 2.5);
     else if (ty === 'coinrain') dropItems(PX + 3, 2.5, 'coin', 6);
-    else if (ty === 'bigjelly') { let n = 0; items.forEach((it) => { if (it.kind === 'jelly' && n < 6 && it.x > PX) { n++; it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 0.85; it.s.scale.set(0.85, 0.85, 1); } }); }
+    else if (ty === 'bigjelly') { let n = 0; items.forEach((it) => { if (it.kind === 'jelly' && n < 6 && it.x > PX) { n++; it.kind = 'bear'; it.s.material = matFor('bear'); it.sz = 1.0; it.s.scale.set(1.0, 1.0, 1); } }); }
     else if (ty === 'frost') { if (t) freeze(t, 2); }
     else { if (t && t.x < PX + 6) { slashFx(t.x, foeMid(t), d.color, 2.4); breakFoe(t, 'melee'); } else fireAtFoe(); }
     if (sup.rig.c.has('atk')) { sup.rig.c.play('atk', () => sup && sup.rig.c.play('move', null, true)); sup.rig.c.speed = 2; }
@@ -1536,7 +1551,7 @@
   function updateSupport(dt) {
     if (!sup) return;
     sup.y += (Math.max(0, P.y - 0.2) - sup.y) * Math.min(1, dt * 7);
-    sup.rig.g.position.set(PX - 1.3, sup.y, 0);
+    sup.rig.g.position.set(PX - 1.45, sup.y, 0);
     sup.rig.c.update(dt);
     if (P.dead) return;
     if ((sup.t -= dt) <= 0) { sup.t = SUP_EVERY; supportAct(); }
@@ -2109,10 +2124,10 @@
         r.label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, depthWrite: false, transparent: true }));
         r.label.scale.set(1.6, 0.35, 1); r.label.renderOrder = L.FX + 2; scene.add(r.label);
       }
-      if (r.label) { r.label.position.set(r.x, r.y + 1.95, 0); r.label.material.opacity = r.t < 1.4 ? 1 : Math.max(0, 1 - (r.t - 1.4) * 3); }
+      if (r.label) { r.label.position.set(r.x, r.y + 2.45, 0); r.label.material.opacity = r.t < 1.4 ? 1 : Math.max(0, 1 - (r.t - 1.4) * 3); }
       r.sos.material.opacity = r.done ? 0 : 0.5 + Math.sin(performance.now() / 120) * 0.4;
       if (!r.done && !P.dead && Math.abs(r.x - PX) < 0.8 && Math.abs(P.y - r.y) < 0.9) { // reached
-        r.done = true; r.rig.c.setTint(1.35, 1.35, 1.35); r.rig.c.play('move', null, true); r.rig.g.scale.set(-1.15, 1.15, 1); r.rig.c.setOrder(L.PLAYER + 0.2); setTimeout(() => r.rig && r.rig.c.setTint(1, 1, 1), 250); r.tag = true; // a bright flash as she joins
+        r.done = true; r.rig.c.setTint(1.35, 1.35, 1.35); r.rig.c.play('move', null, true); r.rig.g.scale.set(-1, 1, 1); r.rig.c.setOrder(L.PLAYER + 0.2); setTimeout(() => r.rig && r.rig.c.setTint(1, 1, 1), 250); r.tag = true; // a bright flash as she joins
         addScore(800); run.coins += 20; run.rescued = (run.rescued || 0) + 1;
         P.shield = Math.max(P.shield, 3); P.skillT += 2;
         setTimeout(() => popup(PX + 1, P.y + 3.2, '구조 성공! ' + charDef(r.id).name + ' 합류 +800', 'perfect'), 300); ann('Success-1'); voice(r.id, 'mvp', 0.8, true); // the popup waits for the moment, never on top of the pickups
@@ -2627,6 +2642,7 @@
     setText('hpTxt', Math.ceil(Math.max(0, P.hp)) + ' / ' + P.maxHp);
     setText('score', Math.floor(run.score).toLocaleString());
     setText('dist', Math.floor(traveled) + 'm');
+    rescueCall();
     setText('coins', Math.floor(run.coins).toLocaleString());
     const mult = 1 + Math.min(0.5, Math.floor(run.combo / 25) * 0.1);
     setText('combo', run.combo >= 10 ? run.combo + ' COMBO  ×' + mult.toFixed(1) : '');
@@ -3114,6 +3130,22 @@
     renderer.render(scene, camera);
   }
 
+  // collectibles stand off any backdrop (grey lab walls ate the scrap-metal jelly): a dark rim and a coloured glow around the icon
+  function ringed(t, glow) {
+    const im = t.image, W = 128, k = Math.min(W * 0.78 / im.width, W * 0.78 / im.height), w = im.width * k, h = im.height * k, x = (W - w) / 2, y = (W - h) / 2;
+    const sil = document.createElement('canvas'); sil.width = sil.height = W;
+    const g0 = sil.getContext('2d'); g0.drawImage(im, x, y, w, h); g0.globalCompositeOperation = 'source-in';
+    const cv = document.createElement('canvas'); cv.width = cv.height = W;
+    const g = cv.getContext('2d');
+    g0.fillStyle = glow; g0.fillRect(0, 0, W, W);
+    g.filter = 'blur(6px)'; g.globalAlpha = 0.9; g.drawImage(sil, 0, 0); g.drawImage(sil, 0, 0); g.filter = 'none'; g.globalAlpha = 1; // the glow
+    g0.fillStyle = '#10141c'; g0.fillRect(0, 0, W, W);
+    for (let a = 0; a < 8; a++) g.drawImage(sil, Math.cos(a * Math.PI / 4) * 3, Math.sin(a * Math.PI / 4) * 3); // the dark rim
+    g.drawImage(im, x, y, w, h);
+    const ct = new THREE.CanvasTexture(cv); ct.anisotropy = 4;
+    t.dispose();
+    return ct;
+  }
   function loadTex(url) {
     return new Promise((res) => new THREE.TextureLoader().load(url, res, undefined, () => res(null)));
   }
@@ -3189,7 +3221,7 @@
       // original resource icons for the collectibles: power cell = jelly, nutrient = bear jelly, gold coin, parts crate = giant jelly
       ...['prop_fence', 'prop_stone1', 'prop_stone2', 'prop_fence2'].map((n, i) => loadTex('assets/img/' + n + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX.props[i] = t; } })),
       loadTex('assets/bg2/sky_bonus.webp').then((t) => { if (t) { t.minFilter = THREE.LinearMipmapLinearFilter; IMG.sky_bonus = t; } }),
-      ...[['jelly', 'power'], ['bear', 'nutrient'], ['coin', 'goldcoin'], ['jbig', 'parts'], ['gjelly', 'goldbar'], ['jellyMetal', 'metal']].map(([k, f]) => loadTex('assets/img/res_' + f + '.webp').then((t) => { if (t) { t.anisotropy = 4; TEX[k] = t; } })),
+      ...[['jelly', 'power', '#7ff3ff'], ['bear', 'nutrient', '#ff8ac8'], ['coin', 'goldcoin', '#ffd84a'], ['jbig', 'parts', '#ffffff'], ['gjelly', 'goldbar', '#ffd84a'], ['jellyMetal', 'metal', '#9ff8ff']].map(([k, f, c]) => loadTex('assets/img/res_' + f + '.webp').then((t) => { if (t) TEX[k] = ringed(t, c); })),
     ];
     let done = 0;
     jobs.forEach((p) => p.then(() => {
